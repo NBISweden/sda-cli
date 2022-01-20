@@ -12,7 +12,7 @@ import (
 var Usage = `
 USAGE: %s download [url(s)]
 
-Download: Downloads files from the Secure Data Archive (SDA). If a directory is
+Download: Downloads files from the Sensitive Data Archive (SDA). If a directory is
           provided (ending with "/"), then the tool will attempt to first
           download the urls_list.txt file, and then download all files in this
           list. If file urls are given, they will be downloaded as-is.

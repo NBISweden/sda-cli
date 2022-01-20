@@ -12,7 +12,7 @@ import (
 var Usage = `
 USAGE: %s encrypt [file(s)]
 
-Encrypt: Encrypts files according to the crypt4gh standard used in the Secure
+Encrypt: Encrypts files according to the crypt4gh standard used in the Sensitive
          Data Archive (SDA). Each given file will be encrypted and written to
          <filename>.c4gh. Both encrypted and decrypted checksums will be
          calculated and written to:

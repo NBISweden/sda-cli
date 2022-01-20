@@ -12,7 +12,7 @@ import (
 var Usage = `
 USAGE: %s decrypt -key <private-key-file> [file(s)]
 
-Decrypt: Encrypts files from the Secure Data Archive (SDA) with the provided
+Decrypt: Encrypts files from the Sensitive Data Archive (SDA) with the provided
          private key.
 `
 var ArgHelp = `

@@ -12,8 +12,8 @@ import (
 var Usage = `
 USAGE: %s upload -config <s3config-file> [file(s)]
 
-Upload: Uploads files to the Secure Data Archive (SDA). All files to upload are
-        required to be encrypted and have the .c4gh file extension.
+Upload: Uploads files to the Sensitive Data Archive (SDA). All files to upload
+		are required to be encrypted and have the .c4gh file extension.
 `
 var ArgHelp = `
   [file(s)]

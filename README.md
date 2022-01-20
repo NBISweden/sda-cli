@@ -1,7 +1,7 @@
 SDA-CLI
 =======
 
-This is the Secure Data Archive (SDA) Command Line Interface (sda-cli). This
+This is the Sensitive Data Archive (SDA) Command Line Interface (sda-cli). This
 tool was created to unify and simplify the tools needed to perform the most
 common user actions in the SDA.
 
