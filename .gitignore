@@ -1,0 +1,8 @@
+
+
+# personal files
+.vscode/
+personal/
+
+# compiled binary
+sda-cli
