@@ -1,9 +1,9 @@
 package upload
 
 import (
+	"errors"
 	"flag"
 	"os"
-	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -29,22 +29,23 @@ var Args = flag.NewFlagSet("upload", flag.ExitOnError)
 
 var configPath = Args.String("config", "", "S3 config file to use for uploading.")
 
+var s3ConfigPath = "dev_utils/config.yaml"
+
 // Configuration struct for storing the s3cmd file values
 type Config struct {
 	AccessKey            string `ini:"access_key"`
 	SecretKey            string `ini:"secret_key"`
 	AccessToken          string `ini:"access_token"`
-	CheckSslCertificate  bool   `ini:"check_ssl_certificate"`
-	CheckSslHostname     bool   `ini:"check_ssl_hostname"`
-	SocketTimeout        int    `ini:"socket_timeout"`
-	Encoding             string `ini:"encoding"`
-	Encrypt              bool   `ini:"encrypt"`
-	HumanReadableSizes   bool   `ini:"human_readable_sizes"`
-	MultipartChunkSizeMb int64  `ini:"multipart_chunk_size_mb"`
 	HostBucket           string `ini:"host_bucket"`
 	HostBase             string `ini:"host_base"`
+	MultipartChunkSizeMb int64  `ini:"multipart_chunk_size_mb"`
 	GuessMimeType        bool   `ini:"guess_mime_type"`
+	Encoding             string `ini:"encoding"`
+	CheckSslCertificate  bool   `ini:"check_ssl_certificate"`
+	CheckSslHostname     bool   `ini:"check_ssl_hostname"`
 	UseHttps             bool   `ini:"use_https"`
+	SocketTimeout        int    `ini:"socket_timeout"`
+	HumanReadableSizes   bool   `ini:"human_readable_sizes"`
 }
 
 // Load ini configuration file to the Config struct
@@ -54,41 +55,63 @@ func loadConfigFile(path string) (*Config, error) {
 
 	cfg, err := ini.Load(path)
 	if err != nil {
-		return config, nil
+		return config, err
 	}
 
 	if err := cfg.Section("").MapTo(config); err != nil {
 		return nil, err
 	}
 
+	if config.AccessKey == "" || config.AccessToken == "" {
+		return nil, errors.New("failed to find credentials in configuration file")
+	}
+
+	if config.HostBase == "" {
+		return nil, errors.New("failed to find endpoint in configuration file")
+	}
+
+	if config.UseHttps {
+		config.HostBase = "https://" + config.HostBase
+	}
+
+	if config.Encoding == "" {
+		config.Encoding = "UTF-8"
+	}
+
+	if config.MultipartChunkSizeMb == 0 {
+		config.MultipartChunkSizeMb = 50
+	}
+
 	return config, nil
 }
 
 // Main upload function
-func Upload(args []string) {
+func Upload(args []string) error {
 	Args.Parse(os.Args[1:])
 
 	// Args() returns the non-flag arguments, which we assume are filenames.
 	files := Args.Args()
+	if len(files) == 0 {
+		return errors.New("no files to upload")
+	}
 
 	// Check that we have a private key to decrypt with
 	if *configPath == "" {
-		log.Fatal("An s3config is required to upload data")
+		return errors.New("failed to find an s3 configuration file for uploading data")
 	}
-	log.Infof("Uploading %s with config %s", files, *configPath)
 
 	// Get the configuration in the struct
 	config, err := loadConfigFile(*configPath)
 	if err != nil {
-		log.Errorf("Error getting s3cmd configuration, %v", err)
+		return err
 	}
 
 	// The session the S3 Uploader will use
 	sess := session.Must(session.NewSession(&aws.Config{
 		Region:           aws.String("us-west-2"),
-		Credentials:      credentials.NewStaticCredentials(config.AccessKey, config.SecretKey, config.AccessToken),
-		Endpoint:         aws.String("https://" + config.HostBase),
-		DisableSSL:       aws.Bool(strings.HasPrefix("https://"+config.HostBase, "http:")),
+		Credentials:      credentials.NewStaticCredentials(config.AccessKey, config.AccessKey, config.AccessToken),
+		Endpoint:         aws.String(config.HostBase),
+		DisableSSL:       aws.Bool(config.UseHttps),
 		S3ForcePathStyle: aws.Bool(true),
 	}))
 
@@ -97,24 +120,28 @@ func Upload(args []string) {
 
 	for _, filename := range files {
 
+		log.Infof("Uploading %s with config %s", filename, *configPath)
+
 		f, err := os.Open(filename)
 		if err != nil {
-			log.Errorf("failed to open file %q, %v", filename, err)
+			return err
 		}
 
 		// Upload the file to S3.
 		result, err := uploader.Upload(&s3manager.UploadInput{
-			Body:   f,
-			Bucket: aws.String(config.AccessKey),
-			Key:    aws.String(filename),
+			Body:            f,
+			Bucket:          aws.String(config.AccessKey),
+			Key:             aws.String(filename),
+			ContentEncoding: aws.String(config.Encoding),
 		}, func(u *s3manager.Uploader) {
 			u.PartSize = config.MultipartChunkSizeMb * 1024 * 1024
 			// Delete parts of failed multipart, since we cannot currently continue them
 			u.LeavePartsOnError = true
 		})
 		if err != nil {
-			log.Errorf("failed to upload file, %v", err)
+			return err
 		}
-		log.Info("file uploaded to, %s", aws.StringValue(&result.Location))
+		log.Infof("file uploaded to %s", string(aws.StringValue(&result.Location)))
 	}
+	return nil
 }

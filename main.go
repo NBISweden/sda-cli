@@ -45,7 +45,10 @@ func main() {
 	case "download":
 		download.Download(args)
 	case "upload":
-		upload.Upload(args)
+		err := upload.Upload(args)
+		if err != nil {
+			log.Fatal(err)
+		}
 	default:
 		log.Fatal("Unknown command:", command)
 	}
