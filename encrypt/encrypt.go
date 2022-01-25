@@ -39,19 +39,6 @@ var publicKeyFile = Args.String("key", "",
 	"Public key to use for encrypting files.")
 var outDir = Args.String("outdir", "", "Output directory for encrypted files")
 
-// Type to keep track of infiles and outfiles
-type encryptionFileSet struct {
-	unencrypted string
-	encrypted   string
-}
-
-type hashSet struct {
-	encryptedMd5      string
-	unencryptedMd5    string
-	encryptedSha256   string
-	unencryptedSha256 string
-}
-
 // Main encryption function
 func Encrypt(args []string) {
 
@@ -157,18 +144,13 @@ func Encrypt(args []string) {
 func checkFiles(files []encryptionFileSet) error {
 	log.Info("Checking files")
 	for _, file := range files {
-		// check that the input file exists
-		fileInfo, err := os.Stat(file.unencrypted)
-		if err != nil {
-			return err
+		// check that the input file exists and is readable
+		if !FileIsReadable(file.unencrypted) {
+			return fmt.Errorf("cannot read input file %s", file.unencrypted)
 		}
-		// check that the input file isn't a directory
-		if fileInfo.IsDir() {
-			return fmt.Errorf("%s is a directory", file.unencrypted)
-		}
+
 		// check that the output file doesn't exist
-		_, err = os.Stat(file.encrypted)
-		if err == nil {
+		if FileExists(file.encrypted) {
 			return fmt.Errorf("outfile %s already exists", file.encrypted)
 		}
 	}
@@ -252,7 +234,7 @@ func generatePrivateKey() (*[32]byte, error) {
 // using the given `privateKey`.
 func encrypt(filename, outFilename string, pubKey, privateKey [32]byte) error {
 	// check if outfile exists
-	if _, err := os.Stat(outFilename); err == nil {
+	if FileExists(outFilename) {
 		return fmt.Errorf("outfile %s already exists", outFilename)
 	}
 
@@ -286,4 +268,49 @@ func encrypt(filename, outFilename string, pubKey, privateKey [32]byte) error {
 	}
 
 	return nil
+}
+
+//
+// Helper functions and structs
+//
+
+// struct type to keep track of infiles and outfiles for encryption and
+// decryption
+type encryptionFileSet struct {
+	unencrypted string
+	encrypted   string
+}
+
+// struct to keep track of all the checksums for a given unencrypted input file.
+type hashSet struct {
+	encryptedMd5      string
+	unencryptedMd5    string
+	encryptedSha256   string
+	unencryptedSha256 string
+}
+
+// Checks if a file exists in the file system. Note that this function will not
+// check if the file is readable, or if the file is a directory, only if it
+// exists.
+func FileExists(filename string) bool {
+	_, err := os.Stat(filename)
+	return err == nil
+}
+
+// Checks that a file exists, and is readable
+func FileIsReadable(filename string) bool {
+	fileInfo, err := os.Stat(filename)
+	if err != nil || fileInfo.IsDir() {
+		return false
+	}
+	// Check readability by simply trying to open the file and read one byte
+	inFile, err := os.Open(filename)
+	if err != nil {
+		return false
+	}
+	defer inFile.Close()
+
+	test := make([]byte, 1)
+	_, err = inFile.Read(test)
+	return err == nil
 }
