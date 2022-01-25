@@ -229,7 +229,7 @@ func readPublicKey(filename string) (key *[32]byte, err error) {
 }
 
 // Generates a crypt4gh key pair, returning only the private key, as the
-// public key isn't needed for encryption.
+// public key used for encryption is the one provided as argument.
 func generatePrivateKey() (*[32]byte, error) {
 	log.Info("Generating encryption key")
 
