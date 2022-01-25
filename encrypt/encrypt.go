@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 	"path"
-	"strings"
 
 	"github.com/elixir-oslo/crypt4gh/keys"
 	"github.com/elixir-oslo/crypt4gh/streaming"
@@ -55,7 +54,7 @@ type hashSet struct {
 
 // Main encryption function
 func Encrypt(args []string) {
-	log.Infof("args: %s", strings.Join(os.Args[:], ", "))
+
 	// Parse flags. There are no flags at the moment, but in case some are added
 	// we check for them.
 	err := Args.Parse(os.Args[1:])
@@ -182,61 +181,42 @@ func calculateHashes(fileSet encryptionFileSet) (*hashSet, error) {
 	hashes := hashSet{"", "", "", ""}
 
 	// open infile
-	inFile, err := os.Open(fileSet.unencrypted)
+	unencryptedFile, err := os.Open(fileSet.unencrypted)
 	if err != nil {
 		return nil, err
 	}
-	defer inFile.Close()
+	defer unencryptedFile.Close()
 
-	// unencrypted md5
+	// unencrypted md5 and sha256 checksums
 	md5Hash := md5.New()
-	_, err = io.Copy(md5Hash, inFile)
+	shaHash := sha256.New()
+
+	tee := io.TeeReader(unencryptedFile, md5Hash)
+
+	_, err = io.Copy(shaHash, tee)
 	if err != nil {
 		return nil, err
 	}
 	hashes.unencryptedMd5 = hex.EncodeToString(md5Hash.Sum(nil))
-
-	// reset file
-	_, err = inFile.Seek(0, 0)
-	if err != nil {
-		return nil, err
-	}
-
-	// unencrypted sha256
-	shaHash := sha256.New()
-	_, err = io.Copy(shaHash, inFile)
-	if err != nil {
-		return nil, err
-	}
 	hashes.unencryptedSha256 = hex.EncodeToString(shaHash.Sum(nil))
 
-	// open outfile
-	outFile, err := os.Open(fileSet.encrypted)
+	// encrypted md5 and sha256 checksums
+	encryptedFile, err := os.Open(fileSet.encrypted)
 	if err != nil {
 		return nil, err
 	}
-	defer outFile.Close()
+	defer encryptedFile.Close()
 
 	// encrypted md5
 	md5Hash.Reset()
-	_, err = io.Copy(md5Hash, outFile)
+	shaHash.Reset()
+
+	tee = io.TeeReader(encryptedFile, md5Hash)
+	_, err = io.Copy(shaHash, tee)
 	if err != nil {
 		return nil, err
 	}
 	hashes.encryptedMd5 = hex.EncodeToString(md5Hash.Sum(nil))
-
-	// reset file
-	_, err = outFile.Seek(0, 0)
-	if err != nil {
-		return nil, err
-	}
-
-	// encrypted sha256
-	shaHash.Reset()
-	_, err = io.Copy(shaHash, outFile)
-	if err != nil {
-		return nil, err
-	}
 	hashes.encryptedSha256 = hex.EncodeToString(shaHash.Sum(nil))
 
 	return &hashes, nil
