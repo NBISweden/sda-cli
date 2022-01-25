@@ -76,7 +76,8 @@ func loadConfigFile(path string) (*Config, error) {
 		config.Encoding = "UTF-8"
 	}
 
-	if config.MultipartChunkSizeMb == 0 {
+	// Where 15 is the default chunk size of the library
+	if config.MultipartChunkSizeMb <= 15 {
 		config.MultipartChunkSizeMb = 50
 	}
 
@@ -136,7 +137,7 @@ func Upload(args []string) error {
 		}, func(u *s3manager.Uploader) {
 			u.PartSize = config.MultipartChunkSizeMb * 1024 * 1024
 			// Delete parts of failed multipart, since we cannot currently continue them
-			u.LeavePartsOnError = true
+			u.LeavePartsOnError = false
 		})
 		if err != nil {
 			return err
