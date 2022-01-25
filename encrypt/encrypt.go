@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -40,7 +41,7 @@ var publicKeyFile = Args.String("key", "",
 var outDir = Args.String("outdir", "", "Output directory for encrypted files")
 
 // Main encryption function
-func Encrypt(args []string) {
+func Encrypt(args []string) error {
 
 	// Parse flags. There are no flags at the moment, but in case some are added
 	// we check for them.
@@ -67,48 +68,48 @@ func Encrypt(args []string) {
 	// Check that all the infiles exist, and all the outfiles don't
 	err := checkFiles(files)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	// Read the public key to be used for encryption. The private key
 	// matching this public key will be able to decrypt the file.
 	publicKey, err := readPublicKey(*publicKeyFile)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	// Generate a random private key to encrypt the data
 	privateKey, err := generatePrivateKey()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	// Open all checksum files
 	ChecksumFileUnencMd5, err := os.OpenFile("checksum_unencrypted.md5",
 		os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer ChecksumFileUnencMd5.Close()
 
 	ChecksumFileUnencSha256, err := os.OpenFile("checksum_unencrypted.sha256",
 		os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer ChecksumFileUnencSha256.Close()
 
 	ChecksumFileEncMd5, err := os.OpenFile("checksum_encrypted.md5",
 		os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer ChecksumFileEncMd5.Close()
 
 	ChecksumFileEncSha256, err := os.OpenFile("checksum_encrypted.sha256",
 		os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer ChecksumFileEncSha256.Close()
 
@@ -120,12 +121,12 @@ func Encrypt(args []string) {
 		// encrypt the file
 		err = encrypt(file.unencrypted, file.encrypted, *publicKey, *privateKey)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 		// calculate hashes
 		hashes, err := calculateHashes(file)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 
 		// Write hashes
@@ -138,6 +139,7 @@ func Encrypt(args []string) {
 		ChecksumFileEncSha256.WriteString(
 			fmt.Sprintf("%s %s\n", hashes.encryptedSha256, file.encrypted))
 	}
+	return nil
 }
 
 // Checks that all the input files exists, and are readable
@@ -205,17 +207,25 @@ func calculateHashes(fileSet encryptionFileSet) (*hashSet, error) {
 }
 
 // Reads a public key file from a file using the crypt4gh keys module
-func readPublicKey(filename string) (*[32]byte, error) {
+func readPublicKey(filename string) (key *[32]byte, err error) {
 	log.Info("Reading Public key file")
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
+
+	// This function panics if the key is malformed, so we handle that as well
+	// as errors
+	defer func() {
+		log.Info("Hey! this is a panic!")
+		if recover() != nil {
+			err = fmt.Errorf("malformed key file: %s", filename)
+		}
+	}()
+
 	publicKey, err := keys.ReadPublicKey(file)
-	if err != nil {
-		return nil, err
-	}
-	return &publicKey, nil
+
+	return &publicKey, err
 }
 
 // Generates a crypt4gh key pair, returning only the private key, as the
@@ -225,7 +235,7 @@ func generatePrivateKey() (*[32]byte, error) {
 
 	_, privateKey, err := keys.GenerateKeyPair()
 	if err != nil {
-		return nil, err
+		return nil, errors.New("failed to generate private key for encryption")
 	}
 	return &privateKey, nil
 }

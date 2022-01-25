@@ -37,20 +37,22 @@ func main() {
 
 	command, args := ParseArgs()
 
+	var err error = nil
+
 	switch command {
 	case "encrypt":
-		encrypt.Encrypt(args)
+		err = encrypt.Encrypt(args)
 	case "decrypt":
-		decrypt.Decrypt(args)
+		err = decrypt.Decrypt(args)
 	case "download":
-		download.Download(args)
+		err = download.Download(args)
 	case "upload":
-		err := upload.Upload(args)
-		if err != nil {
-			log.Fatal(err)
-		}
+		err = upload.Upload(args)
 	default:
 		log.Fatal("Unknown command:", command)
+	}
+	if err != nil {
+		log.Fatal(err)
 	}
 }
 
