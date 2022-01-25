@@ -29,8 +29,6 @@ var Args = flag.NewFlagSet("upload", flag.ExitOnError)
 
 var configPath = Args.String("config", "", "S3 config file to use for uploading.")
 
-var s3ConfigPath = "dev_utils/config.yaml"
-
 // Configuration struct for storing the s3cmd file values
 type Config struct {
 	AccessKey            string `ini:"access_key"`
@@ -108,6 +106,8 @@ func Upload(args []string) error {
 
 	// The session the S3 Uploader will use
 	sess := session.Must(session.NewSession(&aws.Config{
+		// The region for the backend is always the specified one
+		// and not present in the configuration from auth - hardcoded
 		Region:           aws.String("us-west-2"),
 		Credentials:      credentials.NewStaticCredentials(config.AccessKey, config.AccessKey, config.AccessToken),
 		Endpoint:         aws.String(config.HostBase),
