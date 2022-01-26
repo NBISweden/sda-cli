@@ -173,7 +173,7 @@ func (suite *EncryptTests) TestFileIsReadable() {
 		suite.Equal(testDisallowed, false)
 
 		// restore permissions
-		err = os.Chmod(suite.fileOk.Name(), 0644)
+		err = os.Chmod(suite.fileOk.Name(), 0600)
 		if err != nil {
 			log.Fatal("Couldn't restore file permissions of test file")
 		}
