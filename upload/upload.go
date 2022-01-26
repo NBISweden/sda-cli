@@ -147,5 +147,6 @@ func Upload(args []string) error {
 		}
 		log.Infof("file uploaded to %s", string(aws.StringValue(&result.Location)))
 	}
+
 	return nil
 }
