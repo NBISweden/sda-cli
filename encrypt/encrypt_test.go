@@ -70,7 +70,7 @@ func (suite *EncryptTests) SetupTest() {
 		log.Fatal("cannot create temporary public key file", err)
 	}
 
-	err = ioutil.WriteFile(suite.fileOk.Name(), []byte("content"), 0644)
+	err = ioutil.WriteFile(suite.fileOk.Name(), []byte("content"), 0600)
 	if err != nil {
 		log.Fatalf("failed to write to testfile: %s", err)
 	}
