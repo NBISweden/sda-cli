@@ -130,14 +130,21 @@ func Encrypt(args []string) error {
 		}
 
 		// Write hashes
-		ChecksumFileUnencMd5.WriteString(
-			fmt.Sprintf("%s %s\n", hashes.unencryptedMd5, file.unencrypted))
-		ChecksumFileUnencSha256.WriteString(
-			fmt.Sprintf("%s %s\n", hashes.unencryptedSha256, file.unencrypted))
-		ChecksumFileEncMd5.WriteString(
-			fmt.Sprintf("%s %s\n", hashes.encryptedMd5, file.encrypted))
-		ChecksumFileEncSha256.WriteString(
-			fmt.Sprintf("%s %s\n", hashes.encryptedSha256, file.encrypted))
+		if _, err := ChecksumFileUnencMd5.WriteString(fmt.Sprintf("%s %s\n", hashes.unencryptedMd5, file.unencrypted)); err != nil {
+			return err
+		}
+
+		if _, err := ChecksumFileUnencSha256.WriteString(fmt.Sprintf("%s %s\n", hashes.unencryptedSha256, file.unencrypted)); err != nil {
+			return err
+		}
+
+		if _, err := ChecksumFileEncMd5.WriteString(fmt.Sprintf("%s %s\n", hashes.encryptedMd5, file.encrypted)); err != nil {
+			return err
+		}
+
+		if _, err := ChecksumFileEncSha256.WriteString(fmt.Sprintf("%s %s\n", hashes.encryptedSha256, file.encrypted)); err != nil {
+			return err
+		}
 	}
 	return nil
 }
