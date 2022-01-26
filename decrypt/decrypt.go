@@ -40,6 +40,4 @@ func Decrypt(args []string) {
 	}
 
 	log.Infof("Encrypting files %s with key %s", files, *privateKey)
-
-	return nil
 }

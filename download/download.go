@@ -24,7 +24,7 @@ var ArgHelp = `
 var Args = flag.NewFlagSet("download", flag.ExitOnError)
 
 // Main download function
-func Download(args []string) error {
+func Download(args []string) {
 	// Parse flags. There are no flags at the moment, but in case some are added
 	// we check for them.
 	err := Args.Parse(os.Args[1:])
@@ -36,6 +36,4 @@ func Download(args []string) error {
 	urls := Args.Args()
 
 	log.Infof("Downloading urls %s", urls)
-
-	return nil
 }

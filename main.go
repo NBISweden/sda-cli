@@ -43,9 +43,9 @@ func main() {
 	case "encrypt":
 		err = encrypt.Encrypt(args)
 	case "decrypt":
-		err = decrypt.Decrypt(args)
+		decrypt.Decrypt(args)
 	case "download":
-		err = download.Download(args)
+		download.Download(args)
 	case "upload":
 		err = upload.Upload(args)
 	default:
