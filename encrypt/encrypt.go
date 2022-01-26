@@ -18,6 +18,8 @@ import (
 
 // Help text and command line flags.
 
+// Usage text that will be displayed as command line help text when using the
+// `help encrypt` command
 var Usage = `
 USAGE: %s encrypt -key <public-key-file> (-outdir <dir>) [file(s)]
 
@@ -30,24 +32,30 @@ Encrypt: Encrypts files according to the crypt4gh standard used in the Sensitive
           - checksum_unencrypted.sha256
           - checksum_encrypted.sha256
 `
+
+// ArgHelp is the suffix text that will be displayed after the argument list in
+// the module help
 var ArgHelp = `
   [files]
         all flagless arguments will be used as filenames for encryption.`
 
+// Args is a flagset that needs to be exported so that it can be written to the
+// main program help
 var Args = flag.NewFlagSet("encrypt", flag.ExitOnError)
 
 var publicKeyFile = Args.String("key", "",
 	"Public key to use for encrypting files.")
 var outDir = Args.String("outdir", "", "Output directory for encrypted files")
 
-// Main encryption function
+// Encrypt takes a set of arguments, parses them, and attempts to encrypt the
+// given data files with the given public key file
 func Encrypt(args []string) error {
 
 	// Parse flags. There are no flags at the moment, but in case some are added
 	// we check for them.
 	err := Args.Parse(os.Args[1:])
 	if err != nil {
-		log.Fatalf("Argument parsing failed, reason: %v", err)
+		return fmt.Errorf("could not parse arguments: %s", err)
 	}
 
 	// Args() returns the non-flag arguments, which we assume are filenames.
@@ -66,7 +74,7 @@ func Encrypt(args []string) error {
 	}
 
 	// Check that all the infiles exist, and all the outfiles don't
-	err := checkFiles(files)
+	err = checkFiles(files)
 	if err != nil {
 		return err
 	}
@@ -85,29 +93,25 @@ func Encrypt(args []string) error {
 	}
 
 	// Open all checksum files
-	ChecksumFileUnencMd5, err := os.OpenFile("checksum_unencrypted.md5",
-		os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	ChecksumFileUnencMd5, err := os.OpenFile("checksum_unencrypted.md5", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return err
 	}
 	defer ChecksumFileUnencMd5.Close()
 
-	ChecksumFileUnencSha256, err := os.OpenFile("checksum_unencrypted.sha256",
-		os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	ChecksumFileUnencSha256, err := os.OpenFile("checksum_unencrypted.sha256", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return err
 	}
 	defer ChecksumFileUnencSha256.Close()
 
-	ChecksumFileEncMd5, err := os.OpenFile("checksum_encrypted.md5",
-		os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	ChecksumFileEncMd5, err := os.OpenFile("checksum_encrypted.md5", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return err
 	}
 	defer ChecksumFileEncMd5.Close()
 
-	ChecksumFileEncSha256, err := os.OpenFile("checksum_encrypted.sha256",
-		os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	ChecksumFileEncSha256, err := os.OpenFile("checksum_encrypted.sha256", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return err
 	}
@@ -307,15 +311,15 @@ type hashSet struct {
 	unencryptedSha256 string
 }
 
-// Checks if a file exists in the file system. Note that this function will not
-// check if the file is readable, or if the file is a directory, only if it
-// exists.
+// FileExists checks if a file exists in the file system. Note that this
+// function will not check if the file is readable, or if the file is a
+// directory, only if it exists.
 func FileExists(filename string) bool {
 	_, err := os.Stat(filename)
 	return err == nil
 }
 
-// Checks that a file exists, and is readable
+// FileIsReadable checks that a file exists, and is readable by the program.
 func FileIsReadable(filename string) bool {
 	fileInfo, err := os.Stat(filename)
 	if err != nil || fileInfo.IsDir() {
