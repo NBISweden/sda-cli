@@ -142,7 +142,8 @@ func Encrypt(args []string) error {
 	return nil
 }
 
-// Checks that all the input files exists, and are readable
+// Checks that all the input files exists, and are readable, and that the
+// output files do not exist
 func checkFiles(files []encryptionFileSet) error {
 	log.Info("Checking files")
 	for _, file := range files {
@@ -159,7 +160,7 @@ func checkFiles(files []encryptionFileSet) error {
 	return nil
 }
 
-// Calculates md5 and sha256 hashes for the unencrypted and encrypted file
+// Calculates md5 and sha256 hashes for the unencrypted and encrypted files
 func calculateHashes(fileSet encryptionFileSet) (*hashSet, error) {
 
 	hashes := hashSet{"", "", "", ""}
@@ -229,7 +230,7 @@ func readPublicKey(filename string) (key *[32]byte, err error) {
 }
 
 // Generates a crypt4gh key pair, returning only the private key, as the
-// public key used for encryption is the one provided as argument.
+// public key used for encryption is the one provided as an argument.
 func generatePrivateKey() (*[32]byte, error) {
 	log.Info("Generating encryption key")
 
