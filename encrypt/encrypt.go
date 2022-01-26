@@ -19,7 +19,7 @@ import (
 // Help text and command line flags.
 
 var Usage = `
-USAGE: %s encrypt [file(s)]
+USAGE: %s encrypt -key <public-key-file> (-outdir <dir>) [file(s)]
 
 Encrypt: Encrypts files according to the crypt4gh standard used in the Sensitive
          Data Archive (SDA). Each given file will be encrypted and written to
