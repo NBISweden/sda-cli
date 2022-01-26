@@ -46,9 +46,9 @@ encrypt = False
 
 	defer os.Remove(configPath.Name())
 
-	err = ioutil.WriteFile(configPath.Name(), []byte(confFile), 0644)
+	err = ioutil.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		log.Fatalf("failed to write temp config file, %v", err)
+		log.Printf("failed to write temp config file, %v", err)
 	}
 
 	_, err = loadConfigFile(configPath.Name())
@@ -80,9 +80,9 @@ access_key = someUser
 
 	defer os.Remove(configPath.Name())
 
-	err = ioutil.WriteFile(configPath.Name(), []byte(confFile), 0644)
+	err = ioutil.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		log.Fatalf("failed to write temp config file, %v", err)
+		log.Printf("failed to write temp config file, %v", err)
 	}
 
 	_, err = loadConfigFile(configPath.Name())
@@ -113,9 +113,9 @@ encrypt = False
 
 	defer os.Remove(configPath.Name())
 
-	err = ioutil.WriteFile(configPath.Name(), []byte(confFile), 0644)
+	err = ioutil.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		log.Fatalf("failed to write temp config file, %v", err)
+		log.Printf("failed to write temp config file, %v", err)
 	}
 
 	_, err = loadConfigFile(configPath.Name())

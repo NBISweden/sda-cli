@@ -26,7 +26,10 @@ var privateKey = Args.String("key", "",
 
 // Main decryption function
 func Decrypt(args []string) {
-	Args.Parse(os.Args[1:])
+	err := Args.Parse(os.Args[1:])
+	if err != nil {
+		log.Fatalf("Argument parsing failed, reason: %v", err)
+	}
 
 	// Args() returns the non-flag arguments, which we assume are filenames.
 	files := Args.Args()

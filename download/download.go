@@ -27,7 +27,10 @@ var Args = flag.NewFlagSet("download", flag.ExitOnError)
 func Download(args []string) {
 	// Parse flags. There are no flags at the moment, but in case some are added
 	// we check for them.
-	Args.Parse(os.Args[1:])
+	err := Args.Parse(os.Args[1:])
+	if err != nil {
+		log.Fatalf("Argument parsing failed, reason: %v", err)
+	}
 
 	// Args() returns the non-flag arguments, which we assume are filenames.
 	urls := Args.Args()
