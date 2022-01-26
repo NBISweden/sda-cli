@@ -114,9 +114,9 @@ func Encrypt(args []string) error {
 	defer ChecksumFileEncSha256.Close()
 
 	// encrypt the input files
-	num_files := len(files)
+	numFiles := len(files)
 	for i, file := range files {
-		log.Infof("Encrypting file %v/%v: %s", i+1, num_files, file.unencrypted)
+		log.Infof("Encrypting file %v/%v: %s", i+1, numFiles, file.unencrypted)
 
 		// encrypt the file
 		err = encrypt(file.unencrypted, file.encrypted, *publicKey, *privateKey)
