@@ -86,8 +86,8 @@ func ParseArgs() (string, []string) {
 // on the `command` arg.
 func Help(command string) {
 
-	info, is_legal := Commands[command]
-	if is_legal {
+	info, isLegal := Commands[command]
+	if isLegal {
 		// print subcommand help
 		fmt.Fprintf(os.Stderr, info.usage, os.Args[0])
 		fmt.Fprintln(os.Stderr, "Command line arguments:")

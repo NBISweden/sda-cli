@@ -41,7 +41,7 @@ type Config struct {
 	Encoding             string `ini:"encoding"`
 	CheckSslCertificate  bool   `ini:"check_ssl_certificate"`
 	CheckSslHostname     bool   `ini:"check_ssl_hostname"`
-	UseHttps             bool   `ini:"use_https"`
+	UseHTTPS             bool   `ini:"use_https"`
 	SocketTimeout        int    `ini:"socket_timeout"`
 	HumanReadableSizes   bool   `ini:"human_readable_sizes"`
 }
@@ -68,7 +68,7 @@ func loadConfigFile(path string) (*Config, error) {
 		return nil, errors.New("failed to find endpoint in configuration file")
 	}
 
-	if config.UseHttps {
+	if config.UseHTTPS {
 		config.HostBase = "https://" + config.HostBase
 	}
 
@@ -86,7 +86,10 @@ func loadConfigFile(path string) (*Config, error) {
 
 // Main upload function
 func Upload(args []string) error {
-	Args.Parse(os.Args[1:])
+	err := Args.Parse(os.Args[1:])
+	if err != nil {
+		return err
+	}
 
 	// Args() returns the non-flag arguments, which we assume are filenames.
 	files := Args.Args()
@@ -112,7 +115,7 @@ func Upload(args []string) error {
 		Region:           aws.String("us-west-2"),
 		Credentials:      credentials.NewStaticCredentials(config.AccessKey, config.AccessKey, config.AccessToken),
 		Endpoint:         aws.String(config.HostBase),
-		DisableSSL:       aws.Bool(config.UseHttps),
+		DisableSSL:       aws.Bool(config.UseHTTPS),
 		S3ForcePathStyle: aws.Bool(true),
 	}))
 
@@ -144,5 +147,6 @@ func Upload(args []string) error {
 		}
 		log.Infof("file uploaded to %s", string(aws.StringValue(&result.Location)))
 	}
+
 	return nil
 }
