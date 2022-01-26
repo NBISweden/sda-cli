@@ -37,7 +37,7 @@ func main() {
 
 	command, args := ParseArgs()
 
-	var err error = nil
+	var err error
 
 	switch command {
 	case "encrypt":

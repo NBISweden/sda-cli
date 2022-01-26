@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 
 	"github.com/elixir-oslo/crypt4gh/keys"
 	"github.com/elixir-oslo/crypt4gh/streaming"
@@ -97,25 +98,41 @@ func Encrypt(args []string) error {
 	if err != nil {
 		return err
 	}
-	defer ChecksumFileUnencMd5.Close()
+	defer func() {
+		if err := ChecksumFileUnencMd5.Close(); err != nil {
+			log.Errorf("Error closing file: %s\n", err)
+		}
+	}()
 
 	ChecksumFileUnencSha256, err := os.OpenFile("checksum_unencrypted.sha256", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return err
 	}
-	defer ChecksumFileUnencSha256.Close()
+	defer func() {
+		if err := ChecksumFileUnencSha256.Close(); err != nil {
+			log.Errorf("Error closing file: %s\n", err)
+		}
+	}()
 
 	ChecksumFileEncMd5, err := os.OpenFile("checksum_encrypted.md5", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return err
 	}
-	defer ChecksumFileEncMd5.Close()
+	defer func() {
+		if err := ChecksumFileEncMd5.Close(); err != nil {
+			log.Errorf("Error closing file: %s\n", err)
+		}
+	}()
 
 	ChecksumFileEncSha256, err := os.OpenFile("checksum_encrypted.sha256", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return err
 	}
-	defer ChecksumFileEncSha256.Close()
+	defer func() {
+		if err := ChecksumFileEncSha256.Close(); err != nil {
+			log.Errorf("Error closing file: %s\n", err)
+		}
+	}()
 
 	// encrypt the input files
 	numFiles := len(files)
@@ -150,6 +167,7 @@ func Encrypt(args []string) error {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -168,6 +186,7 @@ func checkFiles(files []encryptionFileSet) error {
 			return fmt.Errorf("outfile %s already exists", file.encrypted)
 		}
 	}
+
 	return nil
 }
 
@@ -181,7 +200,11 @@ func calculateHashes(fileSet encryptionFileSet) (*hashSet, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer unencryptedFile.Close()
+	defer func() {
+		if err := unencryptedFile.Close(); err != nil {
+			log.Errorf("Error closing file: %s\n", err)
+		}
+	}()
 
 	// unencrypted md5 and sha256 checksums
 	md5Hash := md5.New()
@@ -201,7 +224,11 @@ func calculateHashes(fileSet encryptionFileSet) (*hashSet, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer encryptedFile.Close()
+	defer func() {
+		if err := encryptedFile.Close(); err != nil {
+			log.Errorf("Error closing file: %s\n", err)
+		}
+	}()
 
 	// encrypted md5
 	md5Hash.Reset()
@@ -221,7 +248,7 @@ func calculateHashes(fileSet encryptionFileSet) (*hashSet, error) {
 // Reads a public key file from a file using the crypt4gh keys module
 func readPublicKey(filename string) (key *[32]byte, err error) {
 	log.Info("Reading Public key file")
-	file, err := os.Open(filename)
+	file, err := os.Open(filepath.Clean(filename))
 	if err != nil {
 		return nil, err
 	}
@@ -249,6 +276,7 @@ func generatePrivateKey() (*[32]byte, error) {
 	if err != nil {
 		return nil, errors.New("failed to generate private key for encryption")
 	}
+
 	return &privateKey, nil
 }
 
@@ -261,18 +289,26 @@ func encrypt(filename, outFilename string, pubKey, privateKey [32]byte) error {
 	}
 
 	// read infile
-	inFile, err := os.Open(filename)
+	inFile, err := os.Open(filepath.Clean(filename))
 	if err != nil {
 		return err
 	}
-	defer inFile.Close()
+	defer func() {
+		if err := inFile.Close(); err != nil {
+			log.Errorf("Error closing file: %s\n", err)
+		}
+	}()
 
 	// open outfile for writing
-	outFile, err := os.Create(outFilename)
+	outFile, err := os.Create(filepath.Clean(outFilename))
 	if err != nil {
 		return err
 	}
-	defer outFile.Close()
+	defer func() {
+		if err := outFile.Close(); err != nil {
+			log.Errorf("Error closing file: %s\n", err)
+		}
+	}()
 
 	// Create crypt4gh writer
 	pubKeyList := [][32]byte{pubKey}
@@ -316,6 +352,7 @@ type hashSet struct {
 // directory, only if it exists.
 func FileExists(filename string) bool {
 	_, err := os.Stat(filename)
+
 	return err == nil
 }
 
@@ -326,13 +363,18 @@ func FileIsReadable(filename string) bool {
 		return false
 	}
 	// Check readability by simply trying to open the file and read one byte
-	inFile, err := os.Open(filename)
+	inFile, err := os.Open(filepath.Clean(filename))
 	if err != nil {
 		return false
 	}
-	defer inFile.Close()
+	defer func() {
+		if err := inFile.Close(); err != nil {
+			log.Errorf("Error closing file: %s\n", err)
+		}
+	}()
 
 	test := make([]byte, 1)
 	_, err = inFile.Read(test)
+
 	return err == nil
 }
