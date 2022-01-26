@@ -37,13 +37,36 @@ var ArgHelp = `
 // main program help
 var Args = flag.NewFlagSet("download", flag.ExitOnError)
 
+// Gets the file name for a URL, using regex
+func getFileNameFromURL(file string) (fileName string, err error) {
+	// Create the file path according to the way files are stored in S3
+	// The folder structure comes after the UID described in the regex
+	re := regexp.MustCompile(`[\w\d]{8}-(\w|\d){4}-(\w|\d){4}-(\w|\d){4}-(\w|\d){12}/(.*)`)
+	match := re.FindStringSubmatch(file)
+	if match == nil || len(match) < 6 {
+		return fileName, fmt.Errorf("failed to parse url for downloading file")
+	}
+	fileName = match[5]
+
+	var filePath string
+	if strings.Contains(fileName, "/") {
+		filePath = filepath.Dir(fileName)
+		err = os.MkdirAll(filePath, os.ModePerm)
+		if err != nil {
+			return fileName, err
+		}
+	}
+
+	return fileName, nil
+}
+
 // Downloads a file from the url to the filePath location
 func downloadListFile(url string, filePath string) error {
 
 	// Get the file from the provided url
 	resp, err := http.Get(url)
 	if err != nil {
-		return fmt.Errorf("argument parsing failed, reason: %v", err)
+		return fmt.Errorf("failed to download file, reason: %v", err)
 	}
 	defer resp.Body.Close()
 
@@ -75,8 +98,12 @@ func getFilesUrls(urlsFilePath string) (urlsList []string, err error) {
 	for scanner.Scan() {
 		urlsList = append(urlsList, scanner.Text())
 	}
-	return urlsList, scanner.Err()
 
+	if len(urlsList) == 0 {
+		return urlsList, fmt.Errorf("failed to get list of files, empty file")
+	}
+
+	return urlsList, scanner.Err()
 }
 
 // Download function downaloads the files included in the urls_list.txt file.
@@ -91,24 +118,33 @@ func Download(args []string) error {
 
 	// Args() returns the non-flag arguments, which we assume are filenames.
 	urls := Args.Args()
+	if len(urls) == 0 {
+		return fmt.Errorf("failed to find location of files, no argument passed")
+	}
 
 	var currentPath, urlsFilePath string
 	currentPath, err = os.Getwd()
-	log.Print(currentPath)
 	if err != nil {
 		return fmt.Errorf("failed to get current path, reason: %v", err)
 	}
 
 	// If the argument ends with "/", download the urls_list.txt file first
 	if strings.HasSuffix(urls[0], "/") {
-
 		urlsFilePath = currentPath + "/urls_list.txt"
 		err = downloadListFile(urls[0]+"urls_list.txt", urlsFilePath)
 		if err != nil {
 			return err
 		}
+	} else if strings.Contains(urls[0], "/") {
+		// Case where the user passes the url directly to urls_list.txt
+		urlsFilePath = currentPath + "/urls_list.txt"
+		log.Info(urls[0], urlsFilePath)
+		err = downloadListFile(urls[0], urlsFilePath)
+		if err != nil {
+			return err
+		}
 	} else {
-		// Assuming that the argument contains the path to the urls_list.txt
+		// Case where the user passes a file containg the urls tto download
 		urlsFilePath = urls[0]
 	}
 
@@ -121,19 +157,11 @@ func Download(args []string) error {
 	// Download the files and create the folder structure
 	for _, file := range urlsList {
 
-		// Create the file path according to the way files are stored in S3
-		// The folder structure comes after the UID described in the regex
-		re := regexp.MustCompile(`[\w\d]{8}-(\w|\d){4}-(\w|\d){4}-(\w|\d){4}-(\w|\d){12}/(.*)`)
-		fileName := re.FindStringSubmatch(file)[5]
-
-		var filePath string
-		if strings.Contains(fileName, "/") {
-			filePath = filepath.Dir(fileName)
-			err = os.MkdirAll(filePath, os.ModePerm)
-			if err != nil {
-				return err
-			}
+		fileName, err := getFileNameFromURL(file)
+		if err != nil {
+			return err
 		}
+
 		err = downloadListFile(file, fileName)
 		if err != nil {
 			return err
