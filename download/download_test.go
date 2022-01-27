@@ -42,9 +42,7 @@ func (suite *TestSuite) TestdownloadListFileWrongUrl() {
 func (suite *TestSuite) TestWrongUrlsFile() {
 
 	urlsListPath, err := ioutil.TempFile(os.TempDir(), "urls_list-")
-	if err != nil {
-		log.Fatal(err)
-	}
+	assert.NoError(suite.T(), err)
 	defer os.Remove(urlsListPath.Name())
 
 	_, err = getFilesUrls(urlsListPath.Name())
@@ -59,9 +57,7 @@ someUrlToFile3
 `
 
 	urlsListPath, err := ioutil.TempFile(os.TempDir(), "urls_list-")
-	if err != nil {
-		log.Fatal(err)
-	}
+	assert.NoError(suite.T(), err)
 	defer os.Remove(urlsListPath.Name())
 
 	err = ioutil.WriteFile(urlsListPath.Name(), []byte(urlsListFile), 0600)
