@@ -258,7 +258,6 @@ func readPublicKey(filename string) (key *[32]byte, err error) {
 	// This function panics if the key is malformed, so we handle that as well
 	// as errors
 	defer func() {
-		log.Info("Hey! this is a panic!")
 		if recover() != nil {
 			err = fmt.Errorf("malformed key file: %s", filename)
 		}
