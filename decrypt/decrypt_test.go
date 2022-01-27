@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/NBISweden/sda-cli/encrypt"
+	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -97,6 +98,24 @@ func (suite *DecryptTests) TestreadPrivateKey() {
 	// Test reading a real key
 	_, err = readPrivateKey(fmt.Sprintf("%s.sec.pem", testKeyFile), "")
 	assert.NoError(suite.T(), err)
+}
+
+func (suite *DecryptTests) TestcheckFiles() {
+	// unencrypted is readable, and unencrypted isn't (this is fine!)
+	testOk := helpers.EncryptionFileSet{Encrypted: suite.testFile.Name(), Unencrypted: "does-not-exist"}
+	err := checkFiles([]helpers.EncryptionFileSet{testOk})
+	assert.NoError(suite.T(), err)
+
+	// unencrypted is readable, but encrypted exists
+	testHasEncrypted := helpers.EncryptionFileSet{Encrypted: suite.testFile.Name(), Unencrypted: suite.testFile.Name()}
+	err = checkFiles([]helpers.EncryptionFileSet{testHasEncrypted})
+	assert.EqualError(suite.T(), err, fmt.Sprintf("outfile %s already exists",
+		suite.testFile.Name()))
+
+	// unencrypted isn't readable
+	testNoUnencrypted := helpers.EncryptionFileSet{Encrypted: "does-not-exist", Unencrypted: suite.testFile.Name()}
+	err = checkFiles([]helpers.EncryptionFileSet{testNoUnencrypted})
+	assert.EqualError(suite.T(), err, "cannot read input file does-not-exist")
 }
 
 func (suite *DecryptTests) Testdecrypt() {
