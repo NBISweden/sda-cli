@@ -41,12 +41,12 @@ var Args = flag.NewFlagSet("download", flag.ExitOnError)
 func getFileNameFromURL(file string) (fileName string, err error) {
 	// Create the file path according to the way files are stored in S3
 	// The folder structure comes after the UID described in the regex
-	re := regexp.MustCompile(`[\w\d]{8}-(\w|\d){4}-(\w|\d){4}-(\w|\d){4}-(\w|\d){12}/(.*)`)
+	re := regexp.MustCompile(`(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/(.*)`)
 	match := re.FindStringSubmatch(file)
-	if match == nil || len(match) < 6 {
+	if match == nil || len(match) < 1 {
 		return fileName, fmt.Errorf("failed to parse url for downloading file")
 	}
-	fileName = match[5]
+	fileName = match[1]
 
 	var filePath string
 	if strings.Contains(fileName, "/") {
