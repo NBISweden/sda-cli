@@ -129,7 +129,9 @@ func Download(args []string) error {
 	}
 
 	switch {
-	// If the argument ends with "/", download the urls_list.txt file first
+	// Case where the uses passes the url to the s3 folder where the data exists
+	// Download the urls_list.txt file first and then the data files
+	// e.g. https://some/url/to/folder/
 	case strings.HasSuffix(urls[0], "/") && regexp.MustCompile(`https?://`).MatchString(urls[0]):
 		urlsFilePath = currentPath + "/urls_list.txt"
 		err = downloadListFile(urls[0]+"urls_list.txt", urlsFilePath)
@@ -137,7 +139,7 @@ func Download(args []string) error {
 			return err
 		}
 	// Case where the user passes the url directly to urls_list.txt
-	//case strings.Contains(urls[0], "http"):
+	// e.g. https://some/url/to/urls_list.txt
 	case regexp.MustCompile(`https?://`).MatchString(urls[0]):
 		urlsFilePath = currentPath + "/urls_list.txt"
 		log.Info(urls[0], urlsFilePath)
@@ -146,6 +148,7 @@ func Download(args []string) error {
 			return err
 		}
 	// Case where the user passes a file containg the urls to download
+	// e.g. /some/folder/to/file.txt
 	default:
 		urlsFilePath = urls[0]
 	}
