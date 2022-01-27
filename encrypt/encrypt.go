@@ -63,7 +63,7 @@ func Encrypt(args []string) error {
 
 	// Args() returns the non-flag arguments, which we assume are filenames.
 	// All filenames are read into a struct together with their output filenames
-	files := []encryptionFileSet{}
+	files := []helpers.EncryptionFileSet{}
 	for _, filename := range Args.Args() {
 
 		// Set directory for the output file
@@ -73,7 +73,7 @@ func Encrypt(args []string) error {
 			outFilename = path.Join(*outDir, basename) + ".c4gh"
 		}
 
-		files = append(files, encryptionFileSet{filename, outFilename})
+		files = append(files, helpers.EncryptionFileSet{filename, outFilename})
 	}
 
 	// Check that all the infiles exist, and all the outfiles don't
@@ -139,10 +139,10 @@ func Encrypt(args []string) error {
 	// encrypt the input files
 	numFiles := len(files)
 	for i, file := range files {
-		log.Infof("Encrypting file %v/%v: %s", i+1, numFiles, file.unencrypted)
+		log.Infof("Encrypting file %v/%v: %s", i+1, numFiles, file.Unencrypted)
 
 		// encrypt the file
-		err = encrypt(file.unencrypted, file.encrypted, *publicKey, *privateKey)
+		err = encrypt(file.Unencrypted, file.Encrypted, *publicKey, *privateKey)
 		if err != nil {
 			return err
 		}
@@ -153,19 +153,19 @@ func Encrypt(args []string) error {
 		}
 
 		// Write hashes
-		if _, err := ChecksumFileUnencMd5.WriteString(fmt.Sprintf("%s %s\n", hashes.unencryptedMd5, file.unencrypted)); err != nil {
+		if _, err := ChecksumFileUnencMd5.WriteString(fmt.Sprintf("%s %s\n", hashes.unencryptedMd5, file.Unencrypted)); err != nil {
 			return err
 		}
 
-		if _, err := ChecksumFileUnencSha256.WriteString(fmt.Sprintf("%s %s\n", hashes.unencryptedSha256, file.unencrypted)); err != nil {
+		if _, err := ChecksumFileUnencSha256.WriteString(fmt.Sprintf("%s %s\n", hashes.unencryptedSha256, file.Unencrypted)); err != nil {
 			return err
 		}
 
-		if _, err := ChecksumFileEncMd5.WriteString(fmt.Sprintf("%s %s\n", hashes.encryptedMd5, file.encrypted)); err != nil {
+		if _, err := ChecksumFileEncMd5.WriteString(fmt.Sprintf("%s %s\n", hashes.encryptedMd5, file.Encrypted)); err != nil {
 			return err
 		}
 
-		if _, err := ChecksumFileEncSha256.WriteString(fmt.Sprintf("%s %s\n", hashes.encryptedSha256, file.encrypted)); err != nil {
+		if _, err := ChecksumFileEncSha256.WriteString(fmt.Sprintf("%s %s\n", hashes.encryptedSha256, file.Encrypted)); err != nil {
 			return err
 		}
 	}
@@ -175,17 +175,17 @@ func Encrypt(args []string) error {
 
 // Checks that all the input files exists, and are readable, and that the
 // output files do not exist
-func checkFiles(files []encryptionFileSet) error {
+func checkFiles(files []helpers.EncryptionFileSet) error {
 	log.Info("Checking files")
 	for _, file := range files {
 		// check that the input file exists and is readable
-		if !helpers.FileIsReadable(file.unencrypted) {
-			return fmt.Errorf("cannot read input file %s", file.unencrypted)
+		if !helpers.FileIsReadable(file.Unencrypted) {
+			return fmt.Errorf("cannot read input file %s", file.Unencrypted)
 		}
 
 		// check that the output file doesn't exist
-		if helpers.FileExists(file.encrypted) {
-			return fmt.Errorf("outfile %s already exists", file.encrypted)
+		if helpers.FileExists(file.Encrypted) {
+			return fmt.Errorf("outfile %s already exists", file.Encrypted)
 		}
 	}
 
@@ -193,12 +193,12 @@ func checkFiles(files []encryptionFileSet) error {
 }
 
 // Calculates md5 and sha256 hashes for the unencrypted and encrypted files
-func calculateHashes(fileSet encryptionFileSet) (*hashSet, error) {
+func calculateHashes(fileSet helpers.EncryptionFileSet) (*hashSet, error) {
 
 	hashes := hashSet{"", "", "", ""}
 
 	// open infile
-	unencryptedFile, err := os.Open(fileSet.unencrypted)
+	unencryptedFile, err := os.Open(fileSet.Unencrypted)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +222,7 @@ func calculateHashes(fileSet encryptionFileSet) (*hashSet, error) {
 	hashes.unencryptedSha256 = hex.EncodeToString(shaHash.Sum(nil))
 
 	// encrypted md5 and sha256 checksums
-	encryptedFile, err := os.Open(fileSet.encrypted)
+	encryptedFile, err := os.Open(fileSet.Encrypted)
 	if err != nil {
 		return nil, err
 	}
@@ -332,13 +332,6 @@ func encrypt(filename, outFilename string, pubKey, privateKey [32]byte) error {
 //
 // structs
 //
-
-// struct type to keep track of infiles and outfiles for encryption and
-// decryption
-type encryptionFileSet struct {
-	unencrypted string
-	encrypted   string
-}
 
 // struct to keep track of all the checksums for a given unencrypted input file.
 type hashSet struct {

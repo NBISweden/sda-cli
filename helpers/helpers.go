@@ -8,6 +8,17 @@ import (
 )
 
 //
+// Shared structs
+//
+
+// EncryptionFileSet is a struct type to keep track of infiles and outfiles for
+// encryption and decryption
+type EncryptionFileSet struct {
+	Unencrypted string
+	Encrypted   string
+}
+
+//
 // Helper functions used by more than one module
 //
 
