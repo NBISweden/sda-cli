@@ -130,14 +130,15 @@ func Download(args []string) error {
 
 	switch {
 	// If the argument ends with "/", download the urls_list.txt file first
-	case strings.HasSuffix(urls[0], "/"):
+	case strings.HasSuffix(urls[0], "/") && regexp.MustCompile(`https?://`).MatchString(urls[0]):
 		urlsFilePath = currentPath + "/urls_list.txt"
 		err = downloadListFile(urls[0]+"urls_list.txt", urlsFilePath)
 		if err != nil {
 			return err
 		}
 	// Case where the user passes the url directly to urls_list.txt
-	case strings.Contains(urls[0], "http"):
+	//case strings.Contains(urls[0], "http"):
+	case regexp.MustCompile(`https?://`).MatchString(urls[0]):
 		urlsFilePath = currentPath + "/urls_list.txt"
 		log.Info(urls[0], urlsFilePath)
 		err = downloadListFile(urls[0], urlsFilePath)
