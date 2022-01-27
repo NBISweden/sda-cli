@@ -3,7 +3,9 @@ package upload
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"os"
+	"path"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -15,21 +17,28 @@ import (
 
 // Help text and command line flags.
 
+// Usage text that will be displayed as command line help text when using the
+// `help download` command
 var Usage = `
 USAGE: %s upload -config <s3config-file> [file(s)]
 
 Upload: Uploads files to the Sensitive Data Archive (SDA). All files to upload
 		are required to be encrypted and have the .c4gh file extension.
 `
+
+// ArgHelp is the suffix text that will be displayed after the argument list in
+// the module help
 var ArgHelp = `
   [file(s)]
         all flagless arguments will be used as filenames to upload.`
 
+// Args is a flagset that needs to be exported so that it can be written to the
+// main program help
 var Args = flag.NewFlagSet("upload", flag.ExitOnError)
 
 var configPath = Args.String("config", "", "S3 config file to use for uploading.")
 
-// Configuration struct for storing the s3cmd file values
+// Config struct for storing the s3cmd file values
 type Config struct {
 	AccessKey            string `ini:"access_key"`
 	SecretKey            string `ini:"secret_key"`
@@ -84,11 +93,11 @@ func loadConfigFile(path string) (*Config, error) {
 	return config, nil
 }
 
-// Main upload function
+// Upload function uploads the files included as arguments to the s3 bucket
 func Upload(args []string) error {
 	err := Args.Parse(os.Args[1:])
 	if err != nil {
-		return err
+		return fmt.Errorf("failed parsing arguments, reason: %v", err)
 	}
 
 	// Args() returns the non-flag arguments, which we assume are filenames.
@@ -126,7 +135,7 @@ func Upload(args []string) error {
 
 		log.Infof("Uploading %s with config %s", filename, *configPath)
 
-		f, err := os.Open(filename)
+		f, err := os.Open(path.Clean(filename))
 		if err != nil {
 			return err
 		}
