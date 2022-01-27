@@ -128,23 +128,24 @@ func Download(args []string) error {
 		return fmt.Errorf("failed to get current path, reason: %v", err)
 	}
 
+	switch {
 	// If the argument ends with "/", download the urls_list.txt file first
-	if strings.HasSuffix(urls[0], "/") {
+	case strings.HasSuffix(urls[0], "/"):
 		urlsFilePath = currentPath + "/urls_list.txt"
 		err = downloadListFile(urls[0]+"urls_list.txt", urlsFilePath)
 		if err != nil {
 			return err
 		}
-	} else if strings.Contains(urls[0], "/") {
-		// Case where the user passes the url directly to urls_list.txt
+	// Case where the user passes the url directly to urls_list.txt
+	case strings.Contains(urls[0], "http"):
 		urlsFilePath = currentPath + "/urls_list.txt"
 		log.Info(urls[0], urlsFilePath)
 		err = downloadListFile(urls[0], urlsFilePath)
 		if err != nil {
 			return err
 		}
-	} else {
-		// Case where the user passes a file containg the urls tto download
+	// Case where the user passes a file containg the urls to download
+	default:
 		urlsFilePath = urls[0]
 	}
 
