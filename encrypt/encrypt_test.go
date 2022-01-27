@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"runtime"
 	"testing"
 
 	"github.com/elixir-oslo/crypt4gh/keys"
@@ -134,48 +133,4 @@ func (suite *EncryptTests) TestcalculateHashes() {
 	suite.Equal(hashes.encryptedMd5, "9a0364b9e99bb480dd25e1f0284c8555")
 	suite.Equal(hashes.encryptedSha256,
 		"ed7002b439e9ac845f22357d822bac1444730fbdb6016d3ec9432297b9ec9f73")
-}
-
-func (suite *EncryptTests) TestFileExists() {
-	// file exists
-	testExists := FileExists(suite.fileOk.Name())
-	suite.Equal(testExists, true)
-	// file does not exists
-	testMissing := FileExists("does-not-exist")
-	suite.Equal(testMissing, false)
-	// file is a directory
-	testIsDir := FileExists(suite.tempDir)
-	suite.Equal(testIsDir, true)
-}
-
-func (suite *EncryptTests) TestFileIsReadable() {
-	// file doesn't exist
-	testMissing := FileIsReadable("does-not-exist")
-	suite.Equal(testMissing, false)
-
-	// file is a directory
-	testIsDir := FileIsReadable(suite.tempDir)
-	suite.Equal(testIsDir, false)
-
-	// file can be read
-	testFileOk := FileIsReadable(suite.fileOk.Name())
-	suite.Equal(testFileOk, true)
-
-	// test file permissions. This doesn't work on windows, so we do an extra
-	// check to see if this test makes sense.
-	if runtime.GOOS != "windows" {
-		err := os.Chmod(suite.fileOk.Name(), 0000)
-		if err != nil {
-			log.Fatal("Couldn't set file permissions of test file")
-		}
-		// file permissions don't allow reading
-		testDisallowed := FileIsReadable(suite.fileOk.Name())
-		suite.Equal(testDisallowed, false)
-
-		// restore permissions
-		err = os.Chmod(suite.fileOk.Name(), 0600)
-		if err != nil {
-			log.Fatal("Couldn't restore file permissions of test file")
-		}
-	}
 }

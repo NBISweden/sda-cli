@@ -12,6 +12,8 @@ import (
 	"path"
 	"path/filepath"
 
+	"github.com/NBISweden/sda-cli/helpers"
+
 	"github.com/elixir-oslo/crypt4gh/keys"
 	"github.com/elixir-oslo/crypt4gh/streaming"
 	log "github.com/sirupsen/logrus"
@@ -177,12 +179,12 @@ func checkFiles(files []encryptionFileSet) error {
 	log.Info("Checking files")
 	for _, file := range files {
 		// check that the input file exists and is readable
-		if !FileIsReadable(file.unencrypted) {
+		if !helpers.FileIsReadable(file.unencrypted) {
 			return fmt.Errorf("cannot read input file %s", file.unencrypted)
 		}
 
 		// check that the output file doesn't exist
-		if FileExists(file.encrypted) {
+		if helpers.FileExists(file.encrypted) {
 			return fmt.Errorf("outfile %s already exists", file.encrypted)
 		}
 	}
@@ -284,7 +286,7 @@ func generatePrivateKey() (*[32]byte, error) {
 // using the given `privateKey`.
 func encrypt(filename, outFilename string, pubKey, privateKey [32]byte) error {
 	// check if outfile exists
-	if FileExists(outFilename) {
+	if helpers.FileExists(outFilename) {
 		return fmt.Errorf("outfile %s already exists", outFilename)
 	}
 
@@ -329,7 +331,7 @@ func encrypt(filename, outFilename string, pubKey, privateKey [32]byte) error {
 }
 
 //
-// Helper functions and structs
+// structs
 //
 
 // struct type to keep track of infiles and outfiles for encryption and
@@ -345,36 +347,4 @@ type hashSet struct {
 	unencryptedMd5    string
 	encryptedSha256   string
 	unencryptedSha256 string
-}
-
-// FileExists checks if a file exists in the file system. Note that this
-// function will not check if the file is readable, or if the file is a
-// directory, only if it exists.
-func FileExists(filename string) bool {
-	_, err := os.Stat(filename)
-
-	return err == nil
-}
-
-// FileIsReadable checks that a file exists, and is readable by the program.
-func FileIsReadable(filename string) bool {
-	fileInfo, err := os.Stat(filename)
-	if err != nil || fileInfo.IsDir() {
-		return false
-	}
-	// Check readability by simply trying to open the file and read one byte
-	inFile, err := os.Open(filepath.Clean(filename))
-	if err != nil {
-		return false
-	}
-	defer func() {
-		if err := inFile.Close(); err != nil {
-			log.Errorf("Error closing file: %s\n", err)
-		}
-	}()
-
-	test := make([]byte, 1)
-	_, err = inFile.Read(test)
-
-	return err == nil
 }
