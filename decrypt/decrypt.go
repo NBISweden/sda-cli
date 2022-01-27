@@ -36,7 +36,7 @@ var Args = flag.NewFlagSet("decrypt", flag.ExitOnError)
 var keyName = Args.String("createKey", "",
 	"Generate a crypt4gh key pair to use for decryption")
 
-var privateKey = Args.String("key", "",
+var privateKeyFile = Args.String("key", "",
 	"Private key to use for decrypting files.")
 
 // Decrypt takes a set of arguments, parses them, and attempts to eiher create a
@@ -62,11 +62,17 @@ func Decrypt(args []string) error {
 	}
 
 	// Check that we have a private key to decrypt with
-	if *privateKey == "" {
+	if *privateKeyFile == "" {
 		return errors.New("a private key is required to decrypt data")
 	}
 
-	log.Infof("Encrypting files %s with key %s", files, *privateKey)
+	// Loading private key file
+	_, err = readPrivateKey(*privateKeyFile, "")
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Encrypting files %s with key %s", files, *privateKeyFile)
 
 	return nil
 }
@@ -124,4 +130,30 @@ func generateKeyPair(basename, password string) error {
 	return err
 }
 
+// Reads a private key file from a file using the crypt4gh keys module
+func readPrivateKey(filename, password string) (key *[32]byte, err error) {
+
+	// Check that the file exists
+	if !helpers.FileExists(filename) {
+		return nil, fmt.Errorf("private key file %s doesn't exist", filename)
+	}
+
+	log.Info("Reading Private key file")
+	file, err := os.Open(filepath.Clean(filename))
+	if err != nil {
+		return nil, err
+	}
+
+	// This function panics if the key is malformed, so we handle that as well
+	// as errors
+	defer func() {
+		log.Info("Hey! this is a panic!")
+		if recover() != nil {
+			err = fmt.Errorf("malformed key file: %s", filename)
+		}
+	}()
+
+	privateKey, err := keys.ReadPrivateKey(file, []byte(password))
+
+	return &privateKey, err
 }

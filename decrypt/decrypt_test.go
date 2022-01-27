@@ -69,3 +69,25 @@ func (suite *DecryptTests) TestgenerateKeyPair() {
 	os.Remove(fmt.Sprintf("%s.sec.pem", testFileName))
 }
 
+func (suite *DecryptTests) TestreadPrivateKey() {
+
+	testKeyFile := filepath.Join(suite.tempDir, "testkey")
+
+	// generate key files
+	err := generateKeyPair(testKeyFile, "")
+	if err != nil {
+		log.Fatalf("couldn't generate testing key pair: %s", err)
+	}
+
+	// Test reading a non-existent key
+	_, err = readPrivateKey(testKeyFile, "")
+	assert.EqualError(suite.T(), err, fmt.Sprintf("private key file %s doesn't exist", testKeyFile))
+
+	// Test reading something that isn't a key
+	_, err = readPrivateKey(suite.testFile.Name(), "")
+	assert.EqualError(suite.T(), err, fmt.Sprintf("malformed key file: %s", suite.testFile.Name()))
+
+	// Test reading a real key
+	_, err = readPrivateKey(fmt.Sprintf("%s.sec.pem", testKeyFile), "")
+	assert.NoError(suite.T(), err)
+}
