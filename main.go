@@ -116,6 +116,7 @@ func Help(command string) {
 			if len(lines) < 2 {
 				// if we don't have enough data, just print the usage string
 				fmt.Fprintf(os.Stderr, "%s\n", fmt.Sprintf(info.usage, os.Args[0]))
+
 				continue
 			}
 			usage := lines[1]
