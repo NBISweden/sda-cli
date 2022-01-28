@@ -24,7 +24,8 @@ USAGE: %s download [url(s)]
 Download: Downloads files from the Sensitive Data Archive (SDA). If a directory is
           provided (ending with "/"), then the tool will attempt to first
           download the urls_list.txt file, and then download all files in this
-          list. If file urls are given, they will be downloaded as-is.
+          list. If file urls are given, they files will be downloaded creating the
+		  same folder structure locally.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
@@ -106,7 +107,7 @@ func getURLsFile(urlsFilePath string) (urlsList []string, err error) {
 	return urlsList, scanner.Err()
 }
 
-// Download function downaloads the files included in the urls_list.txt file.
+// Download function downloads the files included in the urls_list.txt file.
 // The argument can be a local file or a url to an S3 folder
 func Download(args []string) error {
 	// Parse flags. There are no flags at the moment, but in case some are added
@@ -129,7 +130,7 @@ func Download(args []string) error {
 	}
 
 	switch {
-	// Case where the uses passes the url to the s3 folder where the data exists
+	// Case where the user passes the url to the s3 folder where the data exists
 	// Download the urls_list.txt file first and then the data files
 	// e.g. https://some/url/to/folder/
 	case strings.HasSuffix(urls[0], "/") && regexp.MustCompile(`https?://`).MatchString(urls[0]):

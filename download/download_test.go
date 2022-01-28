@@ -53,7 +53,7 @@ func (suite *TestSuite) TestCorrectUrlsFile() {
 
 	urlsListFile := `someUrlToFile1
 someUrlToFile2
-someUrlToFile3	
+someUrlToFile3
 `
 
 	urlsListPath, err := ioutil.TempFile(os.TempDir(), "urls_list-")
