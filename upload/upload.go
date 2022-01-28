@@ -95,7 +95,7 @@ func loadConfigFile(path string) (*Config, error) {
 
 // Upload function uploads the files included as arguments to the s3 bucket
 func Upload(args []string) error {
-	err := Args.Parse(os.Args[1:])
+	err := Args.Parse(args[1:])
 	if err != nil {
 		return fmt.Errorf("failed parsing arguments, reason: %v", err)
 	}

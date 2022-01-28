@@ -112,7 +112,7 @@ func getURLsFile(urlsFilePath string) (urlsList []string, err error) {
 func Download(args []string) error {
 	// Parse flags. There are no flags at the moment, but in case some are added
 	// we check for them.
-	err := Args.Parse(os.Args[1:])
+	err := Args.Parse(args[1:])
 	if err != nil {
 		return fmt.Errorf("failed parsing arguments, reason: %v", err)
 	}
