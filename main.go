@@ -82,6 +82,12 @@ func ParseArgs() (string, []string) {
 		Help(subcommand)
 	}
 
+	// If no arguments are provided to the subcommand, it's not gonna be valid,
+	// so we print the subcommand help
+	if len(os.Args) == 1 {
+		Help(command)
+	}
+
 	return command, os.Args
 }
 
