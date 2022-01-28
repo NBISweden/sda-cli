@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/NBISweden/sda-cli/decrypt"
 	"github.com/NBISweden/sda-cli/download"
@@ -102,11 +103,22 @@ func Help(command string) {
 		// print main help
 		fmt.Fprintf(os.Stderr, Usage, os.Args[0])
 		fmt.Fprintln(os.Stderr, "The tool can help with these actions:")
-		for _, info := range Commands {
-			fmt.Fprintf(os.Stderr, "%s\n", info.usage)
+		for subcommand, info := range Commands {
+			// Break up the usage command to be more readable. This depends on
+			// all of the usage strings being correctly formatted for this tool.
+			lines := strings.Split(fmt.Sprintf(info.usage, os.Args[0]), "\n")
+			if len(lines) < 2 {
+				// if we don't have enough data, just print the usage string
+				fmt.Fprintf(os.Stderr, "%s\n", fmt.Sprintf(info.usage, os.Args[0]))
+				continue
+			}
+			usage := lines[1]
+			format := "%s\n%" + fmt.Sprintf("%v", len(subcommand)+2) + "s%s\n\n"
+
+			fmt.Fprintf(os.Stderr, format, strings.Join(lines[2:], "\n"), " ", usage)
 		}
 		fmt.Fprintf(os.Stderr,
-			"Use '%s <command> help' to get help with subcommand flags.\n",
+			"Use '%s help <command>' to get help with subcommand flags.\n",
 			os.Args[0])
 	}
 

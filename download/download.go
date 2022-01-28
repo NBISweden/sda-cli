@@ -25,7 +25,7 @@ Download: Downloads files from the Sensitive Data Archive (SDA). If a directory 
           provided (ending with "/"), then the tool will attempt to first
           download the urls_list.txt file, and then download all files in this
           list. If file urls are given, they files will be downloaded creating the
-		  same folder structure locally.
+          same folder structure locally.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
