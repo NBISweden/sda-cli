@@ -145,7 +145,7 @@ func (suite *DecryptTests) Testdecrypt() {
 	if err != nil {
 		log.Fatal("could not change into test directory")
 	}
-	encryptArgs := []string{"-key", fmt.Sprintf("%s.pub.pem", testKeyFile), suite.testFile.Name()}
+	encryptArgs := []string{"sda-cli", "-key", fmt.Sprintf("%s.pub.pem", testKeyFile), suite.testFile.Name()}
 	err = encrypt.Encrypt(encryptArgs)
 	if err != nil {
 		log.Fatalf("couldn't encrypt file for decryption test: %s", err)

@@ -46,7 +46,7 @@ var privateKeyFile = Args.String("key", "",
 // crypt4gh key pair (if -keyName is set) or decrypt the given data files with
 // the given private key file (otherwise).
 func Decrypt(args []string) error {
-	err := Args.Parse(args)
+	err := Args.Parse(args[1:])
 	if err != nil {
 		return fmt.Errorf("argument parsing failed, reason: %v", err)
 	}

@@ -56,7 +56,7 @@ func Encrypt(args []string) error {
 
 	// Parse flags. There are no flags at the moment, but in case some are added
 	// we check for them.
-	err := Args.Parse(args)
+	err := Args.Parse(args[1:])
 	if err != nil {
 		return fmt.Errorf("could not parse arguments: %s", err)
 	}
@@ -73,7 +73,7 @@ func Encrypt(args []string) error {
 			outFilename = path.Join(*outDir, basename) + ".c4gh"
 		}
 
-		files = append(files, helpers.EncryptionFileSet{filename, outFilename})
+		files = append(files, helpers.EncryptionFileSet{Unencrypted: filename, Encrypted: outFilename})
 	}
 
 	// Check that all the infiles exist, and all the outfiles don't
