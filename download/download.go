@@ -38,7 +38,7 @@ var ArgHelp = `
 var Args = flag.NewFlagSet("download", flag.ExitOnError)
 
 // Gets the file name for a URL, using regex
-func getFileNameFromURL(file string) (fileName string, err error) {
+func createFilePathFromURL(file string) (fileName string, err error) {
 	// Create the file path according to the way files are stored in S3
 	// The folder structure comes after the UID described in the regex
 	re := regexp.MustCompile(`(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/(.*)`)
@@ -61,7 +61,7 @@ func getFileNameFromURL(file string) (fileName string, err error) {
 }
 
 // Downloads a file from the url to the filePath location
-func downloadListFile(url string, filePath string) error {
+func downloadFile(url string, filePath string) error {
 
 	// Get the file from the provided url
 	resp, err := http.Get(url)
@@ -86,7 +86,7 @@ func downloadListFile(url string, filePath string) error {
 }
 
 // Read the urls_list.txt file and return the urls of the files in a list
-func getFilesUrls(urlsFilePath string) (urlsList []string, err error) {
+func getURLsFile(urlsFilePath string) (urlsList []string, err error) {
 
 	urlsFile, err := os.Open(filepath.Clean(urlsFilePath))
 	if err != nil {
@@ -134,7 +134,7 @@ func Download(args []string) error {
 	// e.g. https://some/url/to/folder/
 	case strings.HasSuffix(urls[0], "/") && regexp.MustCompile(`https?://`).MatchString(urls[0]):
 		urlsFilePath = currentPath + "/urls_list.txt"
-		err = downloadListFile(urls[0]+"urls_list.txt", urlsFilePath)
+		err = downloadFile(urls[0]+"urls_list.txt", urlsFilePath)
 		if err != nil {
 			return err
 		}
@@ -143,7 +143,7 @@ func Download(args []string) error {
 	case regexp.MustCompile(`https?://`).MatchString(urls[0]):
 		urlsFilePath = currentPath + "/urls_list.txt"
 		log.Info(urls[0], urlsFilePath)
-		err = downloadListFile(urls[0], urlsFilePath)
+		err = downloadFile(urls[0], urlsFilePath)
 		if err != nil {
 			return err
 		}
@@ -154,7 +154,7 @@ func Download(args []string) error {
 	}
 
 	// Open urls_list.txt file and loop through file urls
-	urlsList, err := getFilesUrls(urlsFilePath)
+	urlsList, err := getURLsFile(urlsFilePath)
 	if err != nil {
 		return err
 	}
@@ -162,12 +162,12 @@ func Download(args []string) error {
 	// Download the files and create the folder structure
 	for _, file := range urlsList {
 
-		fileName, err := getFileNameFromURL(file)
+		fileName, err := createFilePathFromURL(file)
 		if err != nil {
 			return err
 		}
 
-		err = downloadListFile(file, fileName)
+		err = downloadFile(file, fileName)
 		if err != nil {
 			return err
 		}

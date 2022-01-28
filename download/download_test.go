@@ -30,11 +30,11 @@ func (suite *TestSuite) TestNoArgument() {
 	assert.EqualError(suite.T(), err, "failed to find location of files, no argument passed")
 }
 
-func (suite *TestSuite) TestdownloadListFileWrongUrl() {
+func (suite *TestSuite) TestdownloadFileWrongUrl() {
 
 	url := "someUrl"
 	filePath := "."
-	err := downloadListFile(url, filePath)
+	err := downloadFile(url, filePath)
 
 	assert.EqualError(suite.T(), err, "failed to download file, reason: Get \"someUrl\": unsupported protocol scheme \"\"")
 }
@@ -45,7 +45,7 @@ func (suite *TestSuite) TestWrongUrlsFile() {
 	assert.NoError(suite.T(), err)
 	defer os.Remove(urlsListPath.Name())
 
-	_, err = getFilesUrls(urlsListPath.Name())
+	_, err = getURLsFile(urlsListPath.Name())
 	assert.EqualError(suite.T(), err, "failed to get list of files, empty file")
 }
 
@@ -65,7 +65,7 @@ someUrlToFile3
 		log.Printf("failed to write temp config file, %v", err)
 	}
 
-	urlsList, err := getFilesUrls(urlsListPath.Name())
+	urlsList, err := getURLsFile(urlsListPath.Name())
 	assert.NoError(suite.T(), err)
 
 	assert.Equal(suite.T(), 3, len(urlsList))
@@ -75,7 +75,7 @@ func (suite *TestSuite) TestWronglyFormatterUrls() {
 
 	fileURL := "someURL"
 
-	_, err := getFileNameFromURL(fileURL)
+	_, err := createFilePathFromURL(fileURL)
 
 	assert.EqualError(suite.T(), err, "failed to parse url for downloading file")
 }
@@ -84,12 +84,12 @@ func (suite *TestSuite) TestCorrectlyFormatterUrls() {
 
 	fileURL := "https://some/base/A352744B-2CB4-4738-B6B5-BA55D25FB469/some/file.txt"
 
-	_, err := getFileNameFromURL(fileURL)
+	_, err := createFilePathFromURL(fileURL)
 	assert.NoError(suite.T(), err)
 
 	_, err = os.Stat("some")
 	assert.NoError(suite.T(), err)
 
-	// Remove the folder created from the getFileNameFromUrl function
+	// Remove the folder created from the createFilePathFromURL function
 	_ = os.Remove("some")
 }
