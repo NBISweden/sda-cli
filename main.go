@@ -45,10 +45,7 @@ func main() {
 	case "decrypt":
 		decrypt.Decrypt(args)
 	case "download":
-		err := download.Download(args)
-		if err != nil {
-			log.Fatal(err)
-		}
+		err = download.Download(args)
 	case "upload":
 		err = upload.Upload(args)
 	default:
