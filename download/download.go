@@ -19,13 +19,15 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s download [url(s)]
+USAGE: %s download (-outdir <dir>) [url(s) | file]
 
-Download: Downloads files from the Sensitive Data Archive (SDA). If a directory is
-          provided (ending with "/"), then the tool will attempt to first
-          download the urls_list.txt file, and then download all files in this
-          list. If file urls are given, they files will be downloaded creating the
-          same folder structure locally.
+Download: Downloads files from the Sensitive Data Archive (SDA). The files will
+          be downloaded in the current directory, if outdir is not defined.
+		  If a directory is provided (ending with "/"), then the tool will attempt 
+		  to first download the urls_list.txt file, and then download all files in 
+		  this list. If file urls are given, they files will be downloaded creating 
+		  the same folder structure locally.
+>>>>>>> Added outDir flag to download module
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
@@ -37,9 +39,10 @@ var ArgHelp = `
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
 var Args = flag.NewFlagSet("download", flag.ExitOnError)
+var outDir = Args.String("outdir", "", "Directory for downloaded files")
 
 // Gets the file name for a URL, using regex
-func createFilePathFromURL(file string) (fileName string, err error) {
+func createFilePathFromURL(file string, baseDir string) (fileName string, err error) {
 	// Create the file path according to the way files are stored in S3
 	// The folder structure comes after the UID described in the regex
 	re := regexp.MustCompile(`(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/(.*)`)
@@ -47,7 +50,10 @@ func createFilePathFromURL(file string) (fileName string, err error) {
 	if match == nil || len(match) < 1 {
 		return fileName, fmt.Errorf("failed to parse url for downloading file")
 	}
-	fileName = match[1]
+	if baseDir != "" && !strings.HasSuffix(baseDir, "/") {
+		baseDir = baseDir + "/"
+	}
+	fileName = baseDir + match[1]
 
 	var filePath string
 	if strings.Contains(fileName, "/") {
@@ -154,6 +160,7 @@ func Download(args []string) error {
 		urlsFilePath = urls[0]
 	}
 
+	log.Print(urlsFilePath)
 	// Open urls_list.txt file and loop through file urls
 	urlsList, err := getURLsFile(urlsFilePath)
 	if err != nil {
@@ -163,7 +170,7 @@ func Download(args []string) error {
 	// Download the files and create the folder structure
 	for _, file := range urlsList {
 
-		fileName, err := createFilePathFromURL(file)
+		fileName, err := createFilePathFromURL(file, *outDir)
 		if err != nil {
 			return err
 		}
