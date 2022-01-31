@@ -3,7 +3,7 @@ module github.com/NBISweden/sda-cli
 go 1.17
 
 require (
-	github.com/aws/aws-sdk-go v1.42.41
+	github.com/aws/aws-sdk-go v1.42.44
 	github.com/elixir-oslo/crypt4gh v1.4.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
