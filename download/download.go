@@ -51,7 +51,7 @@ func createFilePathFromURL(file string, baseDir string) (fileName string, err er
 		return fileName, fmt.Errorf("failed to parse url for downloading file")
 	}
 	if baseDir != "" && !strings.HasSuffix(baseDir, "/") {
-		baseDir = baseDir + "/"
+		baseDir += "/"
 	}
 	fileName = baseDir + match[1]
 
