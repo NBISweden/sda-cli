@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -89,4 +90,36 @@ func (suite *HelperTests) TestFileIsReadable() {
 			log.Fatal("Couldn't restore file permissions of test file")
 		}
 	}
+}
+
+func (suite *HelperTests) TestFormatSubcommandUsage() {
+	// check formatting of malformed usage strings without %s for os.Args[0]
+	malformed_no_format_string := "USAGE: do that stuff"
+	test_missing_args_format := FormatSubcommandUsage(malformed_no_format_string)
+	suite.Equal(malformed_no_format_string, test_missing_args_format)
+
+	// check formatting when the USAGE string is missing
+	malformed_no_usage := `module: this module does all the fancies stuff,
+								   and virtually none of the non-fancy stuff.
+								   run with: %s module`
+	test_no_usage := FormatSubcommandUsage(malformed_no_usage)
+	suite.Equal(fmt.Sprintf(malformed_no_usage, os.Args[0]), test_no_usage)
+
+	// check formatting when the usage string is correctly formatted
+
+	correct_usage := `USAGE: %s module <args>
+
+module: this module does all the fancies stuff,
+        and virtually none of the non-fancy stuff.`
+
+	correct_format := fmt.Sprintf(`
+module: this module does all the fancies stuff,
+        and virtually none of the non-fancy stuff.
+
+        USAGE: %s module <args>
+
+`, os.Args[0])
+	test_correct := FormatSubcommandUsage(correct_usage)
+	suite.Equal(correct_format, test_correct)
+
 }
