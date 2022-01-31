@@ -111,9 +111,9 @@ func Help(command string) {
 		fmt.Fprintln(os.Stderr, "The tool can help with these actions:")
 		for _, info := range Commands {
 
-			subcommand_usage := helpers.FormatSubcommandUsage(info.usage)
+			subcommandUsage := helpers.FormatSubcommandUsage(info.usage)
 
-			fmt.Fprintf(os.Stderr, subcommand_usage)
+			fmt.Fprint(os.Stderr, subcommandUsage)
 		}
 		fmt.Fprintf(os.Stderr,
 			"Use '%s help <command>' to get help with subcommand flags.\n",

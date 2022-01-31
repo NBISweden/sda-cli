@@ -68,5 +68,6 @@ func FormatSubcommandUsage(usageString string) string {
 	helpStart := lines[2]
 	indent := strings.Index(helpStart, " ")
 	format := "\n%s\n\n%" + fmt.Sprintf("%v", indent+1) + "s%s\n\n"
+
 	return fmt.Sprintf(format, strings.Join(lines[2:], "\n"), " ", usage)
 }
