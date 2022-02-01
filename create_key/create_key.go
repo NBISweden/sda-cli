@@ -58,39 +58,13 @@ func CreateKey(args []string) error {
 	}
 	basename := Args.Args()[0]
 
-	// If the `outdir` flag is set, change to the output directory before
-	// writing the key files.
-	startDir := ""
-	if *outDir != "" {
-		startDir, err = os.Getwd()
-		if err != nil {
-			return fmt.Errorf("could not get current directory: %v", err)
-		}
-		err = os.Chdir(*outDir)
-		if err != nil {
-			return fmt.Errorf("could not enter output directory: %v", err)
-		}
-	}
+	// Add the output directory to the file path (does nothing if outDir is "")
+	basename = filepath.Join(*outDir, basename)
 
 	// Write the key files
 	err = generateKeyPair(basename, "")
-	if err != nil {
-		return err
-	}
 
-	// If we changed to a different directory for writing files, we change back
-	// in case some other function is called later which assumes the working
-	// directory hasn't changed.
-	if *outDir != "" {
-		err = os.Chdir(startDir)
-		if err != nil {
-			return fmt.Errorf("could not return to start directory: %v", err)
-		}
-
-		return err
-	}
-
-	return nil
+	return err
 }
 
 // Generates a crypt4gh key pair, and saves it to the `<basename>.pub.pem` and
