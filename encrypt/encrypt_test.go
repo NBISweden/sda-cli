@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/elixir-oslo/crypt4gh/keys"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -84,21 +85,18 @@ func (suite *EncryptTests) TearDownTest() {
 
 func (suite *EncryptTests) TestcheckFiles() {
 	// unencrypted is readable, and unencrypted isn't (this is fine!)
-	testOk := encryptionFileSet{suite.fileOk.Name(), "does-not-exist"}
-	err := checkFiles([]encryptionFileSet{testOk})
+	testOk := helpers.EncryptionFileSet{Unencrypted: suite.fileOk.Name(), Encrypted: "does-not-exist"}
+	err := checkFiles([]helpers.EncryptionFileSet{testOk})
 	assert.NoError(suite.T(), err)
 
 	// unencrypted is readable, but encrypted exists
-	testHasEncrypted := encryptionFileSet{suite.fileOk.Name(),
-		suite.fileOk.Name()}
-	err = checkFiles([]encryptionFileSet{testHasEncrypted})
-	assert.EqualError(suite.T(), err, fmt.Sprintf("outfile %s already exists",
-		suite.fileOk.Name()))
+	testHasEncrypted := helpers.EncryptionFileSet{Unencrypted: suite.fileOk.Name(), Encrypted: suite.fileOk.Name()}
+	err = checkFiles([]helpers.EncryptionFileSet{testHasEncrypted})
+	assert.EqualError(suite.T(), err, fmt.Sprintf("outfile %s already exists", suite.fileOk.Name()))
 
 	// unencrypted isn't readable
-	testNoUnencrypted := encryptionFileSet{"does-not-exist",
-		suite.fileOk.Name()}
-	err = checkFiles([]encryptionFileSet{testNoUnencrypted})
+	testNoUnencrypted := helpers.EncryptionFileSet{Unencrypted: "does-not-exist", Encrypted: suite.fileOk.Name()}
+	err = checkFiles([]helpers.EncryptionFileSet{testNoUnencrypted})
 	assert.EqualError(suite.T(), err, "cannot read input file does-not-exist")
 }
 
@@ -110,27 +108,21 @@ func (suite *EncryptTests) TestreadPublicKey() {
 
 func (suite *EncryptTests) TestcalculateHashes() {
 	// unencrypted file doesn't exist
-	testNoUnencrypted := encryptionFileSet{"no-unencrypted",
-		suite.fileOk.Name()}
+	testNoUnencrypted := helpers.EncryptionFileSet{Unencrypted: "no-unencrypted", Encrypted: suite.fileOk.Name()}
 	_, err := calculateHashes(testNoUnencrypted)
-	assert.EqualError(suite.T(), err,
-		"open no-unencrypted: no such file or directory")
+	assert.EqualError(suite.T(), err, "open no-unencrypted: no such file or directory")
 
 	// encrypted file doesn't exist
-	testNoEncrypted := encryptionFileSet{suite.fileOk.Name(), "no-encrypted"}
+	testNoEncrypted := helpers.EncryptionFileSet{Unencrypted: suite.fileOk.Name(), Encrypted: "no-encrypted"}
 	_, err = calculateHashes(testNoEncrypted)
-	assert.EqualError(suite.T(), err,
-		"open no-encrypted: no such file or directory")
+	assert.EqualError(suite.T(), err, "open no-encrypted: no such file or directory")
 
 	// encrypted file doesn't exist
-	testFileOk := encryptionFileSet{suite.fileOk.Name(),
-		suite.fileOk.Name()}
+	testFileOk := helpers.EncryptionFileSet{Unencrypted: suite.fileOk.Name(), Encrypted: suite.fileOk.Name()}
 	hashes, err := calculateHashes(testFileOk)
 	assert.NoError(suite.T(), err)
 	suite.Equal(hashes.unencryptedMd5, "9a0364b9e99bb480dd25e1f0284c8555")
-	suite.Equal(hashes.unencryptedSha256,
-		"ed7002b439e9ac845f22357d822bac1444730fbdb6016d3ec9432297b9ec9f73")
+	suite.Equal(hashes.unencryptedSha256, "ed7002b439e9ac845f22357d822bac1444730fbdb6016d3ec9432297b9ec9f73")
 	suite.Equal(hashes.encryptedMd5, "9a0364b9e99bb480dd25e1f0284c8555")
-	suite.Equal(hashes.encryptedSha256,
-		"ed7002b439e9ac845f22357d822bac1444730fbdb6016d3ec9432297b9ec9f73")
+	suite.Equal(hashes.encryptedSha256, "ed7002b439e9ac845f22357d822bac1444730fbdb6016d3ec9432297b9ec9f73")
 }

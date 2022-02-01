@@ -83,3 +83,14 @@ func PromptPassword(message string) (password string, err error) {
 
 	return prompt.Run()
 }
+
+//
+// shared structs
+//
+
+// struct type to keep track of infiles and outfiles for encryption and
+// decryption
+type EncryptionFileSet struct {
+	Unencrypted string
+	Encrypted   string
+}
