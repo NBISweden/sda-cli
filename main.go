@@ -47,7 +47,7 @@ func main() {
 	case "createkey", "createKey", "create-key":
 		err = createKey.CreateKey(args)
 	case "decrypt":
-		decrypt.Decrypt(args)
+		err = decrypt.Decrypt(args)
 	case "download":
 		err = download.Download(args)
 	case "upload":
