@@ -25,7 +25,7 @@ Download: Downloads files from the Sensitive Data Archive (SDA). If a directory 
           provided (ending with "/"), then the tool will attempt to first
           download the urls_list.txt file, and then download all files in this
           list. If file urls are given, they files will be downloaded creating the
-		  same folder structure locally.
+          same folder structure locally.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
@@ -112,7 +112,7 @@ func getURLsFile(urlsFilePath string) (urlsList []string, err error) {
 func Download(args []string) error {
 	// Parse flags. There are no flags at the moment, but in case some are added
 	// we check for them.
-	err := Args.Parse(os.Args[1:])
+	err := Args.Parse(args[1:])
 	if err != nil {
 		return fmt.Errorf("failed parsing arguments, reason: %v", err)
 	}

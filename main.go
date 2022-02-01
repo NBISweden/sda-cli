@@ -8,6 +8,7 @@ import (
 	"github.com/NBISweden/sda-cli/decrypt"
 	"github.com/NBISweden/sda-cli/download"
 	"github.com/NBISweden/sda-cli/encrypt"
+	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/NBISweden/sda-cli/upload"
 	log "github.com/sirupsen/logrus"
 )
@@ -45,10 +46,7 @@ func main() {
 	case "decrypt":
 		decrypt.Decrypt(args)
 	case "download":
-		err := download.Download(args)
-		if err != nil {
-			log.Fatal(err)
-		}
+		err = download.Download(args)
 	case "upload":
 		err = upload.Upload(args)
 	default:
@@ -84,6 +82,12 @@ func ParseArgs() (string, []string) {
 		Help(subcommand)
 	}
 
+	// If no arguments are provided to the subcommand, it's not gonna be valid,
+	// so we print the subcommand help
+	if len(os.Args) == 1 {
+		Help(command)
+	}
+
 	return command, os.Args
 }
 
@@ -106,10 +110,13 @@ func Help(command string) {
 		fmt.Fprintf(os.Stderr, Usage, os.Args[0])
 		fmt.Fprintln(os.Stderr, "The tool can help with these actions:")
 		for _, info := range Commands {
-			fmt.Fprintf(os.Stderr, "%s\n", info.usage)
+
+			subcommandUsage := helpers.FormatSubcommandUsage(info.usage)
+
+			fmt.Fprint(os.Stderr, subcommandUsage)
 		}
 		fmt.Fprintf(os.Stderr,
-			"Use '%s <command> help' to get help with subcommand flags.\n",
+			"Use '%s help <command>' to get help with subcommand flags.\n",
 			os.Args[0])
 	}
 

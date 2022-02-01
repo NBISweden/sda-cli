@@ -2,7 +2,6 @@ package decrypt
 
 import (
 	"flag"
-	"os"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -26,7 +25,7 @@ var privateKey = Args.String("key", "",
 
 // Main decryption function
 func Decrypt(args []string) {
-	err := Args.Parse(os.Args[1:])
+	err := Args.Parse(args[1:])
 	if err != nil {
 		log.Fatalf("Argument parsing failed, reason: %v", err)
 	}

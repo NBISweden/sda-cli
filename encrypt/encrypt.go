@@ -56,7 +56,7 @@ func Encrypt(args []string) error {
 
 	// Parse flags. There are no flags at the moment, but in case some are added
 	// we check for them.
-	err := Args.Parse(os.Args[1:])
+	err := Args.Parse(args[1:])
 	if err != nil {
 		return fmt.Errorf("could not parse arguments: %s", err)
 	}
