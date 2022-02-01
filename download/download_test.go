@@ -75,7 +75,7 @@ func (suite *TestSuite) TestWronglyFormatterUrls() {
 
 	fileURL := "someURL"
 
-	_, err := createFilePathFromURL(fileURL)
+	_, err := createFilePathFromURL(fileURL, "")
 
 	assert.EqualError(suite.T(), err, "failed to parse url for downloading file")
 }
@@ -84,7 +84,7 @@ func (suite *TestSuite) TestCorrectlyFormatterUrls() {
 
 	fileURL := "https://some/base/A352744B-2CB4-4738-B6B5-BA55D25FB469/some/file.txt"
 
-	_, err := createFilePathFromURL(fileURL)
+	_, err := createFilePathFromURL(fileURL, "")
 	assert.NoError(suite.T(), err)
 
 	_, err = os.Stat("some")
@@ -92,4 +92,20 @@ func (suite *TestSuite) TestCorrectlyFormatterUrls() {
 
 	// Remove the folder created from the createFilePathFromURL function
 	_ = os.Remove("some")
+}
+
+func (suite *TestSuite) TestCreateFilePath() {
+
+	fileName := "https://some/base/A352744B-2CB4-4738-B6B5-BA55D25FB469/some/file.txt"
+	baseDir := "one/directory"
+
+	path, err := createFilePathFromURL(fileName, baseDir)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), path, "one/directory/some/file.txt")
+
+	_, err = os.Stat(baseDir)
+	assert.NoError(suite.T(), err)
+
+	err = os.RemoveAll("one")
+	assert.NoError(suite.T(), err)
 }
