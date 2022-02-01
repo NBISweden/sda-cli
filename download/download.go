@@ -27,7 +27,6 @@ Download: Downloads files from the Sensitive Data Archive (SDA). The files will
 		  to first download the urls_list.txt file, and then download all files in 
 		  this list. If file urls are given, they files will be downloaded creating 
 		  the same folder structure locally.
->>>>>>> Added outDir flag to download module
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
