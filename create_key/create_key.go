@@ -75,7 +75,7 @@ func generateKeyPair(basename, password string) error {
 	publicKeyName := fmt.Sprintf("%s.pub.pem", basename)
 
 	// check if any of the files exist
-	if helpers.FileExists(publicKeyName) || helpers.FileExists(privateKeyName){
+	if helpers.FileExists(publicKeyName) || helpers.FileExists(privateKeyName) {
 		return fmt.Errorf("Key pair with name '%v' seems to already exist, refusing to overwrite", basename)
 	}
 
