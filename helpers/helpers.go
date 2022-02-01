@@ -80,5 +80,6 @@ func PromptPassword(message string) (password string, err error) {
 		Label: message,
 		Mask:  '*',
 	}
+
 	return prompt.Run()
 }
