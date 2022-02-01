@@ -71,3 +71,14 @@ func FormatSubcommandUsage(usageString string) string {
 
 	return fmt.Sprintf(format, strings.Join(lines[2:], "\n"), " ", usage)
 }
+
+//
+// shared structs
+//
+
+// struct type to keep track of infiles and outfiles for encryption and
+// decryption
+type EncryptionFileSet struct {
+	Unencrypted string
+	Encrypted   string
+}
