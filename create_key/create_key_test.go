@@ -27,9 +27,7 @@ func (suite *CreateKeyTests) SetupTest() {
 
 	// Create a temporary directory for our files
 	suite.tempDir, err = ioutil.TempDir(os.TempDir(), "sda-cli-test-")
-	if err != nil {
-		log.Fatal("Couldn't create temporary test directory", err)
-	}
+	assert.NoError(suite.T(), err)
 }
 
 func (suite *CreateKeyTests) TearDownTest() {
