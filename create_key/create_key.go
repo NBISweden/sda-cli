@@ -61,8 +61,14 @@ func CreateKey(args []string) error {
 	// Add the output directory to the file path (does nothing if outDir is "")
 	basename = filepath.Join(*outDir, basename)
 
+	// Read password from user, to avoid having it in plaintext as an argument
+	password, err := helpers.PromptPassword("Enter private key password")
+	if err != nil {
+		return fmt.Errorf("failed to read password from user: %v", err)
+	}
+
 	// Write the key files
-	err = generateKeyPair(basename, "")
+	err = generateKeyPair(basename, password)
 
 	return err
 }

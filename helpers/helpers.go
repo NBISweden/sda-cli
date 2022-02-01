@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/manifoldco/promptui"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -70,4 +71,14 @@ func FormatSubcommandUsage(usageString string) string {
 	format := "\n%s\n\n%" + fmt.Sprintf("%v", indent+1) + "s%s\n\n"
 
 	return fmt.Sprintf(format, strings.Join(lines[2:], "\n"), " ", usage)
+}
+
+// PromptPassword creates a user prompt for inputting passwords, where all
+// characters are masked with "*"
+func PromptPassword(message string) (password string, err error) {
+	prompt := promptui.Prompt{
+		Label: message,
+		Mask:  '*',
+	}
+	return prompt.Run()
 }

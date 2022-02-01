@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/aws/aws-sdk-go v1.42.44
 	github.com/elixir-oslo/crypt4gh v1.4.0
+	github.com/manifoldco/promptui v0.9.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
 	gopkg.in/ini.v1 v1.66.3
@@ -22,4 +23,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 )
 
-require golang.org/x/text v0.3.7 // indirect
+require (
+	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e // indirect
+	golang.org/x/text v0.3.7 // indirect
+)
