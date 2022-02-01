@@ -111,8 +111,7 @@ func generateKeyPair(basename, password string) error {
 			log.Errorf("Error closing file: %s\n", err)
 		}
 	}()
-	pass := []byte(password)
-	err = keys.WriteCrypt4GHX25519PrivateKey(secFile, privateKeyData, pass)
+	err = keys.WriteCrypt4GHX25519PrivateKey(secFile, privateKeyData, []byte(password))
 
 	return err
 }
