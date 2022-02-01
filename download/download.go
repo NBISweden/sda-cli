@@ -22,7 +22,7 @@ var Usage = `
 USAGE: %s download (-outdir <dir>) [url(s) | file]
 
 Download: Downloads files from the Sensitive Data Archive (SDA). The files will
-          be downloaded in the current directory, if outdir is not defined.
+		  be downloaded in the current directory, if outdir is not defined.
 		  If a directory is provided (ending with "/"), then the tool will attempt 
 		  to first download the urls_list.txt file, and then download all files in 
 		  this list. If file urls are given, they files will be downloaded creating 
@@ -53,7 +53,7 @@ func createFilePathFromURL(file string, baseDir string) (fileName string, err er
 	if baseDir != "" && !strings.HasSuffix(baseDir, "/") {
 		baseDir += "/"
 	}
-	fileName = baseDir + match[1]
+	fileName = filepath.Join(baseDir, match[1])
 
 	var filePath string
 	if strings.Contains(fileName, "/") {
@@ -160,7 +160,6 @@ func Download(args []string) error {
 		urlsFilePath = urls[0]
 	}
 
-	log.Print(urlsFilePath)
 	// Open urls_list.txt file and loop through file urls
 	urlsList, err := getURLsFile(urlsFilePath)
 	if err != nil {

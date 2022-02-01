@@ -99,8 +99,9 @@ func (suite *TestSuite) TestCreateFilePath() {
 	fileName := "https://some/base/A352744B-2CB4-4738-B6B5-BA55D25FB469/some/file.txt"
 	baseDir := "one/directory"
 
-	_, err := createFilePathFromURL(fileName, baseDir)
+	path, err := createFilePathFromURL(fileName, baseDir)
 	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), path, "one/directory/some/file.txt")
 
 	_, err = os.Stat(baseDir)
 	assert.NoError(suite.T(), err)
