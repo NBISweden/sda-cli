@@ -23,8 +23,8 @@ USAGE: %s createKey <name> (-outdir <dirname>)
 createKey: Creates a crypt4gh encryption key pair, and saves it to
            <name>.pub.pem, and <name>.sec.pem.
            NOTE: keys created using this function should not be used when
-		         encrypting submission files, they should only be used for
-                 decrypting files downloaded from the archive.
+           encrypting submission files, they should only be used for decrypting
+           files downloaded from the archive.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
@@ -37,8 +37,8 @@ var Args = flag.NewFlagSet("createKey", flag.ExitOnError)
 
 var outDir = Args.String("outdir", "", "Output directory for the key files")
 
-// Encrypt takes a set of arguments, parses them, and attempts to encrypt the
-// given data files with the given public key file
+// CreateKey takes two arguments, a base filename, and optionally an output
+// directory specified with `-outdir`.
 func CreateKey(args []string) error {
 
 	// Parse flags. There are no flags at the moment, but in case some are added
@@ -102,10 +102,10 @@ func generateKeyPair(basename, password string) error {
 
 	// check if any of the files exist
 	if helpers.FileExists(publicKeyName) {
-		return fmt.Errorf("public key file %s already exists", publicKeyName)
+		return fmt.Errorf("public key file %s already exists, refusing to overwrite", publicKeyName)
 	}
 	if helpers.FileExists(privateKeyName) {
-		return fmt.Errorf("private key file %s already exists", privateKeyName)
+		return fmt.Errorf("private key file %s already exists, refusing to overwrite", privateKeyName)
 	}
 
 	// Generate key pair
