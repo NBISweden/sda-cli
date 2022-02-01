@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	createKey "github.com/NBISweden/sda-cli/create_key"
 	"github.com/NBISweden/sda-cli/decrypt"
 	"github.com/NBISweden/sda-cli/download"
 	"github.com/NBISweden/sda-cli/encrypt"
@@ -43,6 +44,8 @@ func main() {
 	switch command {
 	case "encrypt":
 		err = encrypt.Encrypt(args)
+	case "createkey", "createKey", "create-key":
+		err = createKey.CreateKey(args)
 	case "decrypt":
 		decrypt.Decrypt(args)
 	case "download":
