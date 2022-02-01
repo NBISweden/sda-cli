@@ -46,7 +46,7 @@ func (suite *CreateKeyTests) TestgenerateKeyPair() {
 
 	// now the targets exist - should crash on public-key existing
 	err = generateKeyPair(testFileName, "")
-	assert.EqualError(suite.T(), err, fmt.Sprintf("public key file %s.pub.pem already exists, refusing to overwrite", testFileName))
+	assert.EqualError(suite.T(), err, fmt.Sprintf("Key pair with name '%v' seems to already exist, refusing to overwrite", testFileName))
 
 	// remove the public key to test the private key exists error
 	os.Remove(fmt.Sprintf("%s.pub.pem", testFileName))
