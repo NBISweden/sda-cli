@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/elixir-oslo/crypt4gh/keys"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -37,7 +38,7 @@ func (suite *CreateKeyTests) TestgenerateKeyPair() {
 
 	testFileName := filepath.Join(suite.tempDir, "keyfile")
 
-	// none of the target files exist
+	// none of the target files exist, no password used
 	err := generateKeyPair(testFileName, "")
 	assert.NoError(suite.T(), err)
 
@@ -50,6 +51,19 @@ func (suite *CreateKeyTests) TestgenerateKeyPair() {
 	err = generateKeyPair(testFileName, "")
 	assert.EqualError(suite.T(), err, fmt.Sprintf("Key pair with name '%v' seems to already exist, refusing to overwrite", testFileName))
 
-	// remove the private key just in case it would mess with other tests
+	// remove the private key so we can try again
 	os.Remove(fmt.Sprintf("%s.sec.pem", testFileName))
+
+	password := "testPassword"
+
+	// create new keys, this time with a password
+	err = generateKeyPair(testFileName, password)
+	assert.NoError(suite.T(), err)
+
+	// load the key again, to see that the password works
+	keyFile, err := os.Open(filepath.Clean(fmt.Sprintf("%s.sec.pem", testFileName)))
+	assert.NoError(suite.T(), err)
+
+	_, err = keys.ReadPrivateKey(keyFile, []byte(password))
+	assert.NoError(suite.T(), err)
 }
