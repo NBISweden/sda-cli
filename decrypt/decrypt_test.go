@@ -3,7 +3,6 @@ package decrypt
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +10,7 @@ import (
 	createKey "github.com/NBISweden/sda-cli/create_key"
 	"github.com/NBISweden/sda-cli/encrypt"
 	"github.com/NBISweden/sda-cli/helpers"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -33,13 +33,13 @@ func (suite *DecryptTests) SetupTest() {
 	// Create a temporary directory for our files
 	suite.tempDir, err = ioutil.TempDir(os.TempDir(), "sda-cli-test-")
 	if err != nil {
-		log.Fatal("Couldn't create temporary test directory", err)
+		log.Error("Couldn't create temporary test directory", err)
 	}
 
 	// create a test file...
 	suite.testFile, err = ioutil.TempFile(suite.tempDir, "testfile-")
 	if err != nil {
-		log.Fatal("cannot create temporary public key file", err)
+		log.Error("cannot create temporary public key file", err)
 	}
 
 	// ... create some content ...
@@ -48,7 +48,7 @@ func (suite *DecryptTests) SetupTest() {
 	// ... and write the known content to it
 	err = ioutil.WriteFile(suite.testFile.Name(), suite.fileContent, 0600)
 	if err != nil {
-		log.Fatalf("failed to write to testfile: %s", err)
+		log.Errorf("failed to write to testfile: %s", err)
 	}
 }
 
@@ -64,7 +64,7 @@ func (suite *DecryptTests) TestreadPrivateKey() {
 
 	err := createKey.GenerateKeyPair(testKeyFile, "")
 	if err != nil {
-		log.Fatalf("couldn't generate testing key pair: %s", err)
+		log.Errorf("couldn't generate testing key pair: %s", err)
 	}
 
 	// Test reading a non-existent key
@@ -107,32 +107,32 @@ func (suite *DecryptTests) Testdecrypt() {
 	// generate key files
 	err := createKey.GenerateKeyPair(testKeyFile, "")
 	if err != nil {
-		log.Fatalf("couldn't generate testing key pair: %s", err)
+		log.Errorf("couldn't generate testing key pair: %s", err)
 	}
 	// and read the private key
 	privateKey, err := readPrivateKey(fmt.Sprintf("%s.sec.pem", testKeyFile), "")
 	if err != nil {
-		log.Fatalf("couldn't read test key: %s", err)
+		log.Errorf("couldn't read test key: %s", err)
 	}
 
 	// Encrypt a file using the encrypt module. change to the test directory to
 	// make sure that the checksum files end up there.
 	cwd, err := os.Getwd()
 	if err != nil {
-		log.Fatal("could not get working directory")
+		log.Error("could not get working directory")
 	}
 	err = os.Chdir(suite.tempDir)
 	if err != nil {
-		log.Fatal("could not change into test directory")
+		log.Error("could not change into test directory")
 	}
 	encryptArgs := []string{"sda-cli", "-key", fmt.Sprintf("%s.pub.pem", testKeyFile), suite.testFile.Name()}
 	err = encrypt.Encrypt(encryptArgs)
 	if err != nil {
-		log.Fatalf("couldn't encrypt file for decryption test: %s", err)
+		log.Errorf("couldn't encrypt file for decryption test: %s", err)
 	}
 	err = os.Chdir(cwd)
 	if err != nil {
-		log.Fatal("could not return from test directory")
+		log.Error("could not return from test directory")
 	}
 
 	// Test decrypting a non-existent file
@@ -155,11 +155,11 @@ func (suite *DecryptTests) Testdecrypt() {
 	// Check content of the decrypted file
 	inFile, err := os.Open(decryptedFile)
 	if err != nil {
-		log.Fatalf("Couldn't open decrypted file %s for content checking", decryptedFile)
+		log.Errorf("Couldn't open decrypted file %s for content checking", decryptedFile)
 	}
 	fileData, err := ioutil.ReadAll(inFile)
 	if err != nil {
-		log.Fatal("Couldn't read decrypted filedata for content checking")
+		log.Error("Couldn't read decrypted filedata for content checking")
 	}
 	assert.Equal(suite.T(), fileData, suite.fileContent)
 }
