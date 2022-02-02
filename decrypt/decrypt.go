@@ -24,8 +24,8 @@ USAGE: %s decrypt -key <private-key-file> [file(s)]
 
 Decrypt: Encrypts files from the Sensitive Data Archive (SDA) with the provided
          private key. If the private key is encrypted, the password can be
-	 supplied in the DECRYPT_PASSWORD environment variable, or at the
-	 interactive password prompt.
+         supplied in the C4GH_PASSWORD environment variable, or at the interactive
+         password prompt.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
@@ -73,7 +73,7 @@ func Decrypt(args []string) error {
 	if err != nil {
 
 		// if there was an error, try again with the password
-		password, err := getPassword("DECRYPT_PASSWORD")
+		password, err := getPassword("C4GH_PASSWORD")
 		if err != nil {
 			return err
 		}
