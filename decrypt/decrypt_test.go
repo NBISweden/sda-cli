@@ -2,7 +2,6 @@ package decrypt
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -158,7 +157,7 @@ func (suite *DecryptTests) Testdecrypt() {
 	if err != nil {
 		log.Fatalf("Couldn't open decrypted file %s for content checking", decryptedFile)
 	}
-	fileData, err := io.ReadAll(inFile)
+	fileData, err := ioutil.ReadAll(inFile)
 	if err != nil {
 		log.Fatal("Couldn't read decrypted filedata for content checking")
 	}
