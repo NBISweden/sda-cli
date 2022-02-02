@@ -41,9 +41,8 @@ var Args = flag.NewFlagSet("decrypt", flag.ExitOnError)
 var privateKeyFile = Args.String("key", "",
 	"Private key to use for decrypting files.")
 
-// Decrypt takes a set of arguments, parses them, and attempts to eiher create a
-// crypt4gh key pair (if -keyName is set) or decrypt the given data files with
-// the given private key file (otherwise).
+// Decrypt takes a set of arguments, parses them, and attempts to decrypt the
+// given data files with the given private key file..
 func Decrypt(args []string) error {
 	err := Args.Parse(args[1:])
 	if err != nil {
