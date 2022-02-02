@@ -20,12 +20,12 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help decrypt` command
 var Usage = `
-USAGE: %s decrypt (-createKey <name>) -key <private-key-file> [file(s)]
+USAGE: %s decrypt -key <private-key-file> [file(s)]
 
 Decrypt: Encrypts files from the Sensitive Data Archive (SDA) with the provided
          private key. If the private key is encrypted, the password can be
-		 supplied in the DECRYPT_PASSWORD environment variable, or at the
-		 interactive password prompt.
+	 supplied in the DECRYPT_PASSWORD environment variable, or at the
+	 interactive password prompt.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
@@ -41,9 +41,8 @@ var Args = flag.NewFlagSet("decrypt", flag.ExitOnError)
 var privateKeyFile = Args.String("key", "",
 	"Private key to use for decrypting files.")
 
-// Decrypt takes a set of arguments, parses them, and attempts to eiher create a
-// crypt4gh key pair (if -keyName is set) or decrypt the given data files with
-// the given private key file (otherwise).
+// Decrypt takes a set of arguments, parses them, and attempts to decrypt the
+// given data files with the given private key file..
 func Decrypt(args []string) error {
 	err := Args.Parse(args[1:])
 	if err != nil {
