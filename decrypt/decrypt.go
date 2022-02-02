@@ -20,7 +20,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help decrypt` command
 var Usage = `
-USAGE: %s decrypt (-createKey <name>) -key <private-key-file> [file(s)]
+USAGE: %s decrypt -key <private-key-file> [file(s)]
 
 Decrypt: Encrypts files from the Sensitive Data Archive (SDA) with the provided
          private key. If the private key is encrypted, the password can be
