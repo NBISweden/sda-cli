@@ -29,7 +29,9 @@ createKey: Creates a crypt4gh encryption key pair, and saves it to
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help.
-var ArgHelp = ``
+var ArgHelp = `
+  [name]
+        The basename of the keyfiles to generate`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
@@ -68,21 +70,21 @@ func CreateKey(args []string) error {
 	}
 
 	// Write the key files
-	err = generateKeyPair(basename, password)
+	err = GenerateKeyPair(basename, password)
 
 	return err
 }
 
-// Generates a crypt4gh key pair, and saves it to the `<basename>.pub.pem` and
-// `<basename>.sec.pem` files. If any of the files already exists, the function
-// will instead return an error.
-func generateKeyPair(basename, password string) error {
+// GenerateKeyPair generates a crypt4gh key pair and saves it to the
+// `<basename>.pub.pem` and `<basename>.sec.pem` files. If any of the files
+// already exists, the function will instead return an error.
+func GenerateKeyPair(basename, password string) error {
 	privateKeyName := fmt.Sprintf("%s.sec.pem", basename)
 	publicKeyName := fmt.Sprintf("%s.pub.pem", basename)
 
 	// check if any of the files exist
 	if helpers.FileExists(publicKeyName) || helpers.FileExists(privateKeyName) {
-		return fmt.Errorf("Key pair with name '%v' seems to already exist, refusing to overwrite", basename)
+		return fmt.Errorf("key pair with name '%v' seems to already exist, refusing to overwrite", basename)
 	}
 
 	// Generate key pair

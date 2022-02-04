@@ -28,10 +28,11 @@ type commandInfo struct {
 }
 
 var Commands = map[string]commandInfo{
-	"encrypt":  {encrypt.Args, encrypt.Usage, encrypt.ArgHelp},
-	"decrypt":  {decrypt.Args, decrypt.Usage, decrypt.ArgHelp},
-	"download": {download.Args, download.Usage, download.ArgHelp},
-	"upload":   {upload.Args, upload.Usage, upload.ArgHelp},
+	"encrypt":   {encrypt.Args, encrypt.Usage, encrypt.ArgHelp},
+	"createKey": {createKey.Args, createKey.Usage, createKey.ArgHelp},
+	"decrypt":   {decrypt.Args, decrypt.Usage, decrypt.ArgHelp},
+	"download":  {download.Args, download.Usage, download.ArgHelp},
+	"upload":    {upload.Args, upload.Usage, upload.ArgHelp},
 }
 
 // Main does argument parsing, then delegates to one of the sub modules
@@ -47,7 +48,7 @@ func main() {
 	case "createkey", "createKey", "create-key":
 		err = createKey.CreateKey(args)
 	case "decrypt":
-		decrypt.Decrypt(args)
+		err = decrypt.Decrypt(args)
 	case "download":
 		err = download.Download(args)
 	case "upload":
