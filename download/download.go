@@ -91,7 +91,7 @@ func downloadFile(url string, filePath string) error {
 
 }
 
-// GetURLsFile reads the urls_list.txt file and return the urls of the files in a list
+// GetURLsFile reads the urls_list.txt file and returns the urls of the files in a list
 func GetURLsFile(urlsFilePath string) (urlsList []string, err error) {
 
 	urlsFile, err := os.Open(filepath.Clean(urlsFilePath))
@@ -104,7 +104,6 @@ func GetURLsFile(urlsFilePath string) (urlsList []string, err error) {
 	for scanner.Scan() {
 		urlsList = append(urlsList, scanner.Text())
 	}
-	log.Print(urlsList)
 	if len(urlsList) == 0 {
 		return urlsList, fmt.Errorf("failed to get list of files, empty file")
 	}
@@ -112,7 +111,7 @@ func GetURLsFile(urlsFilePath string) (urlsList []string, err error) {
 	return urlsList, scanner.Err()
 }
 
-// GetURLsListFile is returning the path to the urls_list.txt by haldning the URL
+// GetURLsListFile is returning the path to the urls_list.txt by handling the URL
 // or path provided by the user. In case of a URL, the file is downloaded in the
 // current path
 func GetURLsListFile(currentPath string, fileLocation string) (urlsFilePath string, err error) {

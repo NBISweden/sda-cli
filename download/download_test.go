@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -120,14 +121,18 @@ func (suite *TestSuite) TestGetURLsListFile() {
 
 	urlsFilePath, err := GetURLsListFile(currentPath, fileLocation)
 	assert.Equal(suite.T(), urlsFilePath, "")
-	assert.EqualError(suite.T(), err, "failed to download file, reason: Get \"https://some/base/A352744B-2CB4-4738-B6B5-BA55D25FB469/some/urls_list.txt\": dial tcp: lookup some: no such host")
+	// The error differs locally and in the repo, therefore checking that error starts
+	// with the specified phrase instead of the whole message
+	assert.True(suite.T(), strings.HasPrefix(err.Error(), "failed to download file, reason:"))
 
 	// File URL does not exist
 	fileLocation = "https://some/base/A352744B-2CB4-4738-B6B5-BA55D25FB469/some/urls_list.txt"
 
 	urlsFilePath, err = GetURLsListFile(currentPath, fileLocation)
 	assert.Equal(suite.T(), urlsFilePath, "")
-	assert.EqualError(suite.T(), err, "failed to download file, reason: Get \"https://some/base/A352744B-2CB4-4738-B6B5-BA55D25FB469/some/urls_list.txt\": dial tcp: lookup some: no such host")
+	// The error differs locally and in the repo, therefore checking that error starts
+	// with the specified phrase instead of the whole message
+	assert.True(suite.T(), strings.HasPrefix(err.Error(), "failed to download file, reason:"))
 
 	// File path
 	fileLocation = "some/path/to/urls_list.txt"
