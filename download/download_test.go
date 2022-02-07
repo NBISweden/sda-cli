@@ -45,7 +45,7 @@ func (suite *TestSuite) TestWrongUrlsFile() {
 	assert.NoError(suite.T(), err)
 	defer os.Remove(urlsListPath.Name())
 
-	_, err = getURLsFile(urlsListPath.Name())
+	_, err = GetURLsFile(urlsListPath.Name())
 	assert.EqualError(suite.T(), err, "failed to get list of files, empty file")
 }
 
@@ -65,7 +65,7 @@ someUrlToFile3
 		log.Printf("failed to write temp config file, %v", err)
 	}
 
-	urlsList, err := getURLsFile(urlsListPath.Name())
+	urlsList, err := GetURLsFile(urlsListPath.Name())
 	assert.NoError(suite.T(), err)
 
 	assert.Equal(suite.T(), 3, len(urlsList))
@@ -107,5 +107,31 @@ func (suite *TestSuite) TestCreateFilePath() {
 	assert.NoError(suite.T(), err)
 
 	err = os.RemoveAll("one")
+	assert.NoError(suite.T(), err)
+}
+
+func (suite *TestSuite) TestGetURLsListFile() {
+
+	currentPath, err := os.Getwd()
+	assert.NoError(suite.T(), err)
+
+	// Folder URL does not exist
+	fileLocation := "https://some/base/A352744B-2CB4-4738-B6B5-BA55D25FB469/some/"
+
+	urlsFilePath, err := GetURLsListFile(currentPath, fileLocation)
+	assert.Equal(suite.T(), urlsFilePath, "")
+	assert.EqualError(suite.T(), err, "failed to download file, reason: Get \"https://some/base/A352744B-2CB4-4738-B6B5-BA55D25FB469/some/urls_list.txt\": dial tcp: lookup some: no such host")
+
+	// File URL does not exist
+	fileLocation = "https://some/base/A352744B-2CB4-4738-B6B5-BA55D25FB469/some/urls_list.txt"
+
+	urlsFilePath, err = GetURLsListFile(currentPath, fileLocation)
+	assert.Equal(suite.T(), urlsFilePath, "")
+	assert.EqualError(suite.T(), err, "failed to download file, reason: Get \"https://some/base/A352744B-2CB4-4738-B6B5-BA55D25FB469/some/urls_list.txt\": dial tcp: lookup some: no such host")
+
+	// File path
+	fileLocation = "some/path/to/urls_list.txt"
+	urlsFilePath, err = GetURLsListFile(currentPath, fileLocation)
+	assert.Equal(suite.T(), urlsFilePath, fileLocation)
 	assert.NoError(suite.T(), err)
 }
