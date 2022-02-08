@@ -9,6 +9,7 @@ import (
 	"github.com/NBISweden/sda-cli/decrypt"
 	"github.com/NBISweden/sda-cli/download"
 	"github.com/NBISweden/sda-cli/encrypt"
+	"github.com/NBISweden/sda-cli/filesize"
 	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/NBISweden/sda-cli/upload"
 	log "github.com/sirupsen/logrus"
@@ -33,6 +34,7 @@ var Commands = map[string]commandInfo{
 	"decrypt":   {decrypt.Args, decrypt.Usage, decrypt.ArgHelp},
 	"download":  {download.Args, download.Usage, download.ArgHelp},
 	"upload":    {upload.Args, upload.Usage, upload.ArgHelp},
+	"filesize":  {filesize.Args, filesize.Usage, filesize.ArgHelp},
 }
 
 // Main does argument parsing, then delegates to one of the sub modules
@@ -53,6 +55,8 @@ func main() {
 		err = download.Download(args)
 	case "upload":
 		err = upload.Upload(args)
+	case "filesize":
+		err = filesize.FileSize(args)
 	default:
 		log.Fatal("Unknown command:", command)
 	}
