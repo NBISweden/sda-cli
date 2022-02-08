@@ -91,8 +91,8 @@ func downloadFile(url string, filePath string) error {
 
 }
 
-// Read the urls_list.txt file and return the urls of the files in a list
-func getURLsFile(urlsFilePath string) (urlsList []string, err error) {
+// GetURLsFile reads the urls_list.txt file and returns the urls of the files in a list
+func GetURLsFile(urlsFilePath string) (urlsList []string, err error) {
 
 	urlsFile, err := os.Open(filepath.Clean(urlsFilePath))
 	if err != nil {
@@ -104,12 +104,42 @@ func getURLsFile(urlsFilePath string) (urlsList []string, err error) {
 	for scanner.Scan() {
 		urlsList = append(urlsList, scanner.Text())
 	}
-
 	if len(urlsList) == 0 {
 		return urlsList, fmt.Errorf("failed to get list of files, empty file")
 	}
 
 	return urlsList, scanner.Err()
+}
+
+// GetURLsListFile is returning the path to the urls_list.txt by handling the URL
+// or path provided by the user. In case of a URL, the file is downloaded in the
+// current path
+func GetURLsListFile(currentPath string, fileLocation string) (urlsFilePath string, err error) {
+	switch {
+	// Case where the user passes the url to the s3 folder where the data exists
+	// Download the urls_list.txt file first and then the data files
+	// e.g. https://some/url/to/folder/
+	case strings.HasSuffix(fileLocation, "/") && regexp.MustCompile(`https?://`).MatchString(fileLocation):
+		urlsFilePath = currentPath + "/urls_list.txt"
+		err = downloadFile(fileLocation+"urls_list.txt", urlsFilePath)
+		if err != nil {
+			return "", err
+		}
+	// Case where the user passes the url directly to urls_list.txt
+	// e.g. https://some/url/to/urls_list.txt
+	case regexp.MustCompile(`https?://`).MatchString(fileLocation):
+		urlsFilePath = currentPath + "/urls_list.txt"
+		err = downloadFile(fileLocation, urlsFilePath)
+		if err != nil {
+			return "", err
+		}
+	// Case where the user passes a file containg the urls to download
+	// e.g. /some/folder/to/file.txt
+	default:
+		urlsFilePath = fileLocation
+	}
+
+	return urlsFilePath, nil
 }
 
 // Download function downloads the files included in the urls_list.txt file.
@@ -134,33 +164,13 @@ func Download(args []string) error {
 		return fmt.Errorf("failed to get current path, reason: %v", err)
 	}
 
-	switch {
-	// Case where the user passes the url to the s3 folder where the data exists
-	// Download the urls_list.txt file first and then the data files
-	// e.g. https://some/url/to/folder/
-	case strings.HasSuffix(urls[0], "/") && regexp.MustCompile(`https?://`).MatchString(urls[0]):
-		urlsFilePath = currentPath + "/urls_list.txt"
-		err = downloadFile(urls[0]+"urls_list.txt", urlsFilePath)
-		if err != nil {
-			return err
-		}
-	// Case where the user passes the url directly to urls_list.txt
-	// e.g. https://some/url/to/urls_list.txt
-	case regexp.MustCompile(`https?://`).MatchString(urls[0]):
-		urlsFilePath = currentPath + "/urls_list.txt"
-		log.Info(urls[0], urlsFilePath)
-		err = downloadFile(urls[0], urlsFilePath)
-		if err != nil {
-			return err
-		}
-	// Case where the user passes a file containg the urls to download
-	// e.g. /some/folder/to/file.txt
-	default:
-		urlsFilePath = urls[0]
+	urlsFilePath, err = GetURLsListFile(currentPath, urls[0])
+	if err != nil {
+		return fmt.Errorf("failed to urls list file, reason: %v", err)
 	}
 
 	// Open urls_list.txt file and loop through file urls
-	urlsList, err := getURLsFile(urlsFilePath)
+	urlsList, err := GetURLsFile(urlsFilePath)
 	if err != nil {
 		return err
 	}
