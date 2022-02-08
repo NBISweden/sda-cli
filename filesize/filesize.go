@@ -41,6 +41,7 @@ func getFileSize(file string) (downloadSize int64, err error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to head file, reason: %v", err)
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return 0, fmt.Errorf("failed to get file, code response not 200")
