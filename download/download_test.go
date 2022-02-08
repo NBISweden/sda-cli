@@ -3,6 +3,8 @@ package download
 import (
 	"io/ioutil"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -95,6 +97,21 @@ func (suite *TestSuite) TestCorrectlyFormatterUrls() {
 	_ = os.Remove("some")
 }
 
+// Test that the get request doesn't return an error when the server returns 200
+func (suite *TestSuite) TestDownloadFile() {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	file := "somefile.c4gh"
+	err := downloadFile(ts.URL, file)
+	assert.NoError(suite.T(), err)
+
+	// Remove the file created from the downloadFile function
+	_ = os.Remove(file)
+}
+
 func (suite *TestSuite) TestCreateFilePath() {
 
 	fileName := "https://some/base/A352744B-2CB4-4738-B6B5-BA55D25FB469/some/file.txt"
@@ -139,4 +156,56 @@ func (suite *TestSuite) TestGetURLsListFile() {
 	urlsFilePath, err = GetURLsListFile(currentPath, fileLocation)
 	assert.Equal(suite.T(), urlsFilePath, fileLocation)
 	assert.NoError(suite.T(), err)
+}
+
+func (suite *TestSuite) TestGetURLsListFilePass() {
+	urlsList := `http://url/to/file1.c4gh
+http://url/to/file2.c4gh
+http://url/to/file3.c4gh
+`
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, err := w.Write([]byte(urlsList))
+		assert.NoError(suite.T(), err)
+	}))
+	defer ts.Close()
+
+	file, err := os.Getwd()
+	if err != nil {
+		log.Printf("failed to get current directory, %v", err)
+	}
+
+	// Testing with url containing the file
+	fileLocation := ts.URL + "/A352744B-2CB4-4738-B6B5-BA55D25FB469/some/urls_list.txt"
+	urlsFilePath, err := GetURLsListFile(file, fileLocation)
+	assert.NoError(suite.T(), err)
+	// Check that the file exists
+	_, err = os.Stat(urlsFilePath)
+	assert.NoError(suite.T(), err)
+
+	// Check that the file contains the correct urls
+	expectedUrls, err := ioutil.ReadFile(urlsFilePath)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), expectedUrls, []byte(urlsList))
+
+	// Remove the file created from the downloadFile function
+	_ = os.Remove(urlsFilePath)
+
+	// Testing with the URL containing the file folder
+	fileLocation = ts.URL + "/A352744B-2CB4-4738-B6B5-BA55D25FB469/some/"
+	urlsFilePath, err = GetURLsListFile(file, fileLocation)
+	assert.NoError(suite.T(), err)
+
+	// Check that the file exists
+	_, err = os.Stat(urlsFilePath)
+	assert.NoError(suite.T(), err)
+
+	// Check that the file contains the correct urls
+	expectedUrls, err = ioutil.ReadFile(urlsFilePath)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), expectedUrls, []byte(urlsList))
+
+	// Remove the file created from the downloadFile function
+	_ = os.Remove(urlsFilePath)
+
 }
