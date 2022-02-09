@@ -87,6 +87,7 @@ func DatasetSize(args []string) error {
 		return err
 	}
 
+	var datasetSize float64
 	// Get the size for each of the files in the list
 	for _, file := range urlsList {
 
@@ -94,9 +95,10 @@ func DatasetSize(args []string) error {
 		if err != nil {
 			return err
 		}
-
+		datasetSize += float64(downloadSize)
 		fmt.Printf("%s \t %s \n", bytesize.New(float64(downloadSize)), file[strings.LastIndex(file, "/")+1:])
 	}
+	fmt.Printf("Total dataset size: %s \n", bytesize.New(datasetSize))
 
 	log.Info("finished listing available files")
 
