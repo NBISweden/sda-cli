@@ -132,18 +132,21 @@ func (suite *TestSuite) TestSampleNoFiles() {
 
 func (suite *TestSuite) TestTokenExpiration() {
 	// Token without exp claim
+	// #nosec G101
 	token := "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNzA3NDgzOTQ0IiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.7r3JJptaxQpuN0I6JwEdfIchf7OOXu--OMFprfMtwzXl2UpmjGVeGy0LWhuzG4LljA2uAp5SPrWzz_U5YKcjuw"
 	expiring, err := checkTokenExpiration(token)
 	assert.EqualError(suite.T(), err, "could not parse token, reason: no expiration date")
 	assert.False(suite.T(), expiring)
 
 	// Token with expired date
+	// #nosec G101
 	token = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNzA3NDgzOTQ0IiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwiZXhwIjoxNTE2MjM5MDIyfQ.bjYdbKzzR7jbZpLgm_bCqOr_wuaO8KSCEdVJpKEh1pdJ-7klsHdOwCQoBxbmdVPIVHE0jfEEzc9IvtztTeejmg"
 	expiring, err = checkTokenExpiration(token)
 	assert.NoError(suite.T(), err)
 	assert.True(suite.T(), expiring)
 
 	// Token with valid expiration
+	// #nosec G101
 	token = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNzA3NDgzOTQ0IiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwiZXhwIjoxNzA3NDgzOTQ0fQ.D7hrpd3ROXp53NnXa0PL9js2Oi1KqpKpkVMic1B23X84ksX9kbbtn4Ad4BkhO8Tm35a5hBu95CGgw5b06sd3LQ"
 	expiring, err = checkTokenExpiration(token)
 	assert.NoError(suite.T(), err)
