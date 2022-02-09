@@ -1,4 +1,4 @@
-package filesize
+package datasetsize
 
 import (
 	"net/http"
@@ -27,7 +27,7 @@ func (suite *TestSuite) TestNoArgument() {
 
 	os.Args = []string{"filesize"}
 
-	err := FileSize(os.Args)
+	err := DatasetSize(os.Args)
 	assert.EqualError(suite.T(), err, "failed to find location of files, no argument passed")
 }
 
@@ -35,7 +35,7 @@ func (suite *TestSuite) TestFileDoesNotExist() {
 
 	os.Args = []string{"filesize", "somefile"}
 
-	err := FileSize(os.Args)
+	err := DatasetSize(os.Args)
 
 	assert.EqualError(suite.T(), err, "open somefile: no such file or directory")
 }

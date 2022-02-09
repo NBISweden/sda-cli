@@ -1,4 +1,4 @@
-package filesize
+package datasetsize
 
 import (
 	"flag"
@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/NBISweden/sda-cli/download"
+	"github.com/inhies/go-bytesize"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -17,12 +18,12 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help list` command
 var Usage = `
-USAGE: %s filesize [url(s) | file]
+USAGE: %s datasetsize [url(s) | file]
 
-Filesize: List files that can be downloaded from the Sensitive Data Archive (SDA).
-	  If a directory is provided (ending with "/"), then the tool will attempt 
-	  to first download the urls_list.txt file, and then return a list of the
-	  files with their respective sizes.
+Datasetsize: List files that can be downloaded from the Sensitive Data Archive (SDA).
+	  If a URL is provided (ending with "/" or the urls_list.txt file), then the tool 
+	  will attempt to first download the urls_list.txt file, and then return a list 
+	  of the files with their respective sizes.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
@@ -33,7 +34,7 @@ var ArgHelp = `
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
-var Args = flag.NewFlagSet("filesize", flag.ExitOnError)
+var Args = flag.NewFlagSet("datasetsize", flag.ExitOnError)
 
 // Function to return the size of a file
 func getFileSize(file string) (downloadSize int64, err error) {
@@ -53,9 +54,9 @@ func getFileSize(file string) (downloadSize int64, err error) {
 	return downloadSize, nil
 }
 
-// FileSize function returns the list of the files available for downloading and their
+// DatasetSize function returns the list of the files available for downloading and their
 // respective size. The argument can be a local file or a url to an S3 folder
-func FileSize(args []string) error {
+func DatasetSize(args []string) error {
 	// Parse flags. There are no flags at the moment, but in case some are added
 	// we check for them.
 	err := Args.Parse(args[1:])
@@ -86,7 +87,7 @@ func FileSize(args []string) error {
 		return err
 	}
 
-	// Download the files and create the folder structure
+	// Get the size for each of the files in the list
 	for _, file := range urlsList {
 
 		downloadSize, err := getFileSize(file)
@@ -94,7 +95,7 @@ func FileSize(args []string) error {
 			return err
 		}
 
-		log.Infof("%d bytes \t %s ", downloadSize, file[strings.LastIndex(file, "/")+1:])
+		fmt.Printf("%s \t %s \n", bytesize.New(float64(downloadSize)), file[strings.LastIndex(file, "/")+1:])
 	}
 
 	log.Info("finished listing available files")
