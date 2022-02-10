@@ -78,7 +78,7 @@ func DatasetSize(args []string) error {
 
 	urlsFilePath, err = download.GetURLsListFile(currentPath, urls[0])
 	if err != nil {
-		return fmt.Errorf("failed to urls list file, reason: %v", err)
+		return fmt.Errorf("failed to get urls list file, reason: %v", err)
 	}
 
 	// Open urls_list.txt file and loop through file urls
