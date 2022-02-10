@@ -105,11 +105,6 @@ func checkTokenExpiration(accessToken string) (bool, error) {
 		return false, fmt.Errorf("could not parse token, reason: %s", err)
 	}
 
-	// Return error if token is broken (without claims)
-	if claims, ok := token.Claims.(jwt.MapClaims); !ok {
-		return false, fmt.Errorf("broken token (claims are empty): %v\nerror: %s", claims, err)
-	}
-
 	var expiration time.Time
 	if claims, ok := token.Claims.(jwt.MapClaims); ok {
 		// Check if the token has exp claim
@@ -123,7 +118,8 @@ func checkTokenExpiration(accessToken string) (bool, error) {
 			tmp, _ := iat.Int64()
 			expiration = time.Unix(tmp, 0)
 		}
-
+	} else {
+		return false, fmt.Errorf("broken token (claims are empty): %v\nerror: %s", claims, err)
 	}
 
 	tomorrow := time.Now().AddDate(0, 0, 1)
