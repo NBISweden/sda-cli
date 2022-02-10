@@ -1,16 +1,19 @@
 package upload
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"path"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/golang-jwt/jwt"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/ini.v1"
 )
@@ -93,6 +96,37 @@ func loadConfigFile(path string) (*Config, error) {
 	return config, nil
 }
 
+// Function to determine whether the token is expiring in less than a day
+func checkTokenExpiration(accessToken string) (bool, error) {
+
+	// Parse jwt token with unverifies, since we don't need to check the signatures here
+	token, _, err := new(jwt.Parser).ParseUnverified(accessToken, jwt.MapClaims{})
+	if err != nil {
+		return false, fmt.Errorf("could not parse token, reason: %s", err)
+	}
+
+	var expiration time.Time
+	if claims, ok := token.Claims.(jwt.MapClaims); ok {
+		// Check if the token has exp claim
+		if claims["exp"] == nil {
+			return false, fmt.Errorf("could not parse token, reason: no expiration date")
+		}
+		switch iat := claims["exp"].(type) {
+		case float64:
+			expiration = time.Unix(int64(iat), 0)
+		case json.Number:
+			tmp, _ := iat.Int64()
+			expiration = time.Unix(tmp, 0)
+		}
+	} else {
+		return false, fmt.Errorf("broken token (claims are empty): %v\nerror: %s", claims, err)
+	}
+
+	tomorrow := time.Now().AddDate(0, 0, 1)
+
+	return tomorrow.After(expiration), nil
+}
+
 // Upload function uploads the files included as arguments to the s3 bucket
 func Upload(args []string) error {
 	err := Args.Parse(args[1:])
@@ -115,6 +149,15 @@ func Upload(args []string) error {
 	config, err := loadConfigFile(*configPath)
 	if err != nil {
 		return err
+	}
+
+	expiring, err := checkTokenExpiration(config.AccessToken)
+	if err != nil {
+		return err
+	}
+	if expiring {
+		fmt.Println("The provided token expires in less than 24 hours")
+		fmt.Println("Consider renewing the token.")
 	}
 
 	// The session the S3 Uploader will use
