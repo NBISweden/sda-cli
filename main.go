@@ -6,6 +6,7 @@ import (
 	"os"
 
 	createKey "github.com/NBISweden/sda-cli/create_key"
+	"github.com/NBISweden/sda-cli/datasetsize"
 	"github.com/NBISweden/sda-cli/decrypt"
 	"github.com/NBISweden/sda-cli/download"
 	"github.com/NBISweden/sda-cli/encrypt"
@@ -28,11 +29,12 @@ type commandInfo struct {
 }
 
 var Commands = map[string]commandInfo{
-	"encrypt":   {encrypt.Args, encrypt.Usage, encrypt.ArgHelp},
-	"createKey": {createKey.Args, createKey.Usage, createKey.ArgHelp},
-	"decrypt":   {decrypt.Args, decrypt.Usage, decrypt.ArgHelp},
-	"download":  {download.Args, download.Usage, download.ArgHelp},
-	"upload":    {upload.Args, upload.Usage, upload.ArgHelp},
+	"encrypt":     {encrypt.Args, encrypt.Usage, encrypt.ArgHelp},
+	"createKey":   {createKey.Args, createKey.Usage, createKey.ArgHelp},
+	"decrypt":     {decrypt.Args, decrypt.Usage, decrypt.ArgHelp},
+	"download":    {download.Args, download.Usage, download.ArgHelp},
+	"upload":      {upload.Args, upload.Usage, upload.ArgHelp},
+	"datasetsize": {datasetsize.Args, datasetsize.Usage, datasetsize.ArgHelp},
 }
 
 // Main does argument parsing, then delegates to one of the sub modules
@@ -53,6 +55,8 @@ func main() {
 		err = download.Download(args)
 	case "upload":
 		err = upload.Upload(args)
+	case "datasetsize":
+		err = datasetsize.DatasetSize(args)
 	default:
 		log.Fatal("Unknown command:", command)
 	}
