@@ -3,7 +3,7 @@ module github.com/NBISweden/sda-cli
 go 1.17
 
 require (
-	github.com/aws/aws-sdk-go v1.43.2
+	github.com/aws/aws-sdk-go v1.43.7
 	github.com/elixir-oslo/crypt4gh v1.4.0
 	github.com/manifoldco/promptui v0.9.0
 	github.com/sirupsen/logrus v1.8.1
@@ -27,5 +27,4 @@ require (
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/inhies/go-bytesize v0.0.0-20210819104631-275770b98743
-	golang.org/x/text v0.3.7 // indirect
 )
