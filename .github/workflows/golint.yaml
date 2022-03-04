@@ -4,10 +4,18 @@ jobs:
   lint:
     name: Lint code
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [1.16,1.17]
     steps:
 
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
+        
+      - name: Set up Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v3.1.0
