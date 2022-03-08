@@ -73,6 +73,11 @@ func Encrypt(args []string) error {
 			outFilename = path.Join(*outDir, basename) + ".c4gh"
 		}
 
+		// check that the encrypted file already exists
+		if helpers.FileExists(outFilename) {
+			return fmt.Errorf("Encrypted filename %s already exists", outFilename)
+		}	 
+
 		files = append(files, helpers.EncryptionFileSet{Unencrypted: filename, Encrypted: outFilename})
 	}
 
