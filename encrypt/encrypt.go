@@ -76,7 +76,7 @@ func Encrypt(args []string) error {
 		// check that the encrypted file already exists
 		if helpers.FileExists(outFilename) {
 			return fmt.Errorf("Encrypted filename %s already exists", outFilename)
-		}	 
+		}
 
 		files = append(files, helpers.EncryptionFileSet{Unencrypted: filename, Encrypted: outFilename})
 	}
