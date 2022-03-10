@@ -66,6 +66,17 @@ func Encrypt(args []string) error {
 	files := []helpers.EncryptionFileSet{}
 	for _, filename := range Args.Args() {
 
+		// Input filename is not found
+		if !helpers.FileExists(filename) {
+			return fmt.Errorf("Input filename %s is not found", filename)
+		}
+
+		// Check if the input filename is already encrypted
+		fileExtension := filepath.Ext(filename)
+		if fileExtension == ".c4gh" {
+			return fmt.Errorf("Input filename is already encrypted(.c4gh)") 
+		}
+
 		// Set directory for the output file
 		outFilename := filename + ".c4gh"
 		if *outDir != "" {

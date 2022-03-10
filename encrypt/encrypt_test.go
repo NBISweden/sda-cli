@@ -19,6 +19,7 @@ type EncryptTests struct {
 	publicKey  *os.File
 	privateKey *os.File
 	fileOk     *os.File
+	encrypted_file *os.File
 	pubKeyData [32]byte
 	secKeyData [32]byte
 }
@@ -74,13 +75,32 @@ func (suite *EncryptTests) SetupTest() {
 	if err != nil {
 		log.Fatalf("failed to write to testfile: %s", err)
 	}
+
+	// create an existing encrypted test file
+	suite.encrypted_file, err = ioutil.TempFile(suite.tempDir, "encrypted-input.*.c4gh")
+	if err != nil {
+		log.Fatal("cannot create temporary encrypted testfile", err)
+	}
+
+	err = ioutil.WriteFile(suite.encrypted_file.Name(), []byte("content"), 0644)
+	if err != nil {
+		log.Fatalf("failed to write to temporary encrypted testfile: %s", err)
+	}
 }
 
 func (suite *EncryptTests) TearDownTest() {
 	os.Remove(suite.publicKey.Name())
 	os.Remove(suite.privateKey.Name())
 	os.Remove(suite.fileOk.Name())
+	os.Remove(suite.encrypted_file.Name())
 	os.Remove(suite.tempDir)
+}
+
+func (suite *EncryptTests) Testencrypt(){
+	// Input filename is already encrypted
+	os.Args = []string{"encrypt", "-outdir","%s",suite.encrypted_file.Name()}
+	err := Encrypt(os.Args)
+	assert.EqualError(suite.T(), err, "Input file is already encrypted(.c4gh)")
 }
 
 func (suite *EncryptTests) TestcheckFiles() {
