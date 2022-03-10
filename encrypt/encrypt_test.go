@@ -100,7 +100,7 @@ func (suite *EncryptTests) Testencrypt(){
 	// Input filename is already encrypted
 	os.Args = []string{"encrypt", "-outdir","%s",suite.encryptedFile.Name()}
 	err := Encrypt(os.Args)
-	assert.EqualError(suite.T(), err, "Input file is already encrypted(.c4gh)")
+	assert.EqualError(suite.T(), err, "Input filename is already encrypted(.c4gh)")
 }
 
 func (suite *EncryptTests) TestcheckFiles() {

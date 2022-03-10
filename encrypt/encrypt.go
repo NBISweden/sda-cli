@@ -68,7 +68,7 @@ func Encrypt(args []string) error {
 
 		// Input filename is not found
 		if !helpers.FileExists(filename) {
-			return fmt.Errorf("Input filename %s is not found", filename)
+			return fmt.Errorf("Input filename is not found")
 		}
 
 		// Check if the input filename is already encrypted
