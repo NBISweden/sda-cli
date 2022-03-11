@@ -74,7 +74,7 @@ func Encrypt(args []string) error {
 		// Check if the input filename is already encrypted
 		fileExtension := filepath.Ext(filename)
 		if fileExtension == ".c4gh" {
-			return fmt.Errorf("Input filename is already encrypted(.c4gh)") 
+			return fmt.Errorf("Input filename is already encrypted(.c4gh)")
 		}
 
 		// Set directory for the output file

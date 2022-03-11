@@ -15,13 +15,13 @@ import (
 
 type EncryptTests struct {
 	suite.Suite
-	tempDir    string
-	publicKey  *os.File
-	privateKey *os.File
-	fileOk     *os.File
+	tempDir       string
+	publicKey     *os.File
+	privateKey    *os.File
+	fileOk        *os.File
 	encryptedFile *os.File
-	pubKeyData [32]byte
-	secKeyData [32]byte
+	pubKeyData    [32]byte
+	secKeyData    [32]byte
 }
 
 func TestEncryptTestSuite(t *testing.T) {
@@ -82,7 +82,7 @@ func (suite *EncryptTests) SetupTest() {
 		log.Fatal("cannot create temporary encrypted testfile", err)
 	}
 
-	err = ioutil.WriteFile(suite.encryptedFile.Name(), []byte("content"), 0644)
+	err = ioutil.WriteFile(suite.encryptedFile.Name(), []byte("content"), 0600)
 	if err != nil {
 		log.Fatalf("failed to write to temporary encrypted testfile: %s", err)
 	}
@@ -96,9 +96,9 @@ func (suite *EncryptTests) TearDownTest() {
 	os.Remove(suite.tempDir)
 }
 
-func (suite *EncryptTests) Testencrypt(){
+func (suite *EncryptTests) Testencrypt() {
 	// Input filename is already encrypted
-	os.Args = []string{"encrypt", "-outdir","%s",suite.encryptedFile.Name()}
+	os.Args = []string{"encrypt", "-outdir", "%s", suite.encryptedFile.Name()}
 	err := Encrypt(os.Args)
 	assert.EqualError(suite.T(), err, "Input filename is already encrypted(.c4gh)")
 }
