@@ -77,12 +77,12 @@ func (suite *EncryptTests) SetupTest() {
 	}
 
 	// create an existing encrypted test file
-	suite.encryptedFile, err = ioutil.TempFile(suite.tempDir, "encrypted-input.*.c4gh")
+	suite.encryptedFile, err = ioutil.TempFile(suite.tempDir, "encrypted-input")
 	if err != nil {
 		log.Fatal("cannot create temporary encrypted testfile", err)
 	}
 
-	err = ioutil.WriteFile(suite.encryptedFile.Name(), []byte("content"), 0600)
+	err = ioutil.WriteFile(suite.encryptedFile.Name(), []byte("crypt4gh"), 0600)
 	if err != nil {
 		log.Fatalf("failed to write to temporary encrypted testfile: %s", err)
 	}
@@ -94,13 +94,6 @@ func (suite *EncryptTests) TearDownTest() {
 	os.Remove(suite.fileOk.Name())
 	os.Remove(suite.encryptedFile.Name())
 	os.Remove(suite.tempDir)
-}
-
-func (suite *EncryptTests) Testencrypt() {
-	// Input filename is already encrypted
-	os.Args = []string{"encrypt", "-outdir", "%s", suite.encryptedFile.Name()}
-	err := Encrypt(os.Args)
-	assert.EqualError(suite.T(), err, "Input filename is already encrypted(.c4gh)")
 }
 
 func (suite *EncryptTests) TestcheckFiles() {
@@ -118,6 +111,12 @@ func (suite *EncryptTests) TestcheckFiles() {
 	testNoUnencrypted := helpers.EncryptionFileSet{Unencrypted: "does-not-exist", Encrypted: suite.fileOk.Name()}
 	err = checkFiles([]helpers.EncryptionFileSet{testNoUnencrypted})
 	assert.EqualError(suite.T(), err, "cannot read input file does-not-exist")
+
+	// Encrypted file is given as input
+	verifyUnencrypted := helpers.EncryptionFileSet{Unencrypted: suite.encryptedFile.Name(), Encrypted: "does-not-exist"}
+	err = checkFiles([]helpers.EncryptionFileSet{verifyUnencrypted})
+	assert.EqualError(suite.T(), err, fmt.Sprintf("Input file %s is already encrypted(.c4gh)", suite.encryptedFile.Name()))
+
 }
 
 func (suite *EncryptTests) TestreadPublicKey() {

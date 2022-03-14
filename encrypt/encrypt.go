@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 
@@ -64,18 +65,8 @@ func Encrypt(args []string) error {
 	// Args() returns the non-flag arguments, which we assume are filenames.
 	// All filenames are read into a struct together with their output filenames
 	files := []helpers.EncryptionFileSet{}
+
 	for _, filename := range Args.Args() {
-
-		// Input filename is not found
-		if !helpers.FileExists(filename) {
-			return fmt.Errorf("Input filename is not found")
-		}
-
-		// Check if the input filename is already encrypted
-		fileExtension := filepath.Ext(filename)
-		if fileExtension == ".c4gh" {
-			return fmt.Errorf("Input filename is already encrypted(.c4gh)")
-		}
 
 		// Set directory for the output file
 		outFilename := filename + ".c4gh"
@@ -202,6 +193,16 @@ func checkFiles(files []helpers.EncryptionFileSet) error {
 		// check that the output file doesn't exist
 		if helpers.FileExists(file.Encrypted) {
 			return fmt.Errorf("outfile %s already exists", file.Encrypted)
+		}
+
+		// check if the input is already encrypted
+		cmd := exec.Command("head", "-c", "8", file.Unencrypted)
+		headerFile, err := cmd.Output()
+		if err != nil {
+			return err
+		}
+		if string(headerFile) == "crypt4gh" {
+			return fmt.Errorf("Input file %s is already encrypted(.c4gh)", file.Unencrypted)
 		}
 	}
 
