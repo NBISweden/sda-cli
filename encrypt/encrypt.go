@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 
@@ -195,13 +194,24 @@ func checkFiles(files []helpers.EncryptionFileSet) error {
 			return fmt.Errorf("outfile %s already exists", file.Encrypted)
 		}
 
-		// check if the input is already encrypted
-		cmd := exec.Command("head", "-c", "8", file.Unencrypted)
-		headerFile, err := cmd.Output()
+		// Check if the input file is already encrypted
+		unEncryptedFile, err := os.Open(file.Unencrypted)
 		if err != nil {
 			return err
 		}
-		if string(headerFile) == "crypt4gh" {
+		defer func() {
+			if err := unEncryptedFile.Close(); err != nil {
+				log.Errorf("Error closing file: %s\n", err)
+			}
+		}()
+
+		// Extracting the first 8 bytes of the header - crypt4gh
+		byteSlice := make([]byte, 8)
+		magicWord, err := unEncryptedFile.Read(byteSlice)
+		if err != nil {
+			return err
+		}
+		if string(byteSlice[0:magicWord]) == "crypt4gh" {
 			return fmt.Errorf("Input file %s is already encrypted(.c4gh)", file.Unencrypted)
 		}
 	}
