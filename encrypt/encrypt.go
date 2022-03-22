@@ -64,6 +64,7 @@ func Encrypt(args []string) error {
 	// Args() returns the non-flag arguments, which we assume are filenames.
 	// All filenames are read into a struct together with their output filenames
 	files := []helpers.EncryptionFileSet{}
+
 	for _, filename := range Args.Args() {
 
 		// Set directory for the output file
@@ -71,6 +72,11 @@ func Encrypt(args []string) error {
 		if *outDir != "" {
 			_, basename := path.Split(filename)
 			outFilename = path.Join(*outDir, basename) + ".c4gh"
+		}
+
+		// check that the encrypted file already exists
+		if helpers.FileExists(outFilename) {
+			return fmt.Errorf("Encrypted filename %s already exists", outFilename)
 		}
 
 		files = append(files, helpers.EncryptionFileSet{Unencrypted: filename, Encrypted: outFilename})
@@ -186,6 +192,27 @@ func checkFiles(files []helpers.EncryptionFileSet) error {
 		// check that the output file doesn't exist
 		if helpers.FileExists(file.Encrypted) {
 			return fmt.Errorf("outfile %s already exists", file.Encrypted)
+		}
+
+		// Check if the input file is already encrypted
+		unEncryptedFile, err := os.Open(file.Unencrypted)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if err := unEncryptedFile.Close(); err != nil {
+				log.Errorf("Error closing file: %s\n", err)
+			}
+		}()
+
+		// Extracting the first 8 bytes of the header - crypt4gh
+		byteSlice := make([]byte, 8)
+		magicWord, err := unEncryptedFile.Read(byteSlice)
+		if err != nil {
+			return err
+		}
+		if string(byteSlice[0:magicWord]) == "crypt4gh" {
+			return fmt.Errorf("Input file %s is already encrypted(.c4gh)", file.Unencrypted)
 		}
 	}
 
