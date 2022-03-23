@@ -89,6 +89,11 @@ func Encrypt(args []string) error {
 		files = append(files, eachFile[0])
 	}
 
+	// exit if files slice is empty
+	if len(files) == 0 {
+		return fmt.Errorf("No input files or all were skipped.")
+	}
+
 	log.Infof("Ready to encrypt %d files", len(files))
 
 	// Read the public key to be used for encryption. The private key
