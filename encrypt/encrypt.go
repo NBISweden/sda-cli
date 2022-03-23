@@ -182,19 +182,19 @@ func Encrypt(args []string) error {
 	return nil
 }
 
-// Checks that all the input files exists, and are readable, and that the
-// output files do not exist
+// Checks that all the input files exist, are readable and not already encrypted,
+// and that the output files do not exist
 func checkFiles(files []helpers.EncryptionFileSet) error {
 
 	for _, file := range files {
 		// check that the input file exists and is readable
 		if !helpers.FileIsReadable(file.Unencrypted) {
-			return fmt.Errorf("cannot read input file %s", file.Unencrypted)
+			return fmt.Errorf("Cannot read input file %s", file.Unencrypted)
 		}
 
 		// check that the output file doesn't exist
 		if helpers.FileExists(file.Encrypted) {
-			return fmt.Errorf("outfile %s already exists", file.Encrypted)
+			return fmt.Errorf("Outfile %s already exists", file.Encrypted)
 		}
 
 		// Check if the input file is already encrypted
@@ -212,10 +212,10 @@ func checkFiles(files []helpers.EncryptionFileSet) error {
 		byteSlice := make([]byte, 8)
 		magicWord, err := unEncryptedFile.Read(byteSlice)
 		if err != nil {
-			return err
+			return fmt.Errorf("Error reading input file %s, reason: %v", file.Unencrypted, err)
 		}
 		if string(byteSlice[0:magicWord]) == "crypt4gh" {
-			return fmt.Errorf("Input file %s is already encrypted(.c4gh)", file.Unencrypted)
+			return fmt.Errorf("Input file %s is already encrypted(.c4gh) - make sure the right pk was used", file.Unencrypted)
 		}
 	}
 

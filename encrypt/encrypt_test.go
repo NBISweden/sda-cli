@@ -105,17 +105,17 @@ func (suite *EncryptTests) TestcheckFiles() {
 	// unencrypted is readable, but encrypted exists
 	testHasEncrypted := helpers.EncryptionFileSet{Unencrypted: suite.fileOk.Name(), Encrypted: suite.fileOk.Name()}
 	err = checkFiles([]helpers.EncryptionFileSet{testHasEncrypted})
-	assert.EqualError(suite.T(), err, fmt.Sprintf("outfile %s already exists", suite.fileOk.Name()))
+	assert.EqualError(suite.T(), err, fmt.Sprintf("Outfile %s already exists", suite.fileOk.Name()))
 
 	// unencrypted isn't readable
 	testNoUnencrypted := helpers.EncryptionFileSet{Unencrypted: "does-not-exist", Encrypted: suite.fileOk.Name()}
 	err = checkFiles([]helpers.EncryptionFileSet{testNoUnencrypted})
-	assert.EqualError(suite.T(), err, "cannot read input file does-not-exist")
+	assert.EqualError(suite.T(), err, "Cannot read input file does-not-exist")
 
 	// Encrypted file is given as input
 	verifyUnencrypted := helpers.EncryptionFileSet{Unencrypted: suite.encryptedFile.Name(), Encrypted: "does-not-exist"}
 	err = checkFiles([]helpers.EncryptionFileSet{verifyUnencrypted})
-	assert.EqualError(suite.T(), err, fmt.Sprintf("Input file %s is already encrypted(.c4gh)", suite.encryptedFile.Name()))
+	assert.EqualError(suite.T(), err, fmt.Sprintf("Input file %s is already encrypted(.c4gh) - make sure the right pk was used", suite.encryptedFile.Name()))
 
 }
 
