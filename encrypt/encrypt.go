@@ -60,9 +60,12 @@ func Encrypt(args []string) error {
 	if err != nil {
 		return fmt.Errorf("could not parse arguments: %s", err)
 	}
-
 	// Args() returns the non-flag arguments, which we assume are filenames.
-	// All filenames are read into a struct together with their output filenames
+
+	// Each filename is first read into a helper struct (sliced for combatibility with checkFiles)
+	eachFile := make([]helpers.EncryptionFileSet, 1)
+
+	// All filenames that pass the checks are read into a struct together with their output filenames
 	files := []helpers.EncryptionFileSet{}
 
 	for _, filename := range Args.Args() {
@@ -74,18 +77,15 @@ func Encrypt(args []string) error {
 			outFilename = path.Join(*outDir, basename) + ".c4gh"
 		}
 
-		// check that the encrypted file already exists
-		if helpers.FileExists(outFilename) {
-			return fmt.Errorf("Encrypted filename %s already exists", outFilename)
+		eachFile[0] = helpers.EncryptionFileSet{Unencrypted: filename, Encrypted: outFilename}
+
+		// Skip files that do not pass the checks
+		if err = checkFiles(eachFile); err != nil {
+			log.Errorf("Skipping input file %s. Reason: %s.", filename, err)
+			continue
 		}
 
-		files = append(files, helpers.EncryptionFileSet{Unencrypted: filename, Encrypted: outFilename})
-	}
-
-	// Check that all the infiles exist, and all the outfiles don't
-	err = checkFiles(files)
-	if err != nil {
-		return err
+		files = append(files, eachFile[0])
 	}
 
 	// Read the public key to be used for encryption. The private key
