@@ -83,6 +83,7 @@ func Encrypt(args []string) error {
 		// Skip files that do not pass the checks
 		if err = checkFiles(eachFile); err != nil {
 			log.Errorf("Skipping input file %s. Reason: %s.", filename, err)
+
 			continue
 		}
 
@@ -91,7 +92,7 @@ func Encrypt(args []string) error {
 
 	// exit if files slice is empty
 	if len(files) == 0 {
-		return fmt.Errorf("No input files or all were skipped.")
+		return fmt.Errorf("no input files or all were skipped")
 	}
 
 	log.Infof("Ready to encrypt %d files", len(files))
