@@ -209,12 +209,12 @@ func checkFiles(files []helpers.EncryptionFileSet) error {
 		}()
 
 		// Extracting the first 8 bytes of the header - crypt4gh
-		byteSlice := make([]byte, 8)
-		magicWord, err := unEncryptedFile.Read(byteSlice)
+		magicWord := make([]byte, 8)
+		_, err = unEncryptedFile.Read(magicWord)
 		if err != nil {
 			return fmt.Errorf("Error reading input file %s, reason: %v", file.Unencrypted, err)
 		}
-		if string(byteSlice[0:magicWord]) == "crypt4gh" {
+		if string(magicWord) == "crypt4gh" {
 			return fmt.Errorf("Input file %s is already encrypted(.c4gh) - make sure the right pk was used", file.Unencrypted)
 		}
 	}
