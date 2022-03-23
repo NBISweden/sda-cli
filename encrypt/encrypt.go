@@ -68,6 +68,7 @@ func Encrypt(args []string) error {
 	// All filenames that pass the checks are read into a struct together with their output filenames
 	files := []helpers.EncryptionFileSet{}
 
+	log.Info("Checking files")
 	for _, filename := range Args.Args() {
 
 		// Set directory for the output file
@@ -87,6 +88,8 @@ func Encrypt(args []string) error {
 
 		files = append(files, eachFile[0])
 	}
+
+	log.Infof("Ready to encrypt %d files", len(files))
 
 	// Read the public key to be used for encryption. The private key
 	// matching this public key will be able to decrypt the file.
@@ -182,7 +185,7 @@ func Encrypt(args []string) error {
 // Checks that all the input files exists, and are readable, and that the
 // output files do not exist
 func checkFiles(files []helpers.EncryptionFileSet) error {
-	log.Info("Checking files")
+
 	for _, file := range files {
 		// check that the input file exists and is readable
 		if !helpers.FileIsReadable(file.Unencrypted) {
