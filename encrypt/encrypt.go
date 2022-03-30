@@ -221,7 +221,7 @@ func checkFiles(files []helpers.EncryptionFileSet) error {
 			return fmt.Errorf("error reading input file %s, reason: %v", file.Unencrypted, err)
 		}
 		if string(magicWord) == "crypt4gh" {
-			return fmt.Errorf("input file %s is already encrypted(.c4gh) - make sure the right pk was used", file.Unencrypted)
+			return fmt.Errorf("input file %s is already encrypted(.c4gh)", file.Unencrypted)
 		}
 	}
 

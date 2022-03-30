@@ -115,7 +115,7 @@ func (suite *EncryptTests) TestcheckFiles() {
 	// Encrypted file is given as input
 	verifyUnencrypted := helpers.EncryptionFileSet{Unencrypted: suite.encryptedFile.Name(), Encrypted: "does-not-exist"}
 	err = checkFiles([]helpers.EncryptionFileSet{verifyUnencrypted})
-	assert.EqualError(suite.T(), err, fmt.Sprintf("input file %s is already encrypted(.c4gh) - make sure the right pk was used", suite.encryptedFile.Name()))
+	assert.EqualError(suite.T(), err, fmt.Sprintf("input file %s is already encrypted(.c4gh)", suite.encryptedFile.Name()))
 
 }
 
