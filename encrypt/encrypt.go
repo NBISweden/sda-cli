@@ -24,7 +24,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help encrypt` command
 var Usage = `
-USAGE: %s encrypt -key <public-key-file> (-outdir <dir>) [file(s)]
+USAGE: %s encrypt -key <public-key-file> (-outdir <dir>) (-continue=true) [file(s)]
 
 Encrypt: Encrypts files according to the crypt4gh standard used in the Sensitive
          Data Archive (SDA). Each given file will be encrypted and written to
@@ -49,6 +49,8 @@ var Args = flag.NewFlagSet("encrypt", flag.ExitOnError)
 var publicKeyFile = Args.String("key", "",
 	"Public key to use for encrypting files.")
 var outDir = Args.String("outdir", "", "Output directory for encrypted files")
+
+var continueEncrypt = Args.Bool("continue", false, "Do not exit on file errors but skip and continue.")
 
 // Encrypt takes a set of arguments, parses them, and attempts to encrypt the
 // given data files with the given public key file
@@ -94,6 +96,9 @@ func Encrypt(args []string) error {
 		// Skip files that do not pass the checks and print all error logs at the end
 		if err = checkFiles(eachFile); err != nil {
 			defer log.Errorf("Skipping input file %s. Reason: %s.", filename, err)
+			if !*continueEncrypt {
+				return fmt.Errorf("aborting")
+			}
 			skippedFiles++
 
 			continue
