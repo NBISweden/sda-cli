@@ -68,6 +68,17 @@ func Encrypt(args []string) error {
 	// All filenames that pass the checks are read into a struct together with their output filenames
 	files := []helpers.EncryptionFileSet{}
 
+	// Counter for skipped files
+	skippedFiles := 0
+
+	// Make sure to exit with error status if any file is skipped
+	defer func() {
+		if skippedFiles != 0 {
+			log.Errorf("(%d/%d) files skipped", skippedFiles, len(files)+skippedFiles)
+			os.Exit(1)
+		}
+	}()
+
 	log.Info("Checking files")
 	for _, filename := range Args.Args() {
 
@@ -80,9 +91,10 @@ func Encrypt(args []string) error {
 
 		eachFile[0] = helpers.EncryptionFileSet{Unencrypted: filename, Encrypted: outFilename}
 
-		// Skip files that do not pass the checks
+		// Skip files that do not pass the checks and print all error logs at the end
 		if err = checkFiles(eachFile); err != nil {
-			log.Errorf("Skipping input file %s. Reason: %s.", filename, err)
+			defer log.Errorf("Skipping input file %s. Reason: %s.", filename, err)
+			skippedFiles++
 
 			continue
 		}
@@ -92,10 +104,10 @@ func Encrypt(args []string) error {
 
 	// exit if files slice is empty
 	if len(files) == 0 {
-		return fmt.Errorf("no input files or all were skipped")
+		return fmt.Errorf("no input files")
 	}
 
-	log.Infof("Ready to encrypt %d files", len(files))
+	log.Infof("Ready to encrypt %d file(s)", len(files))
 
 	// Read the public key to be used for encryption. The private key
 	// matching this public key will be able to decrypt the file.
