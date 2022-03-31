@@ -24,7 +24,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help encrypt` command
 var Usage = `
-USAGE: %s encrypt -key <public-key-file> (-outdir <dir>) [file(s)]
+USAGE: %s encrypt -key <public-key-file> (-outdir <dir>) (-continue=true) [file(s)]
 
 Encrypt: Encrypts files according to the crypt4gh standard used in the Sensitive
          Data Archive (SDA). Each given file will be encrypted and written to
@@ -50,6 +50,8 @@ var publicKeyFile = Args.String("key", "",
 	"Public key to use for encrypting files.")
 var outDir = Args.String("outdir", "", "Output directory for encrypted files")
 
+var continueEncrypt = Args.Bool("continue", false, "Do not exit on file errors but skip and continue.")
+
 // Encrypt takes a set of arguments, parses them, and attempts to encrypt the
 // given data files with the given public key file
 func Encrypt(args []string) error {
@@ -60,11 +62,26 @@ func Encrypt(args []string) error {
 	if err != nil {
 		return fmt.Errorf("could not parse arguments: %s", err)
 	}
-
 	// Args() returns the non-flag arguments, which we assume are filenames.
-	// All filenames are read into a struct together with their output filenames
+
+	// Each filename is first read into a helper struct (sliced for combatibility with checkFiles)
+	eachFile := make([]helpers.EncryptionFileSet, 1)
+
+	// All filenames that pass the checks are read into a struct together with their output filenames
 	files := []helpers.EncryptionFileSet{}
 
+	// Counter for skipped files
+	skippedFiles := 0
+
+	// Make sure to exit with error status if any file is skipped
+	defer func() {
+		if skippedFiles != 0 {
+			log.Errorf("(%d/%d) files skipped", skippedFiles, len(files)+skippedFiles)
+			os.Exit(1)
+		}
+	}()
+
+	log.Info("Checking files")
 	for _, filename := range Args.Args() {
 
 		// Set directory for the output file
@@ -74,19 +91,28 @@ func Encrypt(args []string) error {
 			outFilename = path.Join(*outDir, basename) + ".c4gh"
 		}
 
-		// check that the encrypted file already exists
-		if helpers.FileExists(outFilename) {
-			return fmt.Errorf("Encrypted filename %s already exists", outFilename)
+		eachFile[0] = helpers.EncryptionFileSet{Unencrypted: filename, Encrypted: outFilename}
+
+		// Skip files that do not pass the checks and print all error logs at the end
+		if err = checkFiles(eachFile); err != nil {
+			defer log.Errorf("Skipping input file %s. Reason: %s.", filename, err)
+			if !*continueEncrypt {
+				return fmt.Errorf("aborting")
+			}
+			skippedFiles++
+
+			continue
 		}
 
-		files = append(files, helpers.EncryptionFileSet{Unencrypted: filename, Encrypted: outFilename})
+		files = append(files, eachFile[0])
 	}
 
-	// Check that all the infiles exist, and all the outfiles don't
-	err = checkFiles(files)
-	if err != nil {
-		return err
+	// exit if files slice is empty
+	if len(files) == 0 {
+		return fmt.Errorf("no input files")
 	}
+
+	log.Infof("Ready to encrypt %d file(s)", len(files))
 
 	// Read the public key to be used for encryption. The private key
 	// matching this public key will be able to decrypt the file.
@@ -179,10 +205,10 @@ func Encrypt(args []string) error {
 	return nil
 }
 
-// Checks that all the input files exists, and are readable, and that the
-// output files do not exist
+// Checks that all the input files exist, are readable and not already encrypted,
+// and that the output files do not exist
 func checkFiles(files []helpers.EncryptionFileSet) error {
-	log.Info("Checking files")
+
 	for _, file := range files {
 		// check that the input file exists and is readable
 		if !helpers.FileIsReadable(file.Unencrypted) {
@@ -206,13 +232,13 @@ func checkFiles(files []helpers.EncryptionFileSet) error {
 		}()
 
 		// Extracting the first 8 bytes of the header - crypt4gh
-		byteSlice := make([]byte, 8)
-		magicWord, err := unEncryptedFile.Read(byteSlice)
+		magicWord := make([]byte, 8)
+		_, err = unEncryptedFile.Read(magicWord)
 		if err != nil {
-			return err
+			return fmt.Errorf("error reading input file %s, reason: %v", file.Unencrypted, err)
 		}
-		if string(byteSlice[0:magicWord]) == "crypt4gh" {
-			return fmt.Errorf("Input file %s is already encrypted(.c4gh)", file.Unencrypted)
+		if string(magicWord) == "crypt4gh" {
+			return fmt.Errorf("input file %s is already encrypted(.c4gh)", file.Unencrypted)
 		}
 	}
 
