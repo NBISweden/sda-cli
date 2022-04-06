@@ -16,7 +16,7 @@ jobs:
         run: go build
       
       - name: Setup environment
-        run: bash -x .github/integration/setup/setup_s3.sh
+        run: bash -x .github/integration/setup/setup.sh
       
       - name: Run tests
         run: bash -x .github/integration/tests/tests.sh
