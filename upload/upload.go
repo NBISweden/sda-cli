@@ -167,7 +167,7 @@ func Upload(args []string) error {
 		Region:           aws.String("us-west-2"),
 		Credentials:      credentials.NewStaticCredentials(config.AccessKey, config.AccessKey, config.AccessToken),
 		Endpoint:         aws.String(config.HostBase),
-		DisableSSL:       aws.Bool(config.UseHTTPS),
+		DisableSSL:       aws.Bool(!config.UseHTTPS),
 		S3ForcePathStyle: aws.Bool(true),
 	}))
 
