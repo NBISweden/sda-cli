@@ -27,3 +27,4 @@ do echo "waiting for s3 to become ready"
     sleep 10
 done
 
+docker ps
