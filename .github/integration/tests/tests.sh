@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 
+# Function checking that a file was encrypted
 function check_encypted_file() {
 
     for k in $1
@@ -16,6 +17,7 @@ function check_encypted_file() {
     done
 }
 
+# Function checking that a file was uploaded to the S3 backend
 function check_uploaded_file() {
     output=$(s3cmd -c sda-s3proxy/dev_utils/directS3 ls s3://"$1" | grep -q "$2")
     if $output ; then
