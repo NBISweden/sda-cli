@@ -27,4 +27,16 @@ do echo "waiting for s3 to become ready"
     sleep 10
 done
 
+RETRY_TIMES=0
+until docker ps -f name="proxy" --format "{{.Status}}" | grep "Up"
+do echo "waiting for proxy to become ready"
+    RETRY_TIMES=$((RETRY_TIMES+1));
+    if [ "$RETRY_TIMES" -eq 30 ]; then
+        # Time out
+        docker logs "proxy"
+        exit 1;
+    fi
+    sleep 10
+done
+
 docker ps
