@@ -46,7 +46,7 @@ services:
       - ./certs/mq.crt:/etc/rabbitmq/ssl/mq.crt
       - ./certs/mq.key:/etc/rabbitmq/ssl/mq.key
     healthcheck:
-      test: [ "CMD", "nc", "-z", "localhost", "5672" ]
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "check_running" ]
       interval: 30s
       timeout: 20s
       retries: 3
