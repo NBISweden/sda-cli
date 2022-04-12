@@ -1,0 +1,22 @@
+name: integration tests
+on: [push]
+
+jobs:
+  integrationtests:
+    name: integration-s3
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+      
+      - name: Set up Python
+        uses: actions/setup-python@v2
+
+      - name: Build go code
+        run: go build
+      
+      - name: Setup environment
+        run: bash -x .github/integration/setup/setup.sh
+      
+      - name: Run tests
+        run: bash -x .github/integration/tests/tests.sh
