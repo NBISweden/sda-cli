@@ -33,7 +33,7 @@ This command will create an executable file in the root folder, named `sda-cli`.
 The main functionalities implemented in this tool are explained in the following sections.
 
 
-## Encrypt file
+## Encrypt
 
 The files stored in the SDA/BP archive are encrypted using the [crypt4gh standard](https://www.ga4gh.org/news/crypt4gh-a-secure-method-for-sharing-human-genetic-data/). The following sections explain how to encrypt and upload files to the archive.
 
@@ -48,15 +48,15 @@ or this command <strong>if you are uploading to Big Picture</strong>:
 wget https://raw.githubusercontent.com/NBISweden/EGA-SE-user-docs/main/crypt4gh_bp_key.pub
 ```
 
-### Encrypt file
+### Encrypt file(s)
 
 Now that the public key is downloaded, the file(s) can be encrypted using the binary file created in the first step of this guide. To encrypt a specific file, use the following command:
 ```bash
-./sda-cli encrypt -key <public_key>.pem <file_to_encrypt>
+./sda-cli encrypt -key <public_key> <file_to_encrypt>
 ```
-where `<public_key>.pem` the key downloaded in the previous step. The tool also allows for encrypting multiple files at once, by listing them separated with space like:
+where `<public_key>` the key downloaded in the previous step. The tool also allows for encrypting multiple files at once, by listing them separated with space like:
 ```bash
-./sda-cli encrypt -key <public_key>.pem <file_1_to_encrypt> <file_2_to_encrypt> <file_3_to_encrypt>
+./sda-cli encrypt -key <public_key> <file_1_to_encrypt> <file_2_to_encrypt> <file_3_to_encrypt>
 ```
 This command comes with the `-continue` option, which will continue encrypting files, even if one of them fails. To enable this feature, the command should be executed with the `-continue=true` option.
 
@@ -75,11 +75,11 @@ The configuration file can be downloaded by logging in with a Life Science RI ac
 
 Now that the configuration file is downloaded, the file(s) can be uploaded to the archive using the binary file created in the first step of this guide. To upload a specific file, use the following command:
 ```bash
-./sda-cli upload upload -config <configuration_file> <encrypted_file_to_upload>
+./sda-cli upload -config <configuration_file> <encrypted_file_to_upload>
 ```
 where `<configuration_file>` the file downloaded in the previous step and `<encrypted_file_to_upload>` a file encrypted in the earlier steps. The tool also allows for uploading multiple files at once, by listing them separated with space like:
 ```bash
-./sda-cli upload upload -config <configuration_file> <encrypted_file_1_to_upload> <encrypted_file_2_to_upload>
+./sda-cli upload -config <configuration_file> <encrypted_file_1_to_upload> <encrypted_file_2_to_upload>
 ```
 Note that the files will be uploaded creating the same folder structure as the local one. For example, if the `<encrypted_file_to_upload>` is located at `<folder_1>/<folder_2>/<encrypted_file_to_upload>`, then the same folder structure will be created in the archive.
 
