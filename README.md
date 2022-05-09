@@ -11,12 +11,10 @@ and to download and decrypt with retrieving data from the archive.
 To get help on the usage of the tool, please use the following command
 ```bash
 ./sda-cli help
-``` 
-
-
+```
 
 # Installation
-This section contains the information required to install, modify and run the `sda-cli` tool. 
+This section contains the information required to install, modify and run the `sda-cli` tool.
 
 # Requirements
 The `sda-cli` is written in golang. In order to be able to modify, build and run the tool, golang needs to be installed. The instructions for installing go can be found [here](https://go.dev/doc/install).
@@ -39,11 +37,11 @@ The files stored in the SDA/BP archive are encrypted using the [crypt4gh standar
 
 ### Download the crypt4gh public key
 
-The files that are uploaded to the SDA/BP services, need to be encrypted with the correct public key. Depending on the service you want to use, this key can be downloaded using this command <strong>if you are uploading to the SDA</strong>:
+The files that are uploaded to the SDA/BP services, need to be encrypted with the correct public key. Depending on the service you want to use, this key can be downloaded using this command **if you are uploading to the SDA**:
 ```bash
 wget https://raw.githubusercontent.com/NBISweden/EGA-SE-user-docs/main/crypt4gh_key.pub
 ```
-or this command <strong>if you are uploading to Big Picture</strong>:
+or this command **if you are uploading to Big Picture**:
 ```bash
 wget https://raw.githubusercontent.com/NBISweden/EGA-SE-user-docs/main/crypt4gh_bp_key.pub
 ```
@@ -102,11 +100,11 @@ The SDA/BP archive enables for downloading files and datasets in a secure manner
 
 ### Create keys
 
-In order to make sure that the files are downloaded from the archive in a secure manner, the user is supposed to create they key pair that the files will be encrypted with. The key pair can be created using the following command:
+In order to make sure that the files are downloaded from the archive in a secure manner, the user is supposed to create the key pair that the files will be encrypted with. The key pair can be created using the following command:
 ```bash
 ./sda-cli createKey <keypair_name>
 ```
-where `<keypair_name>` the names of the key files. This command will create two keys named `keypair_name.pub.pem` and `keypair_name.sec.pem`. The public key (`pub`) will be used for the encryption of the files, while the private one (`sec`) will be used in the decryption step below.
+where `<keypair_name>` is the base name of the key files. This command will create two keys named `keypair_name.pub.pem` and `keypair_name.sec.pem`. The public key (`pub`) will be used for the encryption of the files, while the private one (`sec`) will be used in the decryption step below.
 
 **NOTE:** Make sure to keep these keys safe. Losing the keys could lead to sensitive data leaks.
 
@@ -122,7 +120,7 @@ Given this argument, the dataset can be retrieved using the following command:
 ./sda-cli download <urls_file>
 ```
 where `urls_file` as described above.
-The tool also allows for selecting a folder where the files will be downloading, using the `outdir` argument like:
+The tool also allows for selecting a folder where the files will be downloaded, using the `outdir` argument like:
 ```bash
 ./sda-cli download -outdir <outdir> <urls_file>
 ```
