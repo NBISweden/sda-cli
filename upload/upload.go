@@ -25,7 +25,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s upload -config <s3config-file> [file(s)]
+USAGE: %s upload -config <s3config-file> (-dir <dir>) [file(s)]
 
 Upload: Uploads files to the Sensitive Data Archive (SDA). All files to upload
         are required to be encrypted and have the .c4gh file extension.
@@ -35,7 +35,7 @@ Upload: Uploads files to the Sensitive Data Archive (SDA). All files to upload
 // the module help
 var ArgHelp = `
   [file(s)]
-        all flagless arguments will be used as filenames to upload.`
+        if '-dir <dir>' is not provided, all flagless arguments will be used as filenames to upload.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
