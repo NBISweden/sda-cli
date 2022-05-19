@@ -180,9 +180,16 @@ func uploadFiles(files []string, config *Config) error {
 // Function getFilePaths retrieves all relative file paths within a folder recursively
 func getFilePaths(dirPath string) ([]string, error) {
 	var files []string
-
+	// Check that input is a directory
+	fileInfo, err := os.Stat(dirPath)
+	if err != nil {
+		return nil, err
+	}
+	if !fileInfo.IsDir() {
+		return nil, errors.New(dirPath + " is not a directory")
+	}
 	// List all directory contents recursively including relative paths
-	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			fmt.Println(err)
 
