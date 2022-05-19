@@ -152,9 +152,17 @@ func (suite *TestSuite) TestSampleNoFiles() {
 		log.Printf("failed to write temp config file, %v", err)
 	}
 
+	// Test Upload function
 	os.Args = []string{"upload", "-config", configPath.Name()}
 
 	err = Upload(os.Args)
+	assert.EqualError(suite.T(), err, "no files to upload")
+
+	// Test uploadFiles function
+	config, _ := loadConfigFile(configPath.Name())
+	var files []string
+
+	err = uploadFiles(files, config)
 	assert.EqualError(suite.T(), err, "no files to upload")
 }
 
