@@ -81,6 +81,14 @@ where `<configuration_file>` the file downloaded in the previous step and `<encr
 ```
 Note that the files will be uploaded creating the same folder structure as the local one. For example, if the `<encrypted_file_to_upload>` is located at `<folder_1>/<folder_2>/<encrypted_file_to_upload>`, then the same folder structure will be created in the archive.
 
+### Upload folder
+
+It is also possible to use the `sda-cli` tool to upload an entire directory recursively, i.e. including all contained files and folders while keeping the original folder structure. This can be done by using the `-dir` flag, e.g. running:
+```bash
+./sda-cli upload -config <configuration_file> -dir <folder_to_upload>
+```
+will upload `<folder_to_upload>` with the same folder and file structure as the local one to the archive. Note that it is not possible to specify both an entire folder and separate files for upload with the same command. When using folder upload, any argument after `<folder_to_upload>` in the above command will be skipped and has therefore no effect.
+
 ## Get dataset size
 
 Before downloading a dataset or a specific file, the `sda-cli` tool allows for requesting the size of each file, as well as the whole dataset. In order to use this functionality, the tool expects as an argument a file containing the location of the files in the dataset. The argument can be one of the following:
