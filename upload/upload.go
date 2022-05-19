@@ -134,6 +134,10 @@ func checkTokenExpiration(accessToken string) (bool, error) {
 // Function uploadFiles uploads the files in the input list to the s3 bucket
 func uploadFiles(files []string, config *Config) error {
 
+	if len(files) == 0 {
+		return errors.New("no files to upload")
+	}
+
 	// The session the S3 Uploader will use
 	sess := session.Must(session.NewSession(&aws.Config{
 		// The region for the backend is always the specified one
