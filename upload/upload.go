@@ -9,6 +9,8 @@ import (
 	"path"
 	"time"
 
+	"path/filepath"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -40,6 +42,8 @@ var ArgHelp = `
 var Args = flag.NewFlagSet("upload", flag.ExitOnError)
 
 var configPath = Args.String("config", "", "S3 config file to use for uploading.")
+
+var dirPath = Args.String("dir", "", "Upload entire folder preserving its folder structure.")
 
 // Config struct for storing the s3cmd file values
 type Config struct {
@@ -173,8 +177,36 @@ func uploadFiles(files []string, config *Config) error {
 	return nil
 }
 
-// Upload function uploads the files included as arguments to the s3 bucket
+// Function getFilePaths retrieves all relative file paths within a folder recursively
+func getFilePaths(dirPath string) ([]string, error) {
+	var files []string
+
+	// List all directory contents recursively including relative paths
+	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			fmt.Println(err)
+
+			return err
+		}
+		// Write relative file paths in a list. Exclude folders.
+		if !info.IsDir() {
+			files = append(files, path)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return files, nil
+}
+
+// Upload function uploads files to the s3 bucket. Input can be files included as arguments
+// or recursive contents of a directory.
 func Upload(args []string) error {
+	var files []string
+
 	err := Args.Parse(args[1:])
 	if err != nil {
 		return fmt.Errorf("failed parsing arguments, reason: %v", err)
@@ -200,10 +232,25 @@ func Upload(args []string) error {
 		fmt.Println("Consider renewing the token.")
 	}
 
-	// Args() returns the non-flag arguments, which we assume are filenames.
-	files := Args.Args()
-	if len(files) == 0 {
-		return errors.New("no files to upload")
+	// If dir flag is ommitted, look for filenames from input and upload these files
+	if *dirPath == "" {
+		// Args() returns the non-flag arguments, which we assume are filenames.
+		files := Args.Args()
+		if len(files) == 0 {
+			return errors.New("no files to upload")
+		}
+
+		// Upload files
+		if err = uploadFiles(files, config); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	files, err = getFilePaths(*dirPath)
+	if err != nil {
+		return err
 	}
 
 	// Upload files
