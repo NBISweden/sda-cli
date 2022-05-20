@@ -194,13 +194,13 @@ func (suite *TestSuite) TestgetFilePaths() {
 	// Create temp dir with file
 	dir, err := ioutil.TempDir(os.TempDir(), "test")
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 	defer os.RemoveAll(dir)
 
 	testfile, err := ioutil.TempFile(dir, "testfile")
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 	defer os.Remove(testfile.Name())
 
