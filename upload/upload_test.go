@@ -188,3 +188,31 @@ func (suite *TestSuite) TestTokenExpiration() {
 	assert.NoError(suite.T(), err)
 	assert.False(suite.T(), expiring)
 }
+
+func (suite *TestSuite) TestgetFilePaths() {
+
+	// Create temp dir with file
+	dir, err := ioutil.TempDir(os.TempDir(), "test")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	testfile, err := ioutil.TempFile(dir, "testfile")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(testfile.Name())
+
+	// Input is a file
+	_, err = getFilePaths(testfile.Name())
+	assert.ErrorContains(suite.T(), err, "is not a directory")
+
+	// Input is a directory
+	_, err = getFilePaths(dir)
+	assert.Nil(suite.T(), err)
+
+	// Input is invalid
+	_, err = getFilePaths("nonexistent")
+	assert.ErrorContains(suite.T(), err, "no such file or directory")
+}
