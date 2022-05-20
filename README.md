@@ -87,7 +87,13 @@ It is also possible to use the `sda-cli` tool to upload an entire directory recu
 ```bash
 ./sda-cli upload -config <configuration_file> -dir <folder_to_upload>
 ```
-will upload `<folder_to_upload>` with the same folder and file structure as the local one to the archive. Note that it is not possible to specify both an entire folder and separate files for upload with the same command. When using folder upload, any argument after `<folder_to_upload>` in the above command will be skipped and has therefore no effect.
+will upload `<folder_to_upload>` with the same folder and file structure as the local one to the archive. It is not possible to specify both an entire folder and separate files for upload with the same command. When using folder upload, any argument after `<folder_to_upload>` in the above command will be skipped and has therefore no effect.
+
+**Note**: the argument of `-dir` can be either a directory name, i.e. `test_folder` or a directory path, i.e. `some_data/test_folder`. In the latter case, the following command:
+```bash
+./sda-cli upload -config <configuration_file> -dir some_data/test_folder
+```
+will create the folder structure `some_data/test_folder` when uploading.
 
 ## Get dataset size
 
