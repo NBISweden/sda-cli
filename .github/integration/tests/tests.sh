@@ -45,11 +45,9 @@ fi
 files="data_file.c4gh"
 check_encypted_file $files
 
-
 # Upload a specific file and check it
 ./sda-cli upload -config sda-s3proxy/dev_utils/s3cmd.conf data_file.c4gh
 check_uploaded_file test/dummy/data_file.c4gh data_file.c4gh
-
 
 # Create and encrypt multiple files in a folder
 dd if=/dev/random of=data_file1 count=1 bs=$(( 1024*1024 ))
@@ -67,6 +65,19 @@ do
     check_uploaded_file test/dummy/$k $k
 done
 
+# Create folder with subfolder structure and add some encrypted files
+mkdir data_files_enc/dir1 data_files_enc/dir1/dir2
+cp data_files_enc/data_file.c4gh data_files_enc/dir1/data_file.c4gh
+cp data_files_enc/data_file.c4gh data_files_enc/dir1/dir2/data_file.c4gh
+cp data_files_enc/data_file.c4gh data_files_enc/dir1/dir2/data_file2.c4gh
+
+# Upload folder recursively and check uploaded files
+./sda-cli upload -config sda-s3proxy/dev_utils/s3cmd.conf -dir data_files_enc/dir1
+
+for k in data_files_enc/dir1/data_file.c4gh data_files_enc/dir1/dir2/data_file.c4gh data_files_enc/dir1/dir2/data_file2.c4gh
+do
+    check_uploaded_file test/dummy/$k $k
+done
 
 # Dataset size using a local urls_list.txt
 echo "http://localhost:9000/download/A352764B-2KB4-4738-B6B5-BA55D25FB469/data_file.c4gh" > urls_list.txt
@@ -97,10 +108,10 @@ else
 fi
 
 # Remove files used for encrypt and upload
-rm -r data_files_enc 
+rm -r data_files_enc
 rm -r downloads
 rm sda_key* checksum_* urls_list.txt data_file*
- 
+
 
 # Dataset size using a url urls_list.txt
 output=$(./sda-cli datasetsize http://localhost:9000/download/A352764B-2KB4-4738-B6B5-BA55D25FB469/urls_list.txt | grep -q "Total dataset size: 1.00MB")
