@@ -14,11 +14,8 @@ builds:
       - windows
       - darwin
     ignore:
-      - goos: darwin
-        goarch: 386
-      - goos: linux
-        goarch: arm
-        goarm: 7
+      - goarch: 386
+      - goarch: arm
 archives:
   - replacements:
       darwin: Darwin
