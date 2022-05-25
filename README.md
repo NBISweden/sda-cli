@@ -13,23 +13,9 @@ To get help on the usage of the tool, please use the following command
 ./sda-cli help
 ```
 
-# Installation
-This section contains the information required to install, modify and run the `sda-cli` tool.
-
-# Requirements
-The `sda-cli` is written in golang. In order to be able to modify, build and run the tool, golang needs to be installed. The instructions for installing go can be found [here](https://go.dev/doc/install).
-
-### Build tool
-To build the `sda-cli` tool run the following command from the root folder of the repository
-```bash
-go build
-```
-This command will create an executable file in the root folder, named `sda-cli`.
-
-
 # Usage
-The main functionalities implemented in this tool are explained in the following sections.
 
+The main functionalities implemented in this tool are explained in the following sections.
 
 ## Encrypt
 
@@ -132,4 +118,17 @@ Given that the instructions in the [download section](#download) have been follo
 ./sda-cli decrypt -key <keypair_name>.sec.pem <file_to_decrypt>
 ```
 where `<keypair_name>.sec.pem` the private key created in the [relevant section](#create-keys) and `<file_to_decrypt>` one of the files downloaded following the instructions of the [download section](#download-file).
+
+# Developers' section
+This section contains the information required to install, modify and run the `sda-cli` tool.
+
+## Requirements
+The `sda-cli` is written in golang. In order to be able to modify, build and run the tool, golang needs to be installed. The instructions for installing go can be found [here](https://go.dev/doc/install).
+
+## Build tool
+To build the `sda-cli` tool run the following command from the root folder of the repository
+```bash
+go build
+```
+This command will create an executable file in the root folder, named `sda-cli`.
 
