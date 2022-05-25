@@ -8,15 +8,12 @@ on:
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        go-version: [1.17]
     steps:
 
-      - name: Set up Go  ${{ matrix.go-version }}
+      - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version:  ${{ matrix.go-version }}
+          go-version:  1.18
         id: go
 
       - name: Check out code into the Go module directory
@@ -29,6 +26,7 @@ jobs:
               curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
               dep ensure
           fi
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v2.9.1
         with:
