@@ -133,6 +133,11 @@ func CheckTokenExpiration(accessToken string) (bool, error) {
 // Function uploadFiles uploads the files in the input list to the s3 bucket
 func uploadFiles(files []string, config *Config) error {
 
+	// check also here in case sth went wrong with input files
+	if len(files) == 0 {
+		return errors.New("no files to upload")
+	}
+
 	// The session the S3 Uploader will use
 	sess := session.Must(session.NewSession(&aws.Config{
 		// The region for the backend is always the specified one
@@ -254,6 +259,13 @@ func Upload(args []string) error {
 			if err != nil {
 				return err
 			}
+
+			if len(dirFilePaths) == 0 {
+				log.Warningf("Omitting directory: %s because it is empty", filePath)
+
+				continue
+			}
+
 			files = append(files, dirFilePaths...)
 		} else {
 			files = append(files, filePath)
