@@ -180,12 +180,6 @@ func Upload(args []string) error {
 		return fmt.Errorf("failed parsing arguments, reason: %v", err)
 	}
 
-	// Args() returns the non-flag arguments, which we assume are filenames.
-	files := Args.Args()
-	if len(files) == 0 {
-		return errors.New("no files to upload")
-	}
-
 	// Check that we have a private key to decrypt with
 	if *configPath == "" {
 		return errors.New("failed to find an s3 configuration file for uploading data")
@@ -204,6 +198,12 @@ func Upload(args []string) error {
 	if expiring {
 		fmt.Println("The provided token expires in less than 24 hours")
 		fmt.Println("Consider renewing the token.")
+	}
+
+	// Args() returns the non-flag arguments, which we assume are filenames.
+	files := Args.Args()
+	if len(files) == 0 {
+		return errors.New("no files to upload")
 	}
 
 	// Upload files
