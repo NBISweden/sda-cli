@@ -124,9 +124,37 @@ encrypt = False
 
 func (suite *TestSuite) TestSampleNoFiles() {
 
-	os.Args = []string{"upload", "-config", "upload/s3cmd.conf"}
+	var confFile = `
+	access_token = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNzA3NDgzOTQ0IiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwiZXhwIjoxNzA3NDgzOTQ0fQ.D7hrpd3ROXp53NnXa0PL9js2Oi1KqpKpkVMic1B23X84ksX9kbbtn4Ad4BkhO8Tm35a5hBu95CGgw5b06sd3LQ"
+	host_base = someHostBase
+	encoding = UTF-8
+	host_bucket = someHostBase
+	multipart_chunk_size_mb = 50
+	secret_key = someUser
+	access_key = someUser
+	use_https = True
+	check_ssl_certificate = False
+	check_ssl_hostname = False
+	socket_timeout = 30
+	human_readable_sizes = True
+	guess_mime_type = True
+	encrypt = False
+	`
+	configPath, err := ioutil.TempFile(os.TempDir(), "s3cmd.conf")
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	err := Upload(os.Args)
+	defer os.Remove(configPath.Name())
+
+	err = ioutil.WriteFile(configPath.Name(), []byte(confFile), 0600)
+	if err != nil {
+		log.Printf("failed to write temp config file, %v", err)
+	}
+
+	os.Args = []string{"upload", "-config", configPath.Name()}
+
+	err = Upload(os.Args)
 	assert.EqualError(suite.T(), err, "no files to upload")
 }
 
