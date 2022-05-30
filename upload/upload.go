@@ -127,38 +127,8 @@ func checkTokenExpiration(accessToken string) (bool, error) {
 	return tomorrow.After(expiration), nil
 }
 
-// Upload function uploads the files included as arguments to the s3 bucket
-func Upload(args []string) error {
-	err := Args.Parse(args[1:])
-	if err != nil {
-		return fmt.Errorf("failed parsing arguments, reason: %v", err)
-	}
-
-	// Args() returns the non-flag arguments, which we assume are filenames.
-	files := Args.Args()
-	if len(files) == 0 {
-		return errors.New("no files to upload")
-	}
-
-	// Check that we have a private key to decrypt with
-	if *configPath == "" {
-		return errors.New("failed to find an s3 configuration file for uploading data")
-	}
-
-	// Get the configuration in the struct
-	config, err := loadConfigFile(*configPath)
-	if err != nil {
-		return err
-	}
-
-	expiring, err := checkTokenExpiration(config.AccessToken)
-	if err != nil {
-		return err
-	}
-	if expiring {
-		fmt.Println("The provided token expires in less than 24 hours")
-		fmt.Println("Consider renewing the token.")
-	}
+// Function uploadFiles uploads the files in the input list to the s3 bucket
+func uploadFiles(files []string, config *Config) error {
 
 	// The session the S3 Uploader will use
 	sess := session.Must(session.NewSession(&aws.Config{
@@ -198,6 +168,47 @@ func Upload(args []string) error {
 			return err
 		}
 		log.Infof("file uploaded to %s", string(aws.StringValue(&result.Location)))
+	}
+
+	return nil
+}
+
+// Upload function uploads the files included as arguments to the s3 bucket
+func Upload(args []string) error {
+	err := Args.Parse(args[1:])
+	if err != nil {
+		return fmt.Errorf("failed parsing arguments, reason: %v", err)
+	}
+
+	// Args() returns the non-flag arguments, which we assume are filenames.
+	files := Args.Args()
+	if len(files) == 0 {
+		return errors.New("no files to upload")
+	}
+
+	// Check that we have a private key to decrypt with
+	if *configPath == "" {
+		return errors.New("failed to find an s3 configuration file for uploading data")
+	}
+
+	// Get the configuration in the struct
+	config, err := loadConfigFile(*configPath)
+	if err != nil {
+		return err
+	}
+
+	expiring, err := checkTokenExpiration(config.AccessToken)
+	if err != nil {
+		return err
+	}
+	if expiring {
+		fmt.Println("The provided token expires in less than 24 hours")
+		fmt.Println("Consider renewing the token.")
+	}
+
+	// Upload files
+	if err = uploadFiles(files, config); err != nil {
+		return err
 	}
 
 	return nil
