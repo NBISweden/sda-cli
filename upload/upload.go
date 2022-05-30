@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -40,6 +41,8 @@ var ArgHelp = `
 var Args = flag.NewFlagSet("upload", flag.ExitOnError)
 
 var configPath = Args.String("config", "", "S3 config file to use for uploading.")
+
+var dirUpload = Args.Bool("r", false, "Upload directories recursively.")
 
 // Config struct for storing the s3cmd file values
 type Config struct {
@@ -173,8 +176,37 @@ func uploadFiles(files []string, config *Config) error {
 	return nil
 }
 
-// Upload function uploads the files included as arguments to the s3 bucket
+// Function createFilePaths returns a slice with all absolute paths to files within a directory recursively
+func createFilePaths(dirPath string) ([]string, error) {
+	var files []string
+
+	// List all directory contents recursively including relative paths
+	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			fmt.Println(err)
+
+			return err
+		}
+		// Exclude folders
+		if !info.IsDir() {
+			// Write relative file paths in a list
+			files = append(files, path)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return files, nil
+}
+
+// Upload function uploads files to the s3 bucket. Input can be files or
+// directories to be uploaded recursively
 func Upload(args []string) error {
+	var files []string
+
 	err := Args.Parse(args[1:])
 	if err != nil {
 		return fmt.Errorf("failed parsing arguments, reason: %v", err)
@@ -200,12 +232,33 @@ func Upload(args []string) error {
 		fmt.Println("Consider renewing the token.")
 	}
 
-	// Args() returns the non-flag arguments, which we assume are filenames.
-	files := Args.Args()
-	if len(files) == 0 {
+	// Check that input file/folder list is not empty
+	if len(Args.Args()) == 0 {
 		return errors.New("no files to upload")
 	}
 
+	// Check if input argument is a file or directory and
+	// populate file list for upload
+	for _, filePath := range Args.Args() {
+		fileInfo, err := os.Stat(filePath)
+		if err != nil {
+			return err
+		}
+		if fileInfo.IsDir() {
+			if !*dirUpload {
+				log.Error(errors.New("-r not specified; omitting directory: " + filePath))
+
+				continue
+			}
+			dirFilePaths, err := createFilePaths(filePath)
+			if err != nil {
+				return err
+			}
+			files = append(files, dirFilePaths...)
+		} else {
+			files = append(files, filePath)
+		}
+	}
 	// Upload files
 	if err = uploadFiles(files, config); err != nil {
 		return err
