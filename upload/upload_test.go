@@ -162,7 +162,7 @@ func (suite *TestSuite) TestSampleNoFiles() {
 	config, _ := loadConfigFile(configPath.Name())
 	var files []string
 
-	err = uploadFiles(files, config)
+	err = uploadFiles(files, files, config)
 	assert.EqualError(suite.T(), err, "no files to upload")
 }
 
@@ -204,7 +204,15 @@ func (suite *TestSuite) TestcreateFilePaths() {
 	}
 	defer os.Remove(testfile.Name())
 
+	// Input is a file
+	_, _, err = createFilePaths(testfile.Name())
+	assert.ErrorContains(suite.T(), err, "is not a directory")
+
+	// Input is a directory
+	_, _, err = createFilePaths(dir)
+	assert.Nil(suite.T(), err)
+
 	// Input is invalid
-	_, err = createFilePaths("nonexistent")
+	_, _, err = createFilePaths("nonexistent")
 	assert.ErrorContains(suite.T(), err, "no such file or directory")
 }

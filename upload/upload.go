@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -131,7 +132,7 @@ func checkTokenExpiration(accessToken string) (bool, error) {
 }
 
 // Function uploadFiles uploads the files in the input list to the s3 bucket
-func uploadFiles(files []string, config *Config) error {
+func uploadFiles(files, outFiles []string, config *Config) error {
 
 	// check also here in case sth went wrong with input files
 	if len(files) == 0 {
@@ -152,7 +153,7 @@ func uploadFiles(files []string, config *Config) error {
 	// Create an uploader with the session and default options
 	uploader := s3manager.NewUploader(sess)
 
-	for _, filename := range files {
+	for k, filename := range files {
 
 		log.Infof("Uploading %s with config %s", filename, *configPath)
 
@@ -165,7 +166,7 @@ func uploadFiles(files []string, config *Config) error {
 		result, err := uploader.Upload(&s3manager.UploadInput{
 			Body:            f,
 			Bucket:          aws.String(config.AccessKey),
-			Key:             aws.String(filename),
+			Key:             aws.String(outFiles[k]),
 			ContentEncoding: aws.String(config.Encoding),
 		}, func(u *s3manager.Uploader) {
 			u.PartSize = config.MultipartChunkSizeMb * 1024 * 1024
@@ -182,11 +183,22 @@ func uploadFiles(files []string, config *Config) error {
 }
 
 // Function createFilePaths returns a slice with all absolute paths to files within a directory recursively
-func createFilePaths(dirPath string) ([]string, error) {
+// and a slice with the corresponding relative paths to the given directory
+func createFilePaths(dirPath string) ([]string, []string, error) {
 	var files []string
+	var outFiles []string
+
+	// Restrict function to work only with directories so that outFiles works as expected
+	fileInfo, err := os.Stat(dirPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !fileInfo.IsDir() {
+		return nil, nil, errors.New(dirPath + " is not a directory")
+	}
 
 	// List all directory contents recursively including relative paths
-	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			fmt.Println(err)
 
@@ -196,21 +208,30 @@ func createFilePaths(dirPath string) ([]string, error) {
 		if !info.IsDir() {
 			// Write relative file paths in a list
 			files = append(files, path)
+
+			// Create and write upload paths in a list
+			// Remove possible trailing "/" so that "path" and "path/" behave the same
+			dirPath = strings.TrimSuffix(dirPath, "/")
+			pathToTrim := strings.TrimSuffix(dirPath, filepath.Base(dirPath))
+			outPath := strings.TrimPrefix(path, pathToTrim)
+			outFiles = append(outFiles, outPath)
 		}
 
 		return nil
 	})
+
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return files, nil
+	return files, outFiles, nil
 }
 
 // Upload function uploads files to the s3 bucket. Input can be files or
 // directories to be uploaded recursively
 func Upload(args []string) error {
 	var files []string
+	var outFiles []string
 
 	err := Args.Parse(args[1:])
 	if err != nil {
@@ -255,7 +276,7 @@ func Upload(args []string) error {
 
 				continue
 			}
-			dirFilePaths, err := createFilePaths(filePath)
+			dirFilePaths, upFilePaths, err := createFilePaths(filePath)
 			if err != nil {
 				return err
 			}
@@ -267,12 +288,14 @@ func Upload(args []string) error {
 			}
 
 			files = append(files, dirFilePaths...)
+			outFiles = append(outFiles, upFilePaths...)
 		} else {
 			files = append(files, filePath)
+			outFiles = append(outFiles, filepath.Base(filePath))
 		}
 	}
 	// Upload files
-	if err = uploadFiles(files, config); err != nil {
+	if err = uploadFiles(files, outFiles, config); err != nil {
 		return err
 	}
 
