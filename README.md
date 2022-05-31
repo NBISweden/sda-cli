@@ -65,7 +65,21 @@ where `<configuration_file>` the file downloaded in the previous step and `<encr
 ```bash
 ./sda-cli upload -config <configuration_file> <encrypted_file_1_to_upload> <encrypted_file_2_to_upload>
 ```
-Note that the files will be uploaded creating the same folder structure as the local one. For example, if the `<encrypted_file_to_upload>` is located at `<folder_1>/<folder_2>/<encrypted_file_to_upload>`, then the same folder structure will be created in the archive.
+Note that the files will be uploaded in the base folder of the user.
+
+### Upload folder(s)
+
+One can also upload entire directories recursively, i.e. including all contained files and folders while keeping the local folder structure. This can be achieved with the `-r` flag, e.g. running:
+```bash
+./sda-cli upload -config <configuration_file> -r <folder_to_upload>
+```
+will upload `<folder_to_upload>` as is, i.e. with the same inner folder and file structure as the local one, to the archive.
+
+It is also possible to specify multiple directories and files for upload with the same command. For example,
+```bash
+./sda-cli upload -config <configuration_file> -r <encrypted_file_1_to_upload> <encrypted_file_2_to_upload> <folder_1_to_upload> <folder_2_to_upload>
+```
+However, if `-r` is omitted in the above, any folders will be skipped during upload.
 
 ## Get dataset size
 
