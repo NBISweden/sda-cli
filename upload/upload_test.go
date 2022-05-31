@@ -152,9 +152,17 @@ func (suite *TestSuite) TestSampleNoFiles() {
 		log.Printf("failed to write temp config file, %v", err)
 	}
 
+	// Test Upload function
 	os.Args = []string{"upload", "-config", configPath.Name()}
 
 	err = Upload(os.Args)
+	assert.EqualError(suite.T(), err, "no files to upload")
+
+	// Test uploadFiles function
+	config, _ := loadConfigFile(configPath.Name())
+	var files []string
+
+	err = uploadFiles(files, config)
 	assert.EqualError(suite.T(), err, "no files to upload")
 }
 
@@ -179,4 +187,24 @@ func (suite *TestSuite) TestTokenExpiration() {
 	expiring, err = CheckTokenExpiration(token)
 	assert.NoError(suite.T(), err)
 	assert.False(suite.T(), expiring)
+}
+
+func (suite *TestSuite) TestcreateFilePaths() {
+
+	// Create temp dir with file
+	dir, err := ioutil.TempDir(os.TempDir(), "test")
+	if err != nil {
+		log.Panic(err)
+	}
+	defer os.RemoveAll(dir)
+
+	testfile, err := ioutil.TempFile(dir, "testfile")
+	if err != nil {
+		log.Panic(err)
+	}
+	defer os.Remove(testfile.Name())
+
+	// Input is invalid
+	_, err = createFilePaths("nonexistent")
+	assert.ErrorContains(suite.T(), err, "no such file or directory")
 }
