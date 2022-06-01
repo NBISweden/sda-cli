@@ -272,7 +272,7 @@ func Upload(args []string) error {
 		}
 		if fileInfo.IsDir() {
 			if !*dirUpload {
-				log.Error(errors.New("-r not specified; omitting directory: " + filePath))
+				log.Warning(errors.New("-r not specified; omitting directory: " + filePath))
 
 				continue
 			}
