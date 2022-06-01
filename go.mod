@@ -3,12 +3,12 @@ module github.com/NBISweden/sda-cli
 go 1.17
 
 require (
-	github.com/aws/aws-sdk-go v1.44.19
+	github.com/aws/aws-sdk-go v1.44.24
 	github.com/elixir-oslo/crypt4gh v1.5.0
 	github.com/manifoldco/promptui v0.9.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.1
-	gopkg.in/ini.v1 v1.66.4
+	gopkg.in/ini.v1 v1.66.5
 )
 
 require (
