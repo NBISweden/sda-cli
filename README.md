@@ -132,3 +132,9 @@ go build
 ```
 This command will create an executable file in the root folder, named `sda-cli`.
 
+# Create new release
+
+The github actions include a release workflow that builds binaries for different operating systems. In order to create a new release, create a tag either using the graphical interface or through the command line. That should trigger the creation of a release with the latest code of the specified branch.
+
+In order for the automatic release to get triggered, the releases should be of the format `vX.X.X`, e.g. `v1.0.0`.
+
