@@ -92,6 +92,29 @@ do
     check_uploaded_file test/dummy/$k $k
 done
 
+# Test upload to a different path
+# Upload a folder recursively and a single file in a specified upload folder
+uploadDir="testfolder"
+./sda-cli upload -config sda-s3proxy/dev_utils/s3cmd.conf -updir "$uploadDir" -r data_files_enc/dir1 data_files_enc/data_file3.c4gh
+
+# Check that files were uploaded with the local path prefix `data_files_enc` stripped from the
+# target path and into the specified upload folder
+for k in dir1/data_file.c4gh dir1/dir2/data_file.c4gh dir1/dir2/data_file2.c4gh data_file3.c4gh
+do
+    check_uploaded_file test/dummy/$uploadDir"/"$k $k
+done
+
+# Upload all contents of a folder recursively to a specified upload folder
+uploadDir="testfolder2"
+./sda-cli upload -config sda-s3proxy/dev_utils/s3cmd.conf -updir "$uploadDir" -r data_files_enc/dir1/.
+
+# Check that files were uploaded with the local path prefix `data_files_enc/dir1` stripped from the
+# target path and into the specified upload folder
+for k in data_file.c4gh dir2/data_file.c4gh dir2/data_file2.c4gh
+do
+    check_uploaded_file test/dummy/$uploadDir"/"$k $k
+done
+
 # Dataset size using a local urls_list.txt
 echo "http://localhost:9000/download/A352764B-2KB4-4738-B6B5-BA55D25FB469/data_file.c4gh" > urls_list.txt
 
