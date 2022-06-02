@@ -81,6 +81,20 @@ It is also possible to specify multiple directories and files for upload with th
 ```
 However, if `-r` is omitted in the above, any folders will be skipped during upload.
 
+### Upload to a different path
+
+The user can specify a different path for uploading files/folders with the `-updir` flag followed by the name of the folder. For example, the command:
+```bash
+./sda-cli upload -config <configuration_file> -updir <upload_folder> -r <encrypted_file_1_to_upload> <folder_1_to_upload>
+```
+will create `<upload_folder>` under the user's base folder with  contents `<upload_folder>/<encrypted_file_1_to_upload>` and `<upload_folder>/<folder_1_to_upload>`. Note that the given `<upload_folder>` may well be a folder path, e.g. `<folder1/folder2>`, and in this case `<encrypted_file_1_to_upload>` will be uploaded to `folder1/folder2/<encrypted_file_1_to_upload>`.
+
+As a side note the argument list may include wildcards, for example,
+```bash
+./sda-cli upload -config <configuration_file> -updir <new_folder_name> -r <folder_to_upload>/.
+```
+will upload all contents of `<folder_to_upload>` to `<new_folder_name>` recursively, effectively renaming `<folder_to_upload>` upon upload to the archive.
+
 ## Get dataset size
 
 Before downloading a dataset or a specific file, the `sda-cli` tool allows for requesting the size of each file, as well as the whole dataset. In order to use this functionality, the tool expects as an argument a file containing the location of the files in the dataset. The argument can be one of the following:
