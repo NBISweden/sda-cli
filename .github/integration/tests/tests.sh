@@ -50,6 +50,15 @@ check_encypted_file $files
 ./sda-cli upload -config sda-s3proxy/dev_utils/s3cmd.conf data_file.c4gh
 check_uploaded_file test/dummy/data_file.c4gh data_file.c4gh
 
+echo "Here"
+output=$(./sda-cli list -config sda-s3proxy/dev_utils/s3cmd.conf | grep -q "data_file.c4gh")
+if $output ; then
+    echo "Listed file from s3 backend"
+else
+    echo "Failed to list file to s3 backend"
+    exit 1
+fi
+
 
 # Create and encrypt multiple files in a folder
 dd if=/dev/random of=data_file1 count=1 bs=$(( 1024*1024 ))
@@ -97,7 +106,7 @@ else
 fi
 
 # Remove files used for encrypt and upload
-rm -r data_files_enc 
+rm -r data_files_enc
 rm -r downloads
 rm sda_key* checksum_* urls_list.txt data_file*
  

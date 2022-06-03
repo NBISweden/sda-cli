@@ -55,7 +55,6 @@ func listFiles(config *upload.Config, prefix string) (result *s3.ListObjectsV2Ou
 		Prefix: aws.String(config.AccessKey + "/" + prefix),
 	})
 
-	fmt.Println(result)
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {
@@ -118,6 +117,7 @@ func List(args []string) error {
 	for i := range result.Contents {
 		fmt.Printf("%s \t %s \n", bytesize.New(float64((*result.Contents[i].Size))), *result.Contents[i].Key)
 	}
+	
 
 	return nil
 }
