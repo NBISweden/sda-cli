@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"strings"
 
 	"github.com/NBISweden/sda-cli/upload"
 	"github.com/aws/aws-sdk-go/aws"
@@ -115,7 +116,8 @@ func List(args []string) error {
 	}
 
 	for i := range result.Contents {
-		fmt.Printf("%s \t %s \n", bytesize.New(float64((*result.Contents[i].Size))), *result.Contents[i].Key)
+		file := *result.Contents[i].Key
+		fmt.Printf("%s \t %s \n", bytesize.New(float64((*result.Contents[i].Size))), file[strings.Index(file, "/") + 1:])
 	}
 	
 
