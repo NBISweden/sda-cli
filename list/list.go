@@ -117,9 +117,8 @@ func List(args []string) error {
 
 	for i := range result.Contents {
 		file := *result.Contents[i].Key
-		fmt.Printf("%s \t %s \n", bytesize.New(float64((*result.Contents[i].Size))), file[strings.Index(file, "/") + 1:])
+		fmt.Printf("%s \t %s \n", bytesize.New(float64((*result.Contents[i].Size))), file[strings.Index(file, "/")+1:])
 	}
-	
 
 	return nil
 }

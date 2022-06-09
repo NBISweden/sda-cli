@@ -14,6 +14,8 @@ cp dummy.ega.nbis.se.pub sda-s3proxy/dev_utils/keys  || exit 1
 
 cd sda-s3proxy/dev_utils || exit 1
 
+sh make_certs.sh
+
 docker-compose up -d
 RETRY_TIMES=0
 until docker ps -f name="s3" --format "{{.Status}}" | grep "Up"
