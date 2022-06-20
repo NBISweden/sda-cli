@@ -7,7 +7,7 @@ services:
       - MINIO_ACCESS_KEY=ElixirID
       - MINIO_SECRET_KEY=987654321
     healthcheck:
-      test: ["CMD", "curl", "-fkq", "https://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-fkq", "http://localhost:9000/minio/health/live"]
       interval: 5s
       timeout: 20s
       retries: 3
@@ -30,28 +30,25 @@ services:
       /usr/bin/mc policy set public s3/download;
       exit 0;
       "
-    volumes:
-      - ./certs/ca.crt:/etc/ssl/certs/public.crt
   mq_server:
     container_name: mq
-    image: rabbitmq:3.7.8-management-alpine
+    image: ghcr.io/neicnordic/sda-mq:v1.4.1
+    environment:
+     - MQ_USER=test
+     - MQ_PASSWORD_HASH=C5ufXbYlww6ZBcEqDUB04YdUptO81s+ozI3Ll5GCHTnv8NAm
+     - MQ_VHOST=test
+     - MQ_VERIFY=verify_none
+     - NOTLS=true
     ports:
       - "15672:15672"
-      - "5672:5672"
       - "5671:5671"
-    volumes:
-      - ./defs.json:/etc/rabbitmq/defs.json
-      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
-      - ./certs/ca.crt:/etc/rabbitmq/ssl/ca.crt
-      - ./certs/mq.crt:/etc/rabbitmq/ssl/mq.crt
-      - ./certs/mq.key:/etc/rabbitmq/ssl/mq.key
     healthcheck:
-      test: [ "CMD", "rabbitmq-diagnostics", "-q", "check_running" ]
-      interval: 30s
+      test: [ "CMD-SHELL", "rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_local_alarms || exit 1" ]
+      interval: 5s
       timeout: 20s
       retries: 3
   s3_proxy:
-    image: neicnordic/sda-s3proxy
+    image: ghcr.io/neicnordic/sda-s3proxy:latest
     container_name: proxy
     depends_on:
       - mq_server
@@ -65,31 +62,18 @@ services:
       - AWS_BUCKET=test
       - AWS_REGION=us-east-1
       - AWS_READYPATH=/minio/health/ready
-      - AWS_CACERT=/certs/ca.crt
       - BROKER_HOST=mq
       - BROKER_USER=test
       - BROKER_PASSWORD=test
-      - BROKER_PORT=5671
+      - BROKER_PORT=5672
       - BROKER_VHOST=/test
-      - BROKER_EXCHANGE=localega.v1
-      - BROKER_ROUTINGKEY=files.inbox
-      - BROKER_SSL=true
-      - BROKER_CACERT=/certs/ca.crt
-      - BROKER_CLIENTCERT=/certs/client.crt
-      - BROKER_CLIENTKEY=/certs/client.key
-      - BROKER_VERIFYPEER=true
-      - SERVER_USERS=/users.csv
+      - BROKER_EXCHANGE=sda
+      - BROKER_ROUTINGKEY=inbox
+      - BROKER_SSL=False
       - SERVER_JWTPUBKEYPATH=/keys/
-      - SERVER_JWTPUBEYURL=https://login.elixir-czech.org/oidc/jwk
       - LOG_FORMAT=json
     volumes:
-      - ./certs/ca.crt:/certs/ca.crt
-      - ./certs/client.crt:/certs/client.crt
-      - ./certs/client.key:/certs/client.key
-      - ./certs/proxy.crt:/certs/proxy.crt
-      - ./certs/proxy.key:/certs/proxy.key
-      - ./users.csv:/users.csv
-      - ./keys:/keys
+      - ./keys/:/keys/
     ports:
       - "8000:8000"
       - "8001:8001"
