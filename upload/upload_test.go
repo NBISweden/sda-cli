@@ -159,12 +159,12 @@ func (suite *TestSuite) TestSampleNoFiles() {
 	assert.EqualError(suite.T(), err, "no files to upload")
 
 	// Test handling of mistakenly passing a filename as an upload folder
-	os.Args = []string{"upload", "-config", configPath.Name(), "-updir", configPath.Name()}
+	os.Args = []string{"upload", "-config", configPath.Name(), "-targetDir", configPath.Name()}
 	err = Upload(os.Args)
 	assert.EqualError(suite.T(), err, configPath.Name()+" is not a valid upload directory")
 
 	// Test handling of mistakenly passing a boolean flag as an upload folder
-	os.Args = []string{"upload", "-config", configPath.Name(), "-updir", "-r"}
+	os.Args = []string{"upload", "-config", configPath.Name(), "-targetDir", "-r"}
 	err = Upload(os.Args)
 	assert.EqualError(suite.T(), err, "-r"+" is not a valid upload directory")
 

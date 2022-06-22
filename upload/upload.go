@@ -25,7 +25,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s upload -config <s3config-file> (-updir <upload-directory>) (-r) [file(s)|folder(s)]
+USAGE: %s upload -config <s3config-file> (-targetDir <upload-directory>) (-r) [file(s)|folder(s)]
 
 Upload: Uploads files to the Sensitive Data Archive (SDA). All files to upload
         are required to be encrypted and have the .c4gh file extension.
@@ -45,7 +45,7 @@ var configPath = Args.String("config", "", "S3 config file to use for uploading.
 
 var dirUpload = Args.Bool("r", false, "Upload directories recursively.")
 
-var uploadDir = Args.String("updir", "", "Upload files|folders into this directory. If flag is omitted, all data will be uploaded in the user's base directory.")
+var uploadDir = Args.String("targetDir", "", "Upload files|folders into this directory. If flag is omitted, all data will be uploaded in the user's base directory.")
 
 // Config struct for storing the s3cmd file values
 type Config struct {
