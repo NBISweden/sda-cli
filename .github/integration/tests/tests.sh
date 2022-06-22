@@ -60,7 +60,7 @@ fi
 
 
 # Create and encrypt multiple files in a folder
-dd if=/dev/random of=data_file1 count=1 bs=1M
+cp data_file data_file1
 
 # Create folder and encrypt files in it
 mkdir data_files_enc
