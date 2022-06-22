@@ -8,7 +8,6 @@ import (
 
 	"github.com/NBISweden/sda-cli/upload"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -57,20 +56,7 @@ func listFiles(config *upload.Config, prefix string) (result *s3.ListObjectsV2Ou
 	})
 
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			case s3.ErrCodeNoSuchBucket:
-				fmt.Println(s3.ErrCodeNoSuchBucket, aerr.Error())
-			default:
-				fmt.Println(aerr.Error())
-			}
-		} else {
-			// Print the error, cast err to awserr.Error to get the Code and
-			// Message from an error.
-			fmt.Println(err.Error())
-		}
-
-		return nil, err
+		return nil, fmt.Errorf("failed to list objects, reason: %v", err)
 	}
 
 	return result, nil
