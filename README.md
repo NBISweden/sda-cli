@@ -83,15 +83,15 @@ However, if `-r` is omitted in the above, any folders will be skipped during upl
 
 ### Upload to a different path
 
-The user can specify a different path for uploading files/folders with the `-updir` flag followed by the name of the folder. For example, the command:
+The user can specify a different path for uploading files/folders with the `-targetDir` flag followed by the name of the folder. For example, the command:
 ```bash
-./sda-cli upload -config <configuration_file> -updir <upload_folder> -r <encrypted_file_1_to_upload> <folder_1_to_upload>
+./sda-cli upload -config <configuration_file> -r <encrypted_file_1_to_upload> <folder_1_to_upload> -targetDir <upload_folder>
 ```
 will create `<upload_folder>` under the user's base folder with  contents `<upload_folder>/<encrypted_file_1_to_upload>` and `<upload_folder>/<folder_1_to_upload>`. Note that the given `<upload_folder>` may well be a folder path, e.g. `<folder1/folder2>`, and in this case `<encrypted_file_1_to_upload>` will be uploaded to `folder1/folder2/<encrypted_file_1_to_upload>`.
 
 As a side note the argument list may include wildcards, for example,
 ```bash
-./sda-cli upload -config <configuration_file> -updir <new_folder_name> -r <folder_to_upload>/.
+./sda-cli upload -config <configuration_file> -r <folder_to_upload>/. -targetDir <new_folder_name>
 ```
 will upload all contents of `<folder_to_upload>` to `<new_folder_name>` recursively, effectively renaming `<folder_to_upload>` upon upload to the archive.
 
