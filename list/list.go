@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/NBISweden/sda-cli/upload"
@@ -93,8 +94,8 @@ func List(args []string) error {
 		return err
 	}
 	if expiring {
-		fmt.Println("The provided token expires in less than 24 hours")
-		fmt.Println("Consider renewing the token.")
+		fmt.Fprintln(os.Stderr, "The provided token expires in less than 24 hours")
+		fmt.Fprintln(os.Stderr, "Consider renewing the token.")
 	}
 	result, err := listFiles(config, prefix)
 	if err != nil {
