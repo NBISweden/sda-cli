@@ -163,10 +163,19 @@ func (suite *TestSuite) TestSampleNoFiles() {
 	err = Upload(os.Args)
 	assert.EqualError(suite.T(), err, configPath.Name()+" is not a valid upload directory")
 
-	// Test handling of mistakenly passing a boolean flag as an upload folder
+	// Test handling of mistakenly passing a flag as an upload folder
 	os.Args = []string{"upload", "-config", configPath.Name(), "-targetDir", "-r"}
 	err = Upload(os.Args)
 	assert.EqualError(suite.T(), err, "-r"+" is not a valid upload directory")
+
+	// Test passing flags at the end as well
+	os.Args = []string{"upload", "-config", configPath.Name(), "-r", "somefileOrfolder", "-targetDir", "somedir"}
+	err = Upload(os.Args)
+	assert.EqualError(suite.T(), err, "stat somefileOrfolder: no such file or directory")
+
+	os.Args = []string{"upload", "-config", configPath.Name(), "somefiles", "-targetDir"}
+	err = Upload(os.Args)
+	assert.EqualError(suite.T(), err, "-config is not a valid upload directory")
 
 	// Test uploadFiles function
 	config, _ := loadConfigFile(configPath.Name())
