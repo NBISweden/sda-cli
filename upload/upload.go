@@ -25,7 +25,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s upload -config <s3config-file> (-targetDir <upload-directory>) (-r) [file(s)|folder(s)]
+USAGE: %s upload -config <s3config-file> (-r) [file(s)|folder(s)] (-targetDir <upload-directory>)
 
 Upload: Uploads files to the Sensitive Data Archive (SDA). All files to upload
         are required to be encrypted and have the .c4gh file extension.
@@ -235,12 +235,35 @@ func Upload(args []string) error {
 	var files []string
 	var outFiles []string
 
+	// Shift flag and their arguments from the end to the beginning
+	// if more boolean flags are added in the future the following needs a slight modification
+	for k := len(args) - 1; k > 0; k-- {
+		if args[len(args)-1][0:1] != "-" && (args[len(args)-2][0:1] != "-" || args[len(args)-2] == "-r") {
+
+			break
+		}
+		args = append(args[0:1], append(args[len(args)-1:], args[1:len(args)-1]...)...)
+	}
+
 	err := Args.Parse(args[1:])
 	if err != nil {
 		return fmt.Errorf("failed parsing arguments, reason: %v", err)
 	}
 
-	// Check that we have a private key to decrypt with
+	// Check that specified upload directory is valid, i.e. not a filepath or a flag
+	info, err := os.Stat(*uploadDir)
+
+	// Dereference the pointer to a string
+	uploadDirString := ""
+	if uploadDir != nil {
+		uploadDirString = *uploadDir
+	}
+
+	if (!os.IsNotExist(err) && !info.IsDir()) || (uploadDirString != "" && uploadDirString[0:1] == "-") {
+		return errors.New(*uploadDir + " is not a valid upload directory")
+	}
+
+	// Check that we have an s3 configuration file
 	if *configPath == "" {
 		return errors.New("failed to find an s3 configuration file for uploading data")
 	}
@@ -258,12 +281,6 @@ func Upload(args []string) error {
 	if expiring {
 		fmt.Println("The provided token expires in less than 24 hours")
 		fmt.Println("Consider renewing the token.")
-	}
-
-	// Check that specified upload directory is not a filepath from the argument list or a flag
-	info, err := os.Stat(*uploadDir)
-	if !os.IsNotExist(err) && !info.IsDir() || *uploadDir == "-r" {
-		return errors.New(*uploadDir + " is not a valid upload directory")
 	}
 
 	// Check that input file/folder list is not empty
