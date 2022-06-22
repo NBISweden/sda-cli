@@ -95,7 +95,10 @@ done
 # Test upload to a different path
 # Upload a folder recursively and a single file in a specified upload folder
 uploadDir="testfolder"
-./sda-cli upload -config sda-s3proxy/dev_utils/s3cmd.conf -updir "$uploadDir" -r data_files_enc/dir1 data_files_enc/data_file3.c4gh
+./sda-cli upload -config sda-s3proxy/dev_utils/s3cmd.conf -targetDir "$uploadDir" -r data_files_enc/dir1 data_files_enc/data_file3.c4gh
+
+# Do it again to test that we can pass -targetDir at the end
+./sda-cli upload -config sda-s3proxy/dev_utils/s3cmd.conf -r data_files_enc/dir1 data_files_enc/data_file3.c4gh -targetDir "$uploadDir"
 
 # Check that files were uploaded with the local path prefix `data_files_enc` stripped from the
 # target path and into the specified upload folder
@@ -106,7 +109,7 @@ done
 
 # Upload all contents of a folder recursively to a specified upload folder
 uploadDir="testfolder2"
-./sda-cli upload -config sda-s3proxy/dev_utils/s3cmd.conf -updir "$uploadDir" -r data_files_enc/dir1/.
+./sda-cli upload -config sda-s3proxy/dev_utils/s3cmd.conf -targetDir "$uploadDir" -r data_files_enc/dir1/.
 
 # Check that files were uploaded with the local path prefix `data_files_enc/dir1` stripped from the
 # target path and into the specified upload folder
