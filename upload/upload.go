@@ -45,7 +45,7 @@ var configPath = Args.String("config", "", "S3 config file to use for uploading.
 
 var dirUpload = Args.Bool("r", false, "Upload directories recursively.")
 
-var uploadDir = Args.String("targetDir", "", "Upload files|folders into this directory. If flag is omitted, all data will be uploaded in the user's base directory.")
+var targetDir = Args.String("targetDir", "", "Upload files|folders into this directory. If flag is omitted, all data will be uploaded in the user's base directory.")
 
 // Config struct for storing the s3cmd file values
 type Config struct {
@@ -134,7 +134,7 @@ func checkTokenExpiration(accessToken string) (bool, error) {
 }
 
 // Function uploadFiles uploads the files in the input list to the s3 bucket
-func uploadFiles(files, outFiles []string, outDir string, config *Config) error {
+func uploadFiles(files, outFiles []string, targetDir string, config *Config) error {
 
 	// check also here in case sth went wrong with input files
 	if len(files) == 0 {
@@ -168,7 +168,7 @@ func uploadFiles(files, outFiles []string, outDir string, config *Config) error 
 		result, err := uploader.Upload(&s3manager.UploadInput{
 			Body:            f,
 			Bucket:          aws.String(config.AccessKey),
-			Key:             aws.String(outDir + "/" + outFiles[k]),
+			Key:             aws.String(targetDir + "/" + outFiles[k]),
 			ContentEncoding: aws.String(config.Encoding),
 		}, func(u *s3manager.Uploader) {
 			u.PartSize = config.MultipartChunkSizeMb * 1024 * 1024
@@ -250,17 +250,17 @@ func Upload(args []string) error {
 		return fmt.Errorf("failed parsing arguments, reason: %v", err)
 	}
 
-	// Check that specified upload directory is valid, i.e. not a filepath or a flag
-	info, err := os.Stat(*uploadDir)
+	// Check that specified target directory is valid, i.e. not a filepath or a flag
+	info, err := os.Stat(*targetDir)
 
 	// Dereference the pointer to a string
-	uploadDirString := ""
-	if uploadDir != nil {
-		uploadDirString = *uploadDir
+	targetDirString := ""
+	if targetDir != nil {
+		targetDirString = *targetDir
 	}
 
-	if (!os.IsNotExist(err) && !info.IsDir()) || (uploadDirString != "" && uploadDirString[0:1] == "-") {
-		return errors.New(*uploadDir + " is not a valid upload directory")
+	if (!os.IsNotExist(err) && !info.IsDir()) || (targetDirString != "" && targetDirString[0:1] == "-") {
+		return errors.New(*targetDir + " is not a valid target directory")
 	}
 
 	// Check that we have an s3 configuration file
@@ -320,7 +320,7 @@ func Upload(args []string) error {
 		}
 	}
 	// Upload files
-	if err = uploadFiles(files, outFiles, *uploadDir, config); err != nil {
+	if err = uploadFiles(files, outFiles, *targetDir, config); err != nil {
 		return err
 	}
 
