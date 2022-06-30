@@ -1,10 +1,21 @@
 package upload
 
 import (
+	"bytes"
+	"fmt"
 	"io/ioutil"
+	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/johannesboyne/gofakes3"
+	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -234,4 +245,124 @@ func (suite *TestSuite) TestcreateFilePaths() {
 	// Input is invalid
 	_, _, err = createFilePaths("nonexistent")
 	assert.ErrorContains(suite.T(), err, "no such file or directory")
+}
+
+func (suite *TestSuite) TestFunctionality() {
+
+	// Create a fake s3 backend
+	backend := s3mem.New()
+	faker := gofakes3.New(backend)
+	ts := httptest.NewServer(faker.Server())
+	defer ts.Close()
+
+	// Configure S3 client
+	s3Config := &aws.Config{
+		Credentials:      credentials.NewStaticCredentials("dummy", "dummy", "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNzA3NDgzOTQ0IiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwiZXhwIjoxNzA3NDgzOTQ0fQ.D7hrpd3ROXp53NnXa0PL9js2Oi1KqpKpkVMic1B23X84ksX9kbbtn4Ad4BkhO8Tm35a5hBu95CGgw5b06sd3LQ"),
+		Endpoint:         aws.String(ts.URL),
+		Region:           aws.String("eu-central-1"),
+		DisableSSL:       aws.Bool(true),
+		S3ForcePathStyle: aws.Bool(true),
+	}
+	newSession, _ := session.NewSession(s3Config)
+
+	s3Client := s3.New(newSession)
+
+	// Create bucket named dummy
+	cparams := &s3.CreateBucketInput{
+		Bucket: aws.String("dummy"),
+	}
+	_, err := s3Client.CreateBucket(cparams)
+	if err != nil {
+		log.Println(err.Error())
+
+		return
+	}
+
+	// Create conf file for sda-cli
+	var confFile = fmt.Sprintf(`
+	access_token = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNzA3NDgzOTQ0IiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwiZXhwIjoxNzA3NDgzOTQ0fQ.D7hrpd3ROXp53NnXa0PL9js2Oi1KqpKpkVMic1B23X84ksX9kbbtn4Ad4BkhO8Tm35a5hBu95CGgw5b06sd3LQ"
+	host_base = %[1]s
+	encoding = UTF-8
+	host_bucket = %[1]s
+	multipart_chunk_size_mb = 50
+	secret_key = dummy
+	access_key = dummy
+	use_https = False
+	check_ssl_certificate = False
+	check_ssl_hostname = False
+	socket_timeout = 30
+	human_readable_sizes = True
+	guess_mime_type = True
+	encrypt = False
+	`, strings.TrimPrefix(ts.URL, "http://"))
+
+	configPath, err := ioutil.TempFile(os.TempDir(), "s3cmd.conf")
+	if err != nil {
+		log.Panic(err)
+	}
+	defer os.Remove(configPath.Name())
+
+	err = ioutil.WriteFile(configPath.Name(), []byte(confFile), 0600)
+	if err != nil {
+		log.Printf("failed to write temp config file, %v", err)
+	}
+
+	// Create temp dir with file
+	dir, err := ioutil.TempDir(os.TempDir(), "test")
+	if err != nil {
+		log.Panic(err)
+	}
+	defer os.RemoveAll(dir)
+
+	testfile, err := ioutil.TempFile(dir, "testfile")
+	if err != nil {
+		log.Panic(err)
+	}
+	defer os.Remove(testfile.Name())
+
+	var str bytes.Buffer
+	log.SetOutput(&str)
+	defer log.SetOutput(os.Stdout)
+
+	// Test recursive upload
+	os.Args = []string{"upload", "-config", configPath.Name(), "-r", dir}
+	err = Upload(os.Args)
+	assert.Equal(suite.T(), err, nil)
+
+	// Check logs that file was uploaded
+	logMsg := fmt.Sprintf("%v", strings.TrimSuffix(str.String(), "\n"))
+	msg := fmt.Sprintf("file uploaded to %s/dummy/%s/%s", ts.URL, filepath.Base(dir), filepath.Base(testfile.Name()))
+	assert.Contains(suite.T(), logMsg, msg)
+
+	// Check that file showed up in the s3 bucket correctly
+	result, err := s3Client.ListObjects(&s3.ListObjectsInput{
+		Bucket: aws.String("dummy"),
+	})
+	if err != nil {
+		log.Println(err.Error())
+
+		return
+	}
+	assert.Equal(suite.T(), aws.StringValue(result.Contents[0].Key), fmt.Sprintf("%s/%s", filepath.Base(dir), filepath.Base(testfile.Name())))
+
+	// Test upload to a different folder
+	os.Args = []string{"upload", "-config", configPath.Name(), testfile.Name(), "-targetDir", "a"}
+	err = Upload(os.Args)
+	assert.Equal(suite.T(), err, nil)
+
+	// Check logs that file was uploaded
+	logMsg = fmt.Sprintf("%v", strings.TrimSuffix(str.String(), "\n"))
+	msg = fmt.Sprintf("file uploaded to %s/dummy/a/%s", ts.URL, filepath.Base(testfile.Name()))
+	assert.Contains(suite.T(), logMsg, msg)
+
+	// Check that file showed up in the s3 bucket correctly
+	result, err = s3Client.ListObjects(&s3.ListObjectsInput{
+		Bucket: aws.String("dummy"),
+	})
+	if err != nil {
+		log.Println(err.Error())
+
+		return
+	}
+	assert.Equal(suite.T(), aws.StringValue(result.Contents[0].Key), fmt.Sprintf("a/%s", filepath.Base(testfile.Name())))
 }
