@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+
 	"os"
 	"strings"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/inhies/go-bytesize"
+	log "github.com/sirupsen/logrus"
 )
 
 // Help text and command line flags.
@@ -86,7 +88,7 @@ func List(args []string) error {
 	// Get the configuration in the struct
 	config, err := upload.LoadConfigFile(*configPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to load config file, reason: %v", err)
 	}
 
 	expiring, err := upload.CheckTokenExpiration(config.AccessToken)
@@ -104,7 +106,7 @@ func List(args []string) error {
 
 	for i := range result.Contents {
 		file := *result.Contents[i].Key
-		fmt.Printf("%s \t %s \n", bytesize.New(float64((*result.Contents[i].Size))), file[strings.Index(file, "/")+1:])
+		log.Printf("%s \t %s \n", bytesize.New(float64((*result.Contents[i].Size))), file[strings.Index(file, "/")+1:])
 	}
 
 	return nil
