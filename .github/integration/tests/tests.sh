@@ -50,7 +50,8 @@ check_encypted_file $files
 ./sda-cli upload -config sda-s3proxy/dev_utils/s3cmd.conf data_file.c4gh
 check_uploaded_file test/dummy/data_file.c4gh data_file.c4gh
 
-output=$(./sda-cli list -config sda-s3proxy/dev_utils/s3cmd.conf | grep -q "data_file.c4gh")
+output=$(./sda-cli list -config sda-s3proxy/dev_utils/s3cmd.conf 2>&1 >/dev/null | grep -q "data_file.c4gh")
+
 if $output ; then
     echo "Listed file from s3 backend"
 else
