@@ -189,7 +189,7 @@ func (suite *TestSuite) TestSampleNoFiles() {
 	assert.EqualError(suite.T(), err, "-config is not a valid target directory")
 
 	// Test uploadFiles function
-	config, _ := loadConfigFile(configPath.Name())
+	config, _ := LoadConfigFile(configPath.Name())
 	var files []string
 
 	err = uploadFiles(files, files, "", config)
