@@ -240,7 +240,7 @@ func (suite *TestSuite) TestcreateFilePaths() {
 
 	// Input is a directory
 	_, _, err = createFilePaths(dir)
-	assert.Nil(suite.T(), err)
+	assert.NoError(suite.T(), err)
 
 	// Input is invalid
 	_, _, err = createFilePaths("nonexistent")
@@ -273,9 +273,7 @@ func (suite *TestSuite) TestFunctionality() {
 	}
 	_, err := s3Client.CreateBucket(cparams)
 	if err != nil {
-		log.Println(err.Error())
-
-		return
+		log.Panic(err.Error())
 	}
 
 	// Create conf file for sda-cli
@@ -327,7 +325,7 @@ func (suite *TestSuite) TestFunctionality() {
 	// Test recursive upload
 	os.Args = []string{"upload", "-config", configPath.Name(), "-r", dir}
 	err = Upload(os.Args)
-	assert.Equal(suite.T(), err, nil)
+	assert.NoError(suite.T(), err)
 
 	// Check logs that file was uploaded
 	logMsg := fmt.Sprintf("%v", strings.TrimSuffix(str.String(), "\n"))
@@ -339,16 +337,14 @@ func (suite *TestSuite) TestFunctionality() {
 		Bucket: aws.String("dummy"),
 	})
 	if err != nil {
-		log.Println(err.Error())
-
-		return
+		log.Panic(err.Error())
 	}
 	assert.Equal(suite.T(), aws.StringValue(result.Contents[0].Key), fmt.Sprintf("%s/%s", filepath.Base(dir), filepath.Base(testfile.Name())))
 
 	// Test upload to a different folder
 	os.Args = []string{"upload", "-config", configPath.Name(), testfile.Name(), "-targetDir", "a"}
 	err = Upload(os.Args)
-	assert.Equal(suite.T(), err, nil)
+	assert.NoError(suite.T(), err)
 
 	// Check logs that file was uploaded
 	logMsg = fmt.Sprintf("%v", strings.TrimSuffix(str.String(), "\n"))
@@ -360,9 +356,7 @@ func (suite *TestSuite) TestFunctionality() {
 		Bucket: aws.String("dummy"),
 	})
 	if err != nil {
-		log.Println(err.Error())
-
-		return
+		log.Panic(err.Error())
 	}
 	assert.Equal(suite.T(), aws.StringValue(result.Contents[0].Key), fmt.Sprintf("a/%s", filepath.Base(testfile.Name())))
 }
