@@ -80,6 +80,18 @@ Given this argument, the dataset size can be retrieved using the following comma
 ```
 where `urls_file` as described above.
 
+## List files
+
+The uploaded files can be listed using the `list` parameter. This feature returns all the files in the user's bucket recursively and can be executed using:
+```bash
+./sda-cli list -config <configuration_file>
+```
+ It also allows for requesting files/filepaths with a specified prefix using:
+ ```bash
+./sda-cli list -config <configuration_file> <prefix>
+```
+This command will return any file/path starting with the defined `<prefix>`.
+
 ## Download
 
 The SDA/BP archive enables for downloading files and datasets in a secure manner. That can be achieved using the `sda-cli` tool and the process consists of the following two steps

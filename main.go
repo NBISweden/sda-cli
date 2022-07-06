@@ -11,6 +11,7 @@ import (
 	"github.com/NBISweden/sda-cli/download"
 	"github.com/NBISweden/sda-cli/encrypt"
 	"github.com/NBISweden/sda-cli/helpers"
+	"github.com/NBISweden/sda-cli/list"
 	"github.com/NBISweden/sda-cli/upload"
 	log "github.com/sirupsen/logrus"
 )
@@ -35,6 +36,7 @@ var Commands = map[string]commandInfo{
 	"download":    {download.Args, download.Usage, download.ArgHelp},
 	"upload":      {upload.Args, upload.Usage, upload.ArgHelp},
 	"datasetsize": {datasetsize.Args, datasetsize.Usage, datasetsize.ArgHelp},
+	"list":        {list.Args, list.Usage, list.ArgHelp},
 }
 
 // Main does argument parsing, then delegates to one of the sub modules
@@ -57,6 +59,8 @@ func main() {
 		err = upload.Upload(args)
 	case "datasetsize":
 		err = datasetsize.DatasetSize(args)
+	case "list":
+		err = list.List(args)
 	default:
 		log.Fatal("Unknown command:", command)
 	}

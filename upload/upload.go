@@ -58,8 +58,8 @@ type Config struct {
 	HumanReadableSizes   bool   `ini:"human_readable_sizes"`
 }
 
-// Load ini configuration file to the Config struct
-func loadConfigFile(path string) (*Config, error) {
+// LoadConfigFile loads ini configuration file to the Config struct
+func LoadConfigFile(path string) (*Config, error) {
 
 	config := &Config{}
 
@@ -96,8 +96,8 @@ func loadConfigFile(path string) (*Config, error) {
 	return config, nil
 }
 
-// Function to determine whether the token is expiring in less than a day
-func checkTokenExpiration(accessToken string) (bool, error) {
+// CheckTokenExpiration is used to determine whether the token is expiring in less than a day
+func CheckTokenExpiration(accessToken string) (bool, error) {
 
 	// Parse jwt token with unverifies, since we don't need to check the signatures here
 	token, _, err := new(jwt.Parser).ParseUnverified(accessToken, jwt.MapClaims{})
@@ -146,12 +146,12 @@ func Upload(args []string) error {
 	}
 
 	// Get the configuration in the struct
-	config, err := loadConfigFile(*configPath)
+	config, err := LoadConfigFile(*configPath)
 	if err != nil {
 		return err
 	}
 
-	expiring, err := checkTokenExpiration(config.AccessToken)
+	expiring, err := CheckTokenExpiration(config.AccessToken)
 	if err != nil {
 		return err
 	}
