@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -23,7 +25,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s upload -config <s3config-file> [file(s)]
+USAGE: %s upload -config <s3config-file> (-r) [file(s)|folder(s)] (-targetDir <upload-directory>)
 
 Upload: Uploads files to the Sensitive Data Archive (SDA). All files to upload
         are required to be encrypted and have the .c4gh file extension.
@@ -32,14 +34,18 @@ Upload: Uploads files to the Sensitive Data Archive (SDA). All files to upload
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help
 var ArgHelp = `
-  [file(s)]
-        all flagless arguments will be used as filenames to upload.`
+  [file(s)|folder(s)]
+        all flagless arguments will be used as file or directory names to upload. Directories will be skipped if '-r' is not provided.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
 var Args = flag.NewFlagSet("upload", flag.ExitOnError)
 
 var configPath = Args.String("config", "", "S3 config file to use for uploading.")
+
+var dirUpload = Args.Bool("r", false, "Upload directories recursively.")
+
+var targetDir = Args.String("targetDir", "", "Upload files|folders into this directory. If flag is omitted, all data will be uploaded in the user's base directory.")
 
 // Config struct for storing the s3cmd file values
 type Config struct {
@@ -127,37 +133,12 @@ func CheckTokenExpiration(accessToken string) (bool, error) {
 	return tomorrow.After(expiration), nil
 }
 
-// Upload function uploads the files included as arguments to the s3 bucket
-func Upload(args []string) error {
-	err := Args.Parse(args[1:])
-	if err != nil {
-		return fmt.Errorf("failed parsing arguments, reason: %v", err)
-	}
+// Function uploadFiles uploads the files in the input list to the s3 bucket
+func uploadFiles(files, outFiles []string, targetDir string, config *Config) error {
 
-	// Args() returns the non-flag arguments, which we assume are filenames.
-	files := Args.Args()
+	// check also here in case sth went wrong with input files
 	if len(files) == 0 {
 		return errors.New("no files to upload")
-	}
-
-	// Check that we have a private key to decrypt with
-	if *configPath == "" {
-		return errors.New("failed to find an s3 configuration file for uploading data")
-	}
-
-	// Get the configuration in the struct
-	config, err := LoadConfigFile(*configPath)
-	if err != nil {
-		return err
-	}
-
-	expiring, err := CheckTokenExpiration(config.AccessToken)
-	if err != nil {
-		return err
-	}
-	if expiring {
-		fmt.Println("The provided token expires in less than 24 hours")
-		fmt.Println("Consider renewing the token.")
 	}
 
 	// The session the S3 Uploader will use
@@ -174,7 +155,7 @@ func Upload(args []string) error {
 	// Create an uploader with the session and default options
 	uploader := s3manager.NewUploader(sess)
 
-	for _, filename := range files {
+	for k, filename := range files {
 
 		log.Infof("Uploading %s with config %s", filename, *configPath)
 
@@ -187,7 +168,7 @@ func Upload(args []string) error {
 		result, err := uploader.Upload(&s3manager.UploadInput{
 			Body:            f,
 			Bucket:          aws.String(config.AccessKey),
-			Key:             aws.String(filename),
+			Key:             aws.String(targetDir + "/" + outFiles[k]),
 			ContentEncoding: aws.String(config.Encoding),
 		}, func(u *s3manager.Uploader) {
 			u.PartSize = config.MultipartChunkSizeMb * 1024 * 1024
@@ -198,6 +179,149 @@ func Upload(args []string) error {
 			return err
 		}
 		log.Infof("file uploaded to %s", string(aws.StringValue(&result.Location)))
+	}
+
+	return nil
+}
+
+// Function createFilePaths returns a slice with all absolute paths to files within a directory recursively
+// and a slice with the corresponding relative paths to the given directory
+func createFilePaths(dirPath string) ([]string, []string, error) {
+	var files []string
+	var outFiles []string
+
+	// Restrict function to work only with directories so that outFiles works as expected
+	fileInfo, err := os.Stat(dirPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !fileInfo.IsDir() {
+		return nil, nil, errors.New(dirPath + " is not a directory")
+	}
+
+	// List all directory contents recursively including relative paths
+	err = filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			fmt.Println(err)
+
+			return err
+		}
+		// Exclude folders
+		if !info.IsDir() {
+			// Write relative file paths in a list
+			files = append(files, path)
+
+			// Create and write upload paths in a list
+			// Remove possible trailing "/" so that "path" and "path/" behave the same
+			dirPath = strings.TrimSuffix(dirPath, "/")
+			pathToTrim := strings.TrimSuffix(dirPath, filepath.Base(dirPath))
+			outPath := strings.TrimPrefix(path, pathToTrim)
+			outFiles = append(outFiles, outPath)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return files, outFiles, nil
+}
+
+// Upload function uploads files to the s3 bucket. Input can be files or
+// directories to be uploaded recursively
+func Upload(args []string) error {
+	var files []string
+	var outFiles []string
+
+	// Shift flag and their arguments from the end to the beginning
+	// if more boolean flags are added in the future the following needs a slight modification
+	for k := len(args) - 1; k > 0; k-- {
+		if args[len(args)-1][0:1] != "-" && (args[len(args)-2][0:1] != "-" || args[len(args)-2] == "-r") {
+
+			break
+		}
+		args = append(args[0:1], append(args[len(args)-1:], args[1:len(args)-1]...)...)
+	}
+
+	err := Args.Parse(args[1:])
+	if err != nil {
+		return fmt.Errorf("failed parsing arguments, reason: %v", err)
+	}
+
+	// Check that specified target directory is valid, i.e. not a filepath or a flag
+	info, err := os.Stat(*targetDir)
+
+	// Dereference the pointer to a string
+	targetDirString := ""
+	if targetDir != nil {
+		targetDirString = *targetDir
+	}
+
+	if (!os.IsNotExist(err) && !info.IsDir()) || (targetDirString != "" && targetDirString[0:1] == "-") {
+		return errors.New(*targetDir + " is not a valid target directory")
+	}
+
+	// Check that we have an s3 configuration file
+	if *configPath == "" {
+		return errors.New("failed to find an s3 configuration file for uploading data")
+	}
+
+	// Get the configuration in the struct
+	config, err := LoadConfigFile(*configPath)
+	if err != nil {
+		return err
+	}
+
+	expiring, err := CheckTokenExpiration(config.AccessToken)
+	if err != nil {
+		return err
+	}
+	if expiring {
+		fmt.Fprintln(os.Stderr, "The provided token expires in less than 24 hours")
+		fmt.Fprintln(os.Stderr, "Consider renewing the token.")
+	}
+
+	// Check that input file/folder list is not empty
+	if len(Args.Args()) == 0 {
+		return errors.New("no files to upload")
+	}
+
+	// Check if input argument is a file or directory and
+	// populate file list for upload
+	for _, filePath := range Args.Args() {
+		fileInfo, err := os.Stat(filePath)
+		if err != nil {
+			return err
+		}
+		if fileInfo.IsDir() {
+			if !*dirUpload {
+				log.Warning(errors.New("-r not specified; omitting directory: " + filePath))
+
+				continue
+			}
+			dirFilePaths, upFilePaths, err := createFilePaths(filePath)
+			if err != nil {
+				return err
+			}
+
+			if len(dirFilePaths) == 0 {
+				log.Warningf("Omitting directory: %s because it is empty", filePath)
+
+				continue
+			}
+
+			files = append(files, dirFilePaths...)
+			outFiles = append(outFiles, upFilePaths...)
+		} else {
+			files = append(files, filePath)
+			outFiles = append(outFiles, filepath.Base(filePath))
+		}
+	}
+	// Upload files
+	if err = uploadFiles(files, outFiles, *targetDir, config); err != nil {
+		return err
 	}
 
 	return nil
