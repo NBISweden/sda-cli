@@ -133,7 +133,7 @@ func (suite *TestSuite) TestFunctionality() {
 	log.SetOutput(&uploadOutput)
 
 	// Upload a file
-	os.Args = []string{"upload", "-config", configPath.Name(), testfile.Name()}
+	os.Args = []string{"upload", "-config", configPath.Name(), "-r", dir}
 	err = upload.Upload(os.Args)
 	assert.NoError(suite.T(), err)
 
