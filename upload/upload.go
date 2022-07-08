@@ -323,6 +323,11 @@ func Upload(args []string) error {
 		}
 	}
 
+	// If files list is empty fail here before calling Encrypt
+	if len(files) == 0 {
+		return errors.New("no files to upload")
+	}
+
 	if *pubKeyPath != "" {
 		// Prepare input arg list for Encrypt function
 		encryptArgs := []string{args[0], "-key", *pubKeyPath}
