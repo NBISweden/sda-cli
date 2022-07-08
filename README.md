@@ -44,6 +44,8 @@ where `<public_key>` the key downloaded in the previous step. The tool also allo
 ```
 This command comes with the `-continue` option, which will continue encrypting files, even if one of them fails. To enable this feature, the command should be executed with the `-continue=true` option.
 
+**Note**: The `encrypt` command will create four files containing hashes (both md5 and sha256) for the encrypted and unencrypted files, respectively.
+
 **Developers' Notes:** The tool is creating a key pair when encrypting the files. This key pair is temporary for security reasons.
 
 
@@ -94,6 +96,26 @@ As a side note the argument list may include wildcards, for example,
 ./sda-cli upload -config <configuration_file> -r <folder_to_upload>/. -targetDir <new_folder_name>
 ```
 will upload all contents of `<folder_to_upload>` to `<new_folder_name>` recursively, effectively renaming `<folder_to_upload>` upon upload to the archive.
+
+### Encrypt on upload
+
+It is possible to combine the encryption and upload steps into with the use of the flag `--encrypt-with-key` followed by the path of the crypt4gh public key to be used for encryption. In this case, the input list of file arguments can only contain *unencrypted* source files. For example the following,
+```bash
+./sda-cli upload -config <configuration_file> --encrypt-with-key <public_key> <unencrypted_file_to_upload>
+```
+will encrypt `<unencrypted_file_to_upload>` using `<public_key>` as public key and upload the created `<file_to_upload.c4gh>`  in the base folder of the user. 
+
+Encrypt on upload can be combined with any of the flags above. For example,
+```bash
+./sda-cli upload -config <configuration_file> --encrypt-with-key <public_key> -r <folder_to_upload_with_unencrypted_data> -targetDir <new_folder_name>
+```
+will first encrypt all files in `<folder_to_upload_with_unencrypted_data>` and then upload the folder recursively (selecting only the created `c4gh` files) under `<new_folder_name>`.
+
+**Notes**: The tool calls the `encrypt` module internally, therefore similar behavior to that command is expected, including the creation of hash files. In addition,
+
+- If the input includes encrypted files, the tool will exit without performing further tasks.
+- The encrypted files will be created next to their unencrypted counterparts.
+- The tool will not overwrite existing encrypted files. It will exit early if encrypted counterparts of the source files already exist with the same source path.
 
 ## Get dataset size
 
