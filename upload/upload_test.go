@@ -425,4 +425,18 @@ func (suite *TestSuite) TestFunctionality() {
 	newArgs = []string{"upload", "-config", configPath.Name(), "--encrypt-with-key", "somekey", testfile.Name()}
 	err = Upload(newArgs)
 	assert.EqualError(suite.T(), err, "aborting")
+
+	// Remove hash files created by Encrypt
+	if err := os.Remove("checksum_encrypted.md5"); err != nil {
+		log.Panic(err)
+	}
+	if err := os.Remove("checksum_unencrypted.md5"); err != nil {
+		log.Panic(err)
+	}
+	if err := os.Remove("checksum_encrypted.sha256"); err != nil {
+		log.Panic(err)
+	}
+	if err := os.Remove("checksum_unencrypted.sha256"); err != nil {
+		log.Panic(err)
+	}
 }
