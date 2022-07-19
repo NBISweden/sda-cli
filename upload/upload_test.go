@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/elixir-oslo/crypt4gh/keys"
 	"github.com/johannesboyne/gofakes3"
 	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	log "github.com/sirupsen/logrus"
@@ -316,6 +317,10 @@ func (suite *TestSuite) TestFunctionality() {
 	if err != nil {
 		log.Panic(err)
 	}
+	err = ioutil.WriteFile(testfile.Name(), []byte("content"), 0600)
+	if err != nil {
+		log.Printf("failed to write temp config file, %v", err)
+	}
 	defer os.Remove(testfile.Name())
 
 	var str bytes.Buffer
@@ -359,4 +364,79 @@ func (suite *TestSuite) TestFunctionality() {
 		log.Panic(err.Error())
 	}
 	assert.Equal(suite.T(), aws.StringValue(result.Contents[0].Key), fmt.Sprintf("a/%s", filepath.Base(testfile.Name())))
+
+	// Test encrypt-with-key on upload.
+	// Tests specific to encrypt module are not repeated here.
+
+	// Generate a crypt4gh pub key
+	pubKeyData, _, err := keys.GenerateKeyPair()
+	if err != nil {
+		log.Panic("Couldn't generate key pair", err)
+	}
+
+	// Write the keys to temporary files
+	publicKey, err := ioutil.TempFile(dir, "pubkey-")
+	if err != nil {
+		log.Panic("Cannot create temporary public key file", err)
+	}
+
+	err = keys.WriteCrypt4GHX25519PublicKey(publicKey, pubKeyData)
+	if err != nil {
+		log.Panicf("failed to write temporary public key file, %v", err)
+	}
+
+	// Empty buffer logs
+	str.Reset()
+	newArgs := []string{"upload", "-config", configPath.Name(), "--encrypt-with-key", publicKey.Name(), testfile.Name(), "-targetDir", "someDir"}
+	err = Upload(newArgs)
+	assert.NoError(suite.T(), err)
+
+	// Check logs that encrypted file was uploaded
+	logMsg = fmt.Sprintf("%v", strings.TrimSuffix(str.String(), "\n"))
+	msg = fmt.Sprintf("file uploaded to %s/dummy/someDir/%s.c4gh", ts.URL, filepath.Base(testfile.Name()))
+	assert.Contains(suite.T(), logMsg, msg)
+
+	// Check that file showed up in the s3 bucket correctly
+	result, err = s3Client.ListObjects(&s3.ListObjectsInput{
+		Bucket: aws.String("dummy"),
+	})
+	if err != nil {
+		log.Panic(err.Error())
+	}
+	assert.Equal(suite.T(), aws.StringValue(result.Contents[1].Key), "someDir/"+filepath.Base(testfile.Name())+".c4gh")
+
+	// Check that the respective unencrypted file was not uploaded
+	msg = fmt.Sprintf("Uploading %s with", testfile.Name())
+	assert.NotContains(suite.T(), logMsg, msg)
+
+	// Check that trying to encrypt already encrypted files returns error and aborts
+	newArgs = []string{"upload", "-config", configPath.Name(), "--encrypt-with-key", publicKey.Name(), dir, "-r"}
+	err = Upload(newArgs)
+	assert.EqualError(suite.T(), err, "aborting")
+
+	// Check handling of passing source files as pub key
+	// (code checks first for errors related with file args)
+	newArgs = []string{"upload", "-config", configPath.Name(), "--encrypt-with-key", testfile.Name()}
+	err = Upload(newArgs)
+	assert.EqualError(suite.T(), err, "no files to upload")
+
+	// If both a bad key and already encrypted file args are given,
+	// file arg errors are captured first
+	newArgs = []string{"upload", "-config", configPath.Name(), "--encrypt-with-key", "somekey", testfile.Name()}
+	err = Upload(newArgs)
+	assert.EqualError(suite.T(), err, "aborting")
+
+	// Remove hash files created by Encrypt
+	if err := os.Remove("checksum_encrypted.md5"); err != nil {
+		log.Panic(err)
+	}
+	if err := os.Remove("checksum_unencrypted.md5"); err != nil {
+		log.Panic(err)
+	}
+	if err := os.Remove("checksum_encrypted.sha256"); err != nil {
+		log.Panic(err)
+	}
+	if err := os.Remove("checksum_unencrypted.sha256"); err != nil {
+		log.Panic(err)
+	}
 }

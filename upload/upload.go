@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/NBISweden/sda-cli/encrypt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -25,7 +26,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s upload -config <s3config-file> (-r) [file(s)|folder(s)] (-targetDir <upload-directory>)
+USAGE: %s upload -config <s3config-file> (--encrypt-with-key <public-key-file>) (-r) [file(s)|folder(s)] (-targetDir <upload-directory>)
 
 Upload: Uploads files to the Sensitive Data Archive (SDA). All files to upload
         are required to be encrypted and have the .c4gh file extension.
@@ -46,6 +47,8 @@ var configPath = Args.String("config", "", "S3 config file to use for uploading.
 var dirUpload = Args.Bool("r", false, "Upload directories recursively.")
 
 var targetDir = Args.String("targetDir", "", "Upload files|folders into this directory. If flag is omitted, all data will be uploaded in the user's base directory.")
+
+var pubKeyPath = Args.String("encrypt-with-key", "", "Public key to use for encryption of files before upload. The argument list may include only unencrypted data if this flag is set.")
 
 // Config struct for storing the s3cmd file values
 type Config struct {
@@ -319,6 +322,28 @@ func Upload(args []string) error {
 			outFiles = append(outFiles, filepath.Base(filePath))
 		}
 	}
+
+	// If files list is empty fail here before calling Encrypt
+	if len(files) == 0 {
+		return errors.New("no files to upload")
+	}
+
+	if *pubKeyPath != "" {
+		// Prepare input arg list for Encrypt function
+		encryptArgs := []string{args[0], "-key", *pubKeyPath}
+		encryptArgs = append(encryptArgs, files...)
+
+		if err = encrypt.Encrypt(encryptArgs); err != nil {
+			return err
+		}
+
+		// Modify slices so that we upload only the encrypted files
+		for k := 0; k < len(files); k++ {
+			files[k] += ".c4gh"
+			outFiles[k] += ".c4gh"
+		}
+	}
+
 	// Upload files
 	if err = uploadFiles(files, outFiles, *targetDir, config); err != nil {
 		return err

@@ -118,6 +118,33 @@ do
     check_uploaded_file test/dummy/$uploadDir"/"$k $k
 done
 
+# Encrypt and upload
+
+mkdir data_files_unenc && mkdir data_files_unenc/dir1
+cp data_file data_files_unenc/. && cp data_file data_files_unenc/dir1/data_file1
+
+uploadDir="testEncryptUpload"
+./sda-cli upload -config sda-s3proxy/dev_utils/s3cmd.conf -encrypt-with-key sda_key.pub.pem -r data_files_unenc -targetDir "$uploadDir"
+
+for k in data_files_unenc/data_file.c4gh data_files_unenc/dir1/data_file1.c4gh
+do
+    check_encypted_file $k
+done
+# check_encypted_file "data_files_unenc/data_file.c4gh" "data_files_unenc/dir1/data_file1.c4gh"
+
+for k in data_files_unenc/data_file.c4gh data_files_unenc/dir1/data_file1.c4gh
+do
+    check_uploaded_file test/dummy/$uploadDir"/"$k $k
+done
+
+out_ls=$(s3cmd -c sda-s3proxy/dev_utils/directS3 ls -r s3://test/dummy/testEncryptUpload/data_files_unenc/)
+if ( ! echo "$out_ls" | grep -v -q "c4gh" ); then
+    echo "No unencrypted files were uploaded during encrypt+upload"
+else
+    echo "Unencrypted files were uploaded during encrypt+upload"
+    exit 1
+fi
+
 # Dataset size using a local urls_list.txt
 echo "http://localhost:9000/download/A352764B-2KB4-4738-B6B5-BA55D25FB469/data_file.c4gh" > urls_list.txt
 
@@ -148,6 +175,7 @@ fi
 
 # Remove files used for encrypt and upload
 rm -r data_files_enc
+rm -r data_files_unenc
 rm -r downloads
 rm sda_key* checksum_* urls_list.txt data_file*
 
