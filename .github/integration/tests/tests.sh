@@ -124,7 +124,7 @@ mkdir data_files_unenc && mkdir data_files_unenc/dir1
 cp data_file data_files_unenc/. && cp data_file data_files_unenc/dir1/data_file1
 
 uploadDir="testEncryptUpload"
-./sda-cli upload -config sda-s3proxy/dev_utils/s3cmd.conf -encrypt-with-key sda_key.pub.pem -r data_files_unenc -targetDir "$uploadDir"
+./sda-cli upload -config testing/s3cmd.conf -encrypt-with-key sda_key.pub.pem -r data_files_unenc -targetDir "$uploadDir"
 
 for k in data_files_unenc/data_file.c4gh data_files_unenc/dir1/data_file1.c4gh
 do
@@ -137,7 +137,7 @@ do
     check_uploaded_file test/dummy/$uploadDir"/"$k $k
 done
 
-out_ls=$(s3cmd -c sda-s3proxy/dev_utils/directS3 ls -r s3://test/dummy/testEncryptUpload/data_files_unenc/)
+out_ls=$(s3cmd -c testing/directS3 ls -r s3://test/dummy/testEncryptUpload/data_files_unenc/)
 if ( ! echo "$out_ls" | grep -v -q "c4gh" ); then
     echo "No unencrypted files were uploaded during encrypt+upload"
 else
