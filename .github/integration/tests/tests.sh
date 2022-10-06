@@ -173,6 +173,40 @@ else
     exit 1
 fi
 
+# Test multiple pub key encryption
+
+# Create another key-pair
+if ( echo "" | ./sda-cli createKey sda_key2 ) ; then
+    echo "Created key pair for encryption"
+else
+    echo "Failed to create key pair for encryption"
+    exit 1
+fi
+# Create test file and encrypt
+cp data_file data_file_2keys
+./sda-cli encrypt -key sda_key.pub.pem -key sda_key2.pub.pem data_file_2keys
+check_encypted_file "data_file_2keys.c4gh"
+rm data_file_2keys
+# Decrypt file with first key
+./sda-cli decrypt -key sda_key.sec.pem data_file_2keys.c4gh
+if [ -f data_file_2keys ]; then
+    echo "Decrypted data file"
+else
+    echo "Failed to decrypt data file"
+    exit 1
+fi
+rm data_file_2keys
+# Decrypt file with second key
+./sda-cli decrypt -key sda_key2.sec.pem data_file_2keys.c4gh
+
+# decrypted_file_exists "data_file_2keys"
+if [ -f data_file_2keys ]; then
+    echo "Decrypted data file"
+else
+    echo "Failed to decrypt data file"
+    exit 1
+fi
+
 # Remove files used for encrypt and upload
 rm -r data_files_enc
 rm -r data_files_unenc
