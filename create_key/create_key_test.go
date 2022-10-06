@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/elixir-oslo/crypt4gh/keys"
+	"github.com/neicnordic/crypt4gh/keys"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
