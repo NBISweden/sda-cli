@@ -145,3 +145,15 @@ func (suite *EncryptTests) TestcalculateHashes() {
 	suite.Equal(hashes.encryptedMd5, "9a0364b9e99bb480dd25e1f0284c8555")
 	suite.Equal(hashes.encryptedSha256, "ed7002b439e9ac845f22357d822bac1444730fbdb6016d3ec9432297b9ec9f73")
 }
+
+func (suite *EncryptTests) TestEncryptFunction() {
+	// pub key not given
+	os.Args = []string{"encrypt", suite.fileOk.Name()}
+	err := Encrypt(os.Args)
+	assert.EqualError(suite.T(), err, "public key not provided")
+
+	// no such pub key file
+	os.Args = []string{"encrypt", "-key", "somekey", suite.fileOk.Name()}
+	err = Encrypt(os.Args)
+	assert.EqualError(suite.T(), err, "open somekey: no such file or directory")
+}
