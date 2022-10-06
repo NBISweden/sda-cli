@@ -26,7 +26,7 @@ import (
 var Usage = `
 USAGE: %s encrypt -key <public-key-file> (-outdir <dir>) (-continue=true) [file(s)]
 
-Encrypt: Encrypts files according to the crypt4gh standard used in the Sensitive
+encrypt: Encrypts files according to the crypt4gh standard used in the Sensitive
          Data Archive (SDA). Each given file will be encrypted and written to
          <filename>.c4gh. Both encrypted and unencrypted checksums will be
          calculated and written to:

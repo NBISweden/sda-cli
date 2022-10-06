@@ -28,7 +28,7 @@ import (
 var Usage = `
 USAGE: %s upload -config <s3config-file> (--encrypt-with-key <public-key-file>) (-r) [file(s)|folder(s)] (-targetDir <upload-directory>)
 
-Upload: Uploads files to the Sensitive Data Archive (SDA). All files to upload
+upload: Uploads files to the Sensitive Data Archive (SDA). All files to upload
         are required to be encrypted and have the .c4gh file extension.
 `
 

@@ -21,11 +21,11 @@ import (
 var Usage = `
 USAGE: %s download (-outdir <dir>) [url(s) | file]
 
-Download: Downloads files from the Sensitive Data Archive (SDA). The files will
+download: Downloads files from the Sensitive Data Archive (SDA). The files will
 	  be downloaded in the current directory, if outdir is not defined.
-	  If a directory is provided (ending with "/"), then the tool will attempt 
-	  to first download the urls_list.txt file, and then download all files in 
-	  this list. If file urls are given, they files will be downloaded creating 
+	  If a directory is provided (ending with "/"), then the tool will attempt
+	  to first download the urls_list.txt file, and then download all files in
+	  this list. If file urls are given, they files will be downloaded creating
 	  the same folder structure locally.
 `
 
