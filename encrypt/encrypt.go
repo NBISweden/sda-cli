@@ -46,23 +46,32 @@ var ArgHelp = `
 // main program help
 var Args = flag.NewFlagSet("encrypt", flag.ExitOnError)
 
-var publicKeyFile = Args.String("key", "",
-	"Public key to use for encrypting files.")
 var outDir = Args.String("outdir", "", "Output directory for encrypted files")
 
 var continueEncrypt = Args.Bool("continue", false, "Do not exit on file errors but skip and continue.")
 
+var publicKeyFileList []string
+
+func init() {
+	Args.Func("key", "Public key file(s) to use for encryption. \nUse multiple times to encrypt with multiple public keys", func(s string) error {
+		publicKeyFileList = append(publicKeyFileList, s)
+		return nil
+	})
+}
+
 // Encrypt takes a set of arguments, parses them, and attempts to encrypt the
 // given data files with the given public key file
 func Encrypt(args []string) error {
-
-	// Parse flags. There are no flags at the moment, but in case some are added
-	// we check for them.
+	// Parse flags.
 	err := Args.Parse(args[1:])
 	if err != nil {
 		return fmt.Errorf("could not parse arguments: %s", err)
 	}
-	// Args() returns the non-flag arguments, which we assume are filenames.
+
+	// Exit if public key is not provided
+	if len(publicKeyFileList) == 0 {
+		return fmt.Errorf("public key not provided")
+	}
 
 	// Each filename is first read into a helper struct (sliced for combatibility with checkFiles)
 	eachFile := make([]helpers.EncryptionFileSet, 1)
@@ -81,6 +90,7 @@ func Encrypt(args []string) error {
 		}
 	}()
 
+	// Args() returns the non-flag arguments, which we assume are filenames.
 	log.Info("Checking files")
 	for _, filename := range Args.Args() {
 
@@ -114,11 +124,16 @@ func Encrypt(args []string) error {
 
 	log.Infof("Ready to encrypt %d file(s)", len(files))
 
-	// Read the public key to be used for encryption. The private key
-	// matching this public key will be able to decrypt the file.
-	publicKey, err := readPublicKey(*publicKeyFile)
-	if err != nil {
-		return err
+	// Read the public key(s) to be used for encryption. The matching private
+	// key will be able to decrypt the file.
+	pubKeyList := [][32]byte{}
+	for _, pubkey := range publicKeyFileList {
+		publicKey, err := readPublicKey(pubkey)
+		if err != nil {
+			return err
+		}
+		pubKeyList = append(pubKeyList, *publicKey)
+		fmt.Println(pubKeyList)
 	}
 
 	// Generate a random private key to encrypt the data
@@ -174,7 +189,7 @@ func Encrypt(args []string) error {
 		log.Infof("Encrypting file %v/%v: %s", i+1, numFiles, file.Unencrypted)
 
 		// encrypt the file
-		err = encrypt(file.Unencrypted, file.Encrypted, *publicKey, *privateKey)
+		err = encrypt(file.Unencrypted, file.Encrypted, pubKeyList, *privateKey)
 		if err != nil {
 			return err
 		}
@@ -336,7 +351,7 @@ func generatePrivateKey() (*[32]byte, error) {
 
 // Encrypts the data from `filename` into `outFilename` for the given `pubKey`,
 // using the given `privateKey`.
-func encrypt(filename, outFilename string, pubKey, privateKey [32]byte) error {
+func encrypt(filename, outFilename string, pubKeyList [][32]byte, privateKey [32]byte) error {
 	// check if outfile exists
 	if helpers.FileExists(outFilename) {
 		return fmt.Errorf("outfile %s already exists", outFilename)
@@ -365,7 +380,7 @@ func encrypt(filename, outFilename string, pubKey, privateKey [32]byte) error {
 	}()
 
 	// Create crypt4gh writer
-	pubKeyList := [][32]byte{pubKey}
+
 	crypt4GHWriter, err := streaming.NewCrypt4GHWriter(outFile,
 		privateKey, pubKeyList, nil)
 	if err != nil {
