@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 
 	"github.com/NBISweden/sda-cli/helpers"
 
@@ -392,6 +393,38 @@ func encrypt(filename, outFilename string, pubKeyList [][32]byte, privateKey [32
 	return nil
 }
 
+// Checks the first n bytes of a file for text matching the given regex pattern.
+// If a match is found then the byte size of the file is returned.
+func checkKeyFile(pubkey string, k keySpecs) (int64, error) {
+	f, err := os.Open(pubkey)
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Errorf("Error closing file: %s\n", err)
+		}
+	}()
+
+	b := make([]byte, k.nbytes)
+	if _, err = f.Read(b); err != nil {
+		return 0, err
+	}
+	match := k.rgx.MatchString(string(b))
+
+	if !match {
+		return 0, fmt.Errorf("invalid key format in file: %s", pubkey)
+	}
+
+	// get file size
+	fs, err := f.Stat()
+	if err != nil {
+		return 0, err
+	}
+
+	return fs.Size(), nil
+}
+
 // Takes a key file list and returns the parsed public key(s)
 // in a list ready to be used by crypt4gh package
 func createPubKeyList(publicKeyFileList []string) ([][32]byte, error) {
@@ -415,4 +448,9 @@ type hashSet struct {
 	unencryptedMd5    string
 	encryptedSha256   string
 	unencryptedSha256 string
+}
+
+type keySpecs struct {
+	rgx    *regexp.Regexp // text pattern to match
+	nbytes int            // first n bytes of file to parse
 }
