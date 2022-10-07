@@ -126,14 +126,9 @@ func Encrypt(args []string) error {
 
 	// Read the public key(s) to be used for encryption. The matching private
 	// key will be able to decrypt the file.
-	pubKeyList := [][32]byte{}
-	for _, pubkey := range publicKeyFileList {
-		publicKey, err := readPublicKey(pubkey)
-		if err != nil {
-			return err
-		}
-		pubKeyList = append(pubKeyList, *publicKey)
-		fmt.Println(pubKeyList)
+	pubKeyList, err := createPubKeyList(publicKeyFileList)
+	if err != nil {
+		return err
 	}
 
 	// Generate a random private key to encrypt the data
@@ -397,9 +392,22 @@ func encrypt(filename, outFilename string, pubKeyList [][32]byte, privateKey [32
 	return nil
 }
 
-//
-// structs
-//
+// Takes a key file list and returns the parsed public key(s)
+// in a list ready to be used by crypt4gh package
+func createPubKeyList(publicKeyFileList []string) ([][32]byte, error) {
+	pubKeyList := [][32]byte{}
+
+	for _, pubkey := range publicKeyFileList {
+
+		publicKey, err := readPublicKey(pubkey)
+		if err != nil {
+			return nil, err
+		}
+		pubKeyList = append(pubKeyList, *publicKey)
+	}
+
+	return pubKeyList, nil
+}
 
 // struct to keep track of all the checksums for a given unencrypted input file.
 type hashSet struct {
