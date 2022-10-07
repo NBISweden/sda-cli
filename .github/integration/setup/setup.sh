@@ -39,4 +39,16 @@ do echo "waiting for proxy to become ready"
     sleep 10
 done
 
+RETRY_TIMES=0
+until docker logs buckets | grep "Access permission for"
+do echo "waiting for buckets to be created"
+    RETRY_TIMES=$((RETRY_TIMES+1));
+    if [ "$RETRY_TIMES" -eq 30 ]; then
+        # Time out
+        docker logs "buckets"
+        exit 1;
+    fi
+    sleep 10
+done
+
 docker ps

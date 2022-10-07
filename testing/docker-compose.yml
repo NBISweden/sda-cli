@@ -18,17 +18,17 @@ services:
       - data:/data
   createbucket:
     container_name: buckets
-    image: minio/mc
+    image: minio/mc:RELEASE.2021-02-14T04-28-06Z
     depends_on:
       - s3_backend
     entrypoint: >
       /bin/sh -c "
+      /bin/sleep 30;
       /usr/bin/mc config host add s3 http://s3:9000 ElixirID 987654321;
       /usr/bin/mc rm -r --force s3/test;
       /usr/bin/mc mb s3/test;
       /usr/bin/mc mb s3/download;
       /usr/bin/mc policy set public s3/download;
-      exit 0;
       "
   mq_server:
     container_name: mq

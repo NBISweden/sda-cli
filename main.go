@@ -22,7 +22,7 @@ This is a helper tool that can help with common tasks when interacting with the
 Sensitive Data Archive (SDA).
 `
 
-//  Map of the sub-commands, and their arguments and usage text strings
+// Map of the sub-commands, and their arguments and usage text strings
 type commandInfo struct {
 	args    *flag.FlagSet
 	usage   string

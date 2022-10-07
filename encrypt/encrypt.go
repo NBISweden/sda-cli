@@ -14,8 +14,8 @@ import (
 
 	"github.com/NBISweden/sda-cli/helpers"
 
-	"github.com/elixir-oslo/crypt4gh/keys"
-	"github.com/elixir-oslo/crypt4gh/streaming"
+	"github.com/neicnordic/crypt4gh/keys"
+	"github.com/neicnordic/crypt4gh/streaming"
 	log "github.com/sirupsen/logrus"
 )
 
