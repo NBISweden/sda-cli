@@ -120,7 +120,7 @@ func (suite *EncryptTests) TestcheckFiles() {
 }
 
 func (suite *EncryptTests) TestreadPublicKey() {
-	publicKey, err := readPublicKey(suite.publicKey.Name())
+	publicKey, err := readPublicKeyFile(suite.publicKey.Name())
 	assert.NoError(suite.T(), err)
 	suite.Equal(*publicKey, suite.pubKeyData)
 }
