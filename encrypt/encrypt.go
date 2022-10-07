@@ -12,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/NBISweden/sda-cli/helpers"
 
@@ -125,9 +126,15 @@ func Encrypt(args []string) error {
 
 	log.Infof("Ready to encrypt %d file(s)", len(files))
 
+	// Initialize a c4gh public key specs instance
+	c4ghKeySpecs := keySpecs{
+		rgx:    regexp.MustCompile(`-{5}[A-Z]*\s[4A-Z]*\s[A-Z]*\s[A-Z]*-{5}\n.*\n-{5}[A-Z]*\s[4A-Z]*\s[A-Z]*\s[A-Z]*-{5}`),
+		nbytes: 115,
+	}
+
 	// Read the public key(s) to be used for encryption. The matching private
 	// key will be able to decrypt the file.
-	pubKeyList, err := createPubKeyList(publicKeyFileList)
+	pubKeyList, err := createPubKeyList(publicKeyFileList, c4ghKeySpecs)
 	if err != nil {
 		return err
 	}
@@ -342,6 +349,33 @@ func readPublicKey(reader io.Reader) (key [32]byte, err error) {
 	return publicKey, err
 }
 
+// Reads multiple public keys from a file using the crypt4gh keys module and
+// returns them in a list.
+func readMultiPublicKeyFile(filename string, k keySpecs) (key *[][32]byte, err error) {
+	file, err := os.ReadFile(filepath.Clean(filename))
+	if err != nil {
+		return nil, err
+	}
+
+	m := k.rgx.FindAllString(string(file), -1)
+
+	log.Infof("Reading %d concatenated Public keys from file", len(m))
+
+	var list [][32]byte
+	for _, keyString := range m {
+		newKey := strings.NewReader(keyString)
+
+		publicKey, err := readPublicKey(newKey)
+		if err != nil {
+			return nil, fmt.Errorf(err.Error()+": %s", filename)
+		}
+
+		list = append(list, publicKey)
+	}
+
+	return &list, err
+}
+
 // Generates a crypt4gh key pair, returning only the private key, as the
 // public key used for encryption is the one provided as an argument.
 func generatePrivateKey() (*[32]byte, error) {
@@ -435,12 +469,30 @@ func checkKeyFile(pubkey string, k keySpecs) (int64, error) {
 	return fs.Size(), nil
 }
 
-// Takes a key file list and returns the parsed public key(s)
+// Takes a key file list and specs about the expected key and returns the parsed public key(s)
 // in a list ready to be used by crypt4gh package
-func createPubKeyList(publicKeyFileList []string) ([][32]byte, error) {
+func createPubKeyList(publicKeyFileList []string, c4ghKeySpecs keySpecs) ([][32]byte, error) {
 	pubKeyList := [][32]byte{}
 
 	for _, pubkey := range publicKeyFileList {
+
+		// Check that pub key file(s) have a valid format. This ensures that some large
+		// datafile is not read in by user's mistake before we read in the whole file below.
+		fileSize, err := checkKeyFile(pubkey, c4ghKeySpecs)
+		if err != nil {
+			return nil, err
+		}
+
+		// If file contains concatenated pub keys, parse them in a list, append the list and move along.
+		if fileSize > int64(c4ghKeySpecs.nbytes) {
+			publicKeys, err := readMultiPublicKeyFile(pubkey, c4ghKeySpecs)
+			if err != nil {
+				return nil, err
+			}
+			pubKeyList = append(pubKeyList, *publicKeys...)
+
+			continue
+		}
 
 		publicKey, err := readPublicKeyFile(pubkey)
 		if err != nil {
