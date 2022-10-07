@@ -311,25 +311,35 @@ func calculateHashes(fileSet helpers.EncryptionFileSet) (*hashSet, error) {
 	return &hashes, nil
 }
 
-// Reads a public key file from a file using the crypt4gh keys module
-func readPublicKey(filename string) (key *[32]byte, err error) {
+// Reads a public key from a file using the crypt4gh keys module
+func readPublicKeyFile(filename string) (key *[32]byte, err error) {
 	log.Info("Reading Public key file")
 	file, err := os.Open(filepath.Clean(filename))
 	if err != nil {
 		return nil, err
 	}
 
-	// This function panics if the key is malformed, so we handle that as well
-	// as errors
+	publicKey, err := readPublicKey(file)
+	if err != nil {
+		return nil, fmt.Errorf(err.Error()+": %s", filename)
+	}
+
+	return &publicKey, err
+}
+
+// Wrapper for the respective crypt4gh function. Since this function panics if the key is
+// malformed, so we handle that as well as errors.
+func readPublicKey(reader io.Reader) (key [32]byte, err error) {
+
 	defer func() {
 		if recover() != nil {
-			err = fmt.Errorf("malformed key file: %s", filename)
+			err = fmt.Errorf("malformed key file")
 		}
 	}()
 
-	publicKey, err := keys.ReadPublicKey(file)
+	publicKey, err := keys.ReadPublicKey(reader)
 
-	return &publicKey, err
+	return publicKey, err
 }
 
 // Generates a crypt4gh key pair, returning only the private key, as the
@@ -432,7 +442,7 @@ func createPubKeyList(publicKeyFileList []string) ([][32]byte, error) {
 
 	for _, pubkey := range publicKeyFileList {
 
-		publicKey, err := readPublicKey(pubkey)
+		publicKey, err := readPublicKeyFile(pubkey)
 		if err != nil {
 			return nil, err
 		}
