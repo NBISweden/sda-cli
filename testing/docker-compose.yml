@@ -18,7 +18,7 @@ services:
       - data:/data
   createbucket:
     container_name: buckets
-    image: minio/mc
+    image: minio/mc:RELEASE.2021-02-14T04-28-06Z
     depends_on:
       - s3_backend
     entrypoint: >
