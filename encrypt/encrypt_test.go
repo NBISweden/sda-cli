@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/NBISweden/sda-cli/helpers"
@@ -15,13 +17,14 @@ import (
 
 type EncryptTests struct {
 	suite.Suite
-	tempDir       string
-	publicKey     *os.File
-	privateKey    *os.File
-	fileOk        *os.File
-	encryptedFile *os.File
-	pubKeyData    [32]byte
-	secKeyData    [32]byte
+	tempDir        string
+	publicKey      *os.File
+	privateKey     *os.File
+	fileOk         *os.File
+	encryptedFile  *os.File
+	pubKeyData     [32]byte
+	secKeyData     [32]byte
+	multiPublicKey *os.File
 }
 
 func TestEncryptTestSuite(t *testing.T) {
@@ -65,6 +68,23 @@ func (suite *EncryptTests) SetupTest() {
 		log.Fatalf("failed to write temporary private key file, %v", err)
 	}
 
+	// Create temp file with concatenated pub keys.
+	// Append same key twice. Works until we decide that we do not allow duplicates.
+	suite.multiPublicKey, err = os.CreateTemp(suite.tempDir, "pubkey-")
+	if err != nil {
+		log.Fatal("Cannot create temporary public key file", err)
+	}
+
+	input, err := os.ReadFile(suite.publicKey.Name())
+	if err != nil {
+		log.Fatal("Cannot read from public key file", err)
+	}
+
+	err = os.WriteFile(suite.multiPublicKey.Name(), append(input, input...), 0644)
+	if err != nil {
+		log.Fatal("cannot write to temporary multi-key file", err)
+	}
+
 	// create an existing test file with some known content
 	suite.fileOk, err = ioutil.TempFile(suite.tempDir, "testfile-")
 	if err != nil {
@@ -91,6 +111,7 @@ func (suite *EncryptTests) SetupTest() {
 func (suite *EncryptTests) TearDownTest() {
 	os.Remove(suite.publicKey.Name())
 	os.Remove(suite.privateKey.Name())
+	os.Remove(suite.multiPublicKey.Name())
 	os.Remove(suite.fileOk.Name())
 	os.Remove(suite.encryptedFile.Name())
 	os.Remove(suite.tempDir)
@@ -120,9 +141,53 @@ func (suite *EncryptTests) TestcheckFiles() {
 }
 
 func (suite *EncryptTests) TestreadPublicKey() {
+	file, err := os.Open(suite.publicKey.Name())
+	defer file.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+	publicKey, err := readPublicKey(file)
+	assert.NoError(suite.T(), err)
+	suite.Equal(publicKey, suite.pubKeyData)
+
+	malformedKey := "-----BEGIN CRYPT4GH PUBLIC KEY-----\nvery bad\n-----END CRYPT4GH PUBLIC KEY-----"
+	badFile := strings.NewReader(malformedKey)
+	publicKey, err = readPublicKey(badFile)
+	assert.EqualError(suite.T(), err, "malformed key file")
+}
+
+func (suite *EncryptTests) TestreadPublicKeyFile() {
 	publicKey, err := readPublicKeyFile(suite.publicKey.Name())
 	assert.NoError(suite.T(), err)
 	suite.Equal(*publicKey, suite.pubKeyData)
+}
+
+func (suite *EncryptTests) TestreadMultiPublicKeyFile() {
+	specs := keySpecs{
+		rgx:    regexp.MustCompile(`-{5}[A-Z]*\s[4A-Z]*\s[A-Z]*\s[A-Z]*-{5}\n.*\n-{5}[A-Z]*\s[4A-Z]*\s[A-Z]*\s[A-Z]*-{5}`),
+		nbytes: 115,
+	}
+	publicKey, err := readMultiPublicKeyFile(suite.multiPublicKey.Name(), specs)
+	assert.NoError(suite.T(), err)
+	b := *publicKey
+	suite.Equal(b[0], suite.pubKeyData)
+	suite.Equal(b[1], suite.pubKeyData)
+}
+
+func (suite *EncryptTests) TestcheckKeyFile() {
+	specs := keySpecs{
+		rgx:    regexp.MustCompile(`-{5}[A-Z]*\s[4A-Z]*\s[A-Z]*\s[A-Z]*-{5}\n.*\n-{5}[A-Z]*\s[4A-Z]*\s[A-Z]*\s[A-Z]*-{5}`),
+		nbytes: 115,
+	}
+	// file that contains key(s) in valid format
+	size, err := checkKeyFile(suite.multiPublicKey.Name(), specs)
+	assert.NoError(suite.T(), err)
+	suite.Equal(size, int64(230))
+
+	// file that does not contain a key in valid format
+	size, err = checkKeyFile(suite.fileOk.Name(), specs)
+	assert.ErrorContains(suite.T(), err, "invalid key format in file:")
+	suite.Equal(size, int64(0))
 }
 
 func (suite *EncryptTests) TestcalculateHashes() {
