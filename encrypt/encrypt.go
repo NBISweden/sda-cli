@@ -57,6 +57,7 @@ var publicKeyFileList []string
 func init() {
 	Args.Func("key", "Public key file(s) to use for encryption. Use multiple times to encrypt\nwith more public keys. Key file(s) may contain many concatenated keys.", func(s string) error {
 		publicKeyFileList = append(publicKeyFileList, s)
+
 		return nil
 	})
 }

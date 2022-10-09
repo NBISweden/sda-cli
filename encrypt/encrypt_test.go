@@ -80,7 +80,7 @@ func (suite *EncryptTests) SetupTest() {
 		log.Fatal("Cannot read from public key file", err)
 	}
 
-	err = os.WriteFile(suite.multiPublicKey.Name(), append(input, input...), 0644)
+	err = os.WriteFile(suite.multiPublicKey.Name(), append(input, input...), 0600)
 	if err != nil {
 		log.Fatal("cannot write to temporary multi-key file", err)
 	}
@@ -142,17 +142,17 @@ func (suite *EncryptTests) TestcheckFiles() {
 
 func (suite *EncryptTests) TestreadPublicKey() {
 	file, err := os.Open(suite.publicKey.Name())
-	defer file.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer file.Close()
 	publicKey, err := readPublicKey(file)
 	assert.NoError(suite.T(), err)
 	suite.Equal(publicKey, suite.pubKeyData)
 
 	malformedKey := "-----BEGIN CRYPT4GH PUBLIC KEY-----\nvery bad\n-----END CRYPT4GH PUBLIC KEY-----"
 	badFile := strings.NewReader(malformedKey)
-	publicKey, err = readPublicKey(badFile)
+	_, err = readPublicKey(badFile)
 	assert.EqualError(suite.T(), err, "malformed key file")
 }
 
