@@ -12,8 +12,6 @@ openssl rsa -in dummy.ega.nbis.se.pem -pubout -out keys/dummy.ega.nbis.se.pub
 output=$(bash sign_jwt.sh RS256 dummy.ega.nbis.se.pem)
 echo "access_token=$output" >> s3cmd.conf
 
-sh make_certs.sh
-
 docker-compose up -d
 RETRY_TIMES=0
 until docker ps -f name="s3" --format "{{.Status}}" | grep "healthy"
