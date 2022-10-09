@@ -58,11 +58,10 @@ else
     exit 1
 fi
 
-
 # Create and encrypt multiple files in a folder
-cp data_file data_file1
 
 # Create folder and encrypt files in it
+cp data_file data_file1
 mkdir data_files_enc
 ./sda-cli encrypt -key sda_key.pub.pem -outdir data_files_enc data_file data_file1
 
@@ -76,6 +75,7 @@ do
 done
 
 # Test recursive folder upload
+
 # Create folder with subfolder structure and add some encrypted files
 mkdir data_files_enc/dir1 data_files_enc/dir1/dir2
 cp data_files_enc/data_file.c4gh data_files_enc/data_file3.c4gh
@@ -93,6 +93,7 @@ do
 done
 
 # Test upload to a different path
+
 # Upload a folder recursively and a single file in a specified upload folder
 uploadDir="testfolder"
 ./sda-cli upload -config testing/s3cmd.conf -targetDir "$uploadDir" -r data_files_enc/dir1 data_files_enc/data_file3.c4gh
@@ -108,6 +109,7 @@ do
 done
 
 # Upload all contents of a folder recursively to a specified upload folder
+
 uploadDir="testfolder2"
 ./sda-cli upload -config testing/s3cmd.conf -targetDir "$uploadDir" -r data_files_enc/dir1/.
 
@@ -126,11 +128,7 @@ cp data_file data_files_unenc/. && cp data_file data_files_unenc/dir1/data_file1
 uploadDir="testEncryptUpload"
 ./sda-cli upload -config testing/s3cmd.conf -encrypt-with-key sda_key.pub.pem -r data_files_unenc -targetDir "$uploadDir"
 
-for k in data_files_unenc/data_file.c4gh data_files_unenc/dir1/data_file1.c4gh
-do
-    check_encypted_file $k
-done
-# check_encypted_file "data_files_unenc/data_file.c4gh" "data_files_unenc/dir1/data_file1.c4gh"
+check_encypted_file "data_files_unenc/data_file.c4gh" "data_files_unenc/dir1/data_file1.c4gh"
 
 for k in data_files_unenc/data_file.c4gh data_files_unenc/dir1/data_file1.c4gh
 do
@@ -175,37 +173,75 @@ fi
 
 # Test multiple pub key encryption
 
-# Create another key-pair
-if ( echo "" | ./sda-cli createKey sda_key2 ) ; then
-    echo "Created key pair for encryption"
-else
-    echo "Failed to create key pair for encryption"
-    exit 1
+# Create another couple of key-pairs
+for c in 1 2
+do
+    if ( echo "" | ./sda-cli createKey sda_key$c ) ; then
+        echo "Created key pair for encryption"
+    else
+        echo "Failed to create key pair for encryption"
+        exit 1
 fi
-# Create test file and encrypt
-cp data_file data_file_2keys
-./sda-cli encrypt -key sda_key.pub.pem -key sda_key2.pub.pem data_file_2keys
-check_encypted_file "data_file_2keys.c4gh"
-rm data_file_2keys
-# Decrypt file with first key
-./sda-cli decrypt -key sda_key.sec.pem data_file_2keys.c4gh
-if [ -f data_file_2keys ]; then
-    echo "Decrypted data file"
-else
-    echo "Failed to decrypt data file"
-    exit 1
-fi
-rm data_file_2keys
-# Decrypt file with second key
-./sda-cli decrypt -key sda_key2.sec.pem data_file_2keys.c4gh
+done
 
-# decrypted_file_exists "data_file_2keys"
-if [ -f data_file_2keys ]; then
-    echo "Decrypted data file"
-else
-    echo "Failed to decrypt data file"
-    exit 1
-fi
+# Create file with concatenated pub keys
+cat sda_key1.pub.pem sda_key2.pub.pem > sda_keys
+
+# Create test files
+cp data_file data_file_keys
+
+# Encrypt with multiple key flag calls
+./sda-cli encrypt -key sda_key.pub.pem -key sda_key2.pub.pem data_file_keys
+check_encypted_file "data_file_keys.c4gh"
+
+# Decrypt file with both keys
+for key in sda_key sda_key2
+do
+    rm data_file_keys
+    ./sda-cli decrypt -key $key.sec.pem data_file_keys.c4gh
+    if [ -f data_file_keys ]; then
+        echo "Decrypted data file"
+    else
+        echo "Failed to decrypt data file with $key"
+        exit 1
+    fi
+done
+rm data_file_keys.c4gh
+
+# Encrypt with concatenated key file
+./sda-cli encrypt -key sda_keys data_file_keys
+check_encypted_file "data_file_keys.c4gh"
+
+# Decrypt file with both keys
+for key in sda_key1 sda_key2
+do
+    rm data_file_keys
+    ./sda-cli decrypt -key $key.sec.pem data_file_keys.c4gh
+    if [ -f data_file_keys ]; then
+        echo "Decrypted data file"
+    else
+        echo "Failed to decrypt data file with $key"
+        exit 1
+    fi
+done
+rm data_file_keys.c4gh
+
+# Encrypt with concatenated key file and a key flag call
+./sda-cli encrypt -key sda_key.pub.pem -key sda_keys data_file_keys
+check_encypted_file "data_file_keys.c4gh"
+
+# Decrypt file with all keys
+for key in sda_key sda_key1 sda_key2
+do
+    rm data_file_keys
+    ./sda-cli decrypt -key $key.sec.pem data_file_keys.c4gh
+    if [ -f data_file_keys ]; then
+        echo "Decrypted data file"
+    else
+        echo "Failed to decrypt data file with $key"
+        exit 1
+    fi
+done
 
 # Remove files used for encrypt and upload
 rm -r data_files_enc
