@@ -129,7 +129,7 @@ func Encrypt(args []string) error {
 
 	// Initialize a c4gh public key specs instance
 	c4ghKeySpecs := keySpecs{
-		rgx:    regexp.MustCompile(`-{5}[A-Z]*\s[4A-Z]*\s[A-Z]*\s[A-Z]*-{5}\n.*\n-{5}[A-Z]*\s[4A-Z]*\s[A-Z]*\s[A-Z]*-{5}`),
+		rgx:    regexp.MustCompile(`-{5}BEGIN CRYPT4GH PUBLIC KEY-{5}\n.*\n-{5}END CRYPT4GH PUBLIC KEY-{5}`),
 		nbytes: 115,
 	}
 
