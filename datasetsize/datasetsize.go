@@ -20,7 +20,7 @@ import (
 var Usage = `
 USAGE: %s datasetsize [url(s) | file]
 
-Datasetsize: List files that can be downloaded from the Sensitive Data Archive (SDA).
+datasetsize: List files that can be downloaded from the Sensitive Data Archive (SDA).
 	  If a URL is provided (ending with "/" or the urls_list.txt file), then the tool 
 	  will attempt to first download the urls_list.txt file, and then return a list 
 	  of the files with their respective sizes.

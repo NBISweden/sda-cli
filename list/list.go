@@ -24,7 +24,7 @@ import (
 var Usage = `
 USAGE: %s list -config <s3config-file> [prefix]
 
-List: Lists recursively all files under the user's folder in the Sensitive Data Archive (SDA). 
+list: Lists recursively all files under the user's folder in the Sensitive Data Archive (SDA). 
       If the [prefix] parameter is used, only the files under the specified path will be returned.
 `
 

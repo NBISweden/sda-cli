@@ -28,7 +28,7 @@ import (
 var Usage = `
 USAGE: %s upload -config <s3config-file> (--encrypt-with-key <public-key-file>) (-r) [file(s)|folder(s)] (-targetDir <upload-directory>)
 
-Upload: Uploads files to the Sensitive Data Archive (SDA). All files to upload
+upload: Uploads files to the Sensitive Data Archive (SDA). All files to upload
         are required to be encrypted and have the .c4gh file extension.
 `
 
@@ -48,7 +48,7 @@ var dirUpload = Args.Bool("r", false, "Upload directories recursively.")
 
 var targetDir = Args.String("targetDir", "", "Upload files|folders into this directory. If flag is omitted, all data will be uploaded in the user's base directory.")
 
-var pubKeyPath = Args.String("encrypt-with-key", "", "Public key to use for encryption of files before upload. The argument list may include only unencrypted data if this flag is set.")
+var pubKeyPath = Args.String("encrypt-with-key", "", "Public key file to use for encryption of files before upload. The key file may optionally contain several\n concatenated public keys. The argument list may include only unencrypted data if this flag is set.")
 
 // Config struct for storing the s3cmd file values
 type Config struct {

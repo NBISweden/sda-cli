@@ -44,6 +44,21 @@ where `<public_key>` the key downloaded in the previous step. The tool also allo
 ```
 This command comes with the `-continue` option, which will continue encrypting files, even if one of them fails. To enable this feature, the command should be executed with the `-continue=true` option.
 
+### Encrypt file(s) with multiple keys
+
+To encrypt files with more than one public keys, repeatedly use the `-key` flag, e.g.
+```bash
+./sda-cli encrypt -key <public_key1> -key <public_key2> <file_to_encrypt>
+```
+will encrypt a file using two keys so that it can be decrypted with either of the corresponding private keys. Encryption with more than two keys is possible, as well. Another option is to provide as argument to `-key` a file with concatenated public keys generated e.g. from a command like
+```bash
+cat <pub_key1> <pub_key2> > <concatenated_pub_keys>
+```
+Passing a combination of the above arguments is allowed, as well:
+```bash
+./sda-cli encrypt -key <concatenated_public_keys> -key <public_key3> <file_to_encrypt>
+```
+
 **Note**: The `encrypt` command will create four files containing hashes (both md5 and sha256) for the encrypted and unencrypted files, respectively.
 
 **Developers' Notes:** The tool is creating a key pair when encrypting the files. This key pair is temporary for security reasons.
@@ -103,7 +118,7 @@ It is possible to combine the encryption and upload steps into with the use of t
 ```bash
 ./sda-cli upload -config <configuration_file> --encrypt-with-key <public_key> <unencrypted_file_to_upload>
 ```
-will encrypt `<unencrypted_file_to_upload>` using `<public_key>` as public key and upload the created `<file_to_upload.c4gh>`  in the base folder of the user. 
+will encrypt `<unencrypted_file_to_upload>` using `<public_key>` as public key and upload the created `<file_to_upload.c4gh>`  in the base folder of the user.
 
 Encrypt on upload can be combined with any of the flags above. For example,
 ```bash
@@ -111,8 +126,9 @@ Encrypt on upload can be combined with any of the flags above. For example,
 ```
 will first encrypt all files in `<folder_to_upload_with_unencrypted_data>` and then upload the folder recursively (selecting only the created `c4gh` files) under `<new_folder_name>`.
 
-**Notes**: The tool calls the `encrypt` module internally, therefore similar behavior to that command is expected, including the creation of hash files. In addition,
+**Notes**: The tool calls the [encrypt](#Encrypt) module internally, therefore similar behavior to that command is expected, including the creation of hash files. In addition,
 
+- For encryption with [multiple public keys](#Encrypt-file(s)-with-multiple-keys), concatenate all public keys into one file and pass it as the argument to `encrypt-with-key`.
 - If the input includes encrypted files, the tool will exit without performing further tasks.
 - The encrypted files will be created next to their unencrypted counterparts.
 - The tool will not overwrite existing encrypted files. It will exit early if encrypted counterparts of the source files already exist with the same source path.

@@ -11,6 +11,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
+	"strings"
 
 	"github.com/NBISweden/sda-cli/helpers"
 
@@ -26,7 +28,7 @@ import (
 var Usage = `
 USAGE: %s encrypt -key <public-key-file> (-outdir <dir>) (-continue=true) [file(s)]
 
-Encrypt: Encrypts files according to the crypt4gh standard used in the Sensitive
+encrypt: Encrypts files according to the crypt4gh standard used in the Sensitive
          Data Archive (SDA). Each given file will be encrypted and written to
          <filename>.c4gh. Both encrypted and unencrypted checksums will be
          calculated and written to:
@@ -46,23 +48,33 @@ var ArgHelp = `
 // main program help
 var Args = flag.NewFlagSet("encrypt", flag.ExitOnError)
 
-var publicKeyFile = Args.String("key", "",
-	"Public key to use for encrypting files.")
 var outDir = Args.String("outdir", "", "Output directory for encrypted files")
 
 var continueEncrypt = Args.Bool("continue", false, "Do not exit on file errors but skip and continue.")
 
+var publicKeyFileList []string
+
+func init() {
+	Args.Func("key", "Public key file(s) to use for encryption. Use multiple times to encrypt\nwith more public keys. Key file(s) may contain many concatenated keys.", func(s string) error {
+		publicKeyFileList = append(publicKeyFileList, s)
+
+		return nil
+	})
+}
+
 // Encrypt takes a set of arguments, parses them, and attempts to encrypt the
 // given data files with the given public key file
 func Encrypt(args []string) error {
-
-	// Parse flags. There are no flags at the moment, but in case some are added
-	// we check for them.
+	// Parse flags.
 	err := Args.Parse(args[1:])
 	if err != nil {
 		return fmt.Errorf("could not parse arguments: %s", err)
 	}
-	// Args() returns the non-flag arguments, which we assume are filenames.
+
+	// Exit if public key is not provided
+	if len(publicKeyFileList) == 0 {
+		return fmt.Errorf("public key not provided")
+	}
 
 	// Each filename is first read into a helper struct (sliced for combatibility with checkFiles)
 	eachFile := make([]helpers.EncryptionFileSet, 1)
@@ -81,6 +93,7 @@ func Encrypt(args []string) error {
 		}
 	}()
 
+	// Args() returns the non-flag arguments, which we assume are filenames.
 	log.Info("Checking files")
 	for _, filename := range Args.Args() {
 
@@ -114,9 +127,12 @@ func Encrypt(args []string) error {
 
 	log.Infof("Ready to encrypt %d file(s)", len(files))
 
-	// Read the public key to be used for encryption. The private key
-	// matching this public key will be able to decrypt the file.
-	publicKey, err := readPublicKey(*publicKeyFile)
+	// Initialize a c4gh public key specs instance
+	c4ghKeySpecs := newKeySpecs()
+
+	// Read the public key(s) to be used for encryption. The matching private
+	// key will be able to decrypt the file.
+	pubKeyList, err := createPubKeyList(publicKeyFileList, c4ghKeySpecs)
 	if err != nil {
 		return err
 	}
@@ -174,7 +190,7 @@ func Encrypt(args []string) error {
 		log.Infof("Encrypting file %v/%v: %s", i+1, numFiles, file.Unencrypted)
 
 		// encrypt the file
-		err = encrypt(file.Unencrypted, file.Encrypted, *publicKey, *privateKey)
+		err = encrypt(file.Unencrypted, file.Encrypted, pubKeyList, *privateKey)
 		if err != nil {
 			return err
 		}
@@ -300,25 +316,62 @@ func calculateHashes(fileSet helpers.EncryptionFileSet) (*hashSet, error) {
 	return &hashes, nil
 }
 
-// Reads a public key file from a file using the crypt4gh keys module
-func readPublicKey(filename string) (key *[32]byte, err error) {
+// Reads a public key from a file using the crypt4gh keys module
+func readPublicKeyFile(filename string) (key *[32]byte, err error) {
 	log.Info("Reading Public key file")
 	file, err := os.Open(filepath.Clean(filename))
 	if err != nil {
 		return nil, err
 	}
 
-	// This function panics if the key is malformed, so we handle that as well
-	// as errors
+	publicKey, err := readPublicKey(file)
+	if err != nil {
+		return nil, fmt.Errorf(err.Error()+": %s", filename)
+	}
+
+	return &publicKey, err
+}
+
+// Wrapper for the respective crypt4gh function. Since this function panics if the key is
+// malformed, so we handle that as well as errors.
+func readPublicKey(reader io.Reader) (key [32]byte, err error) {
+
 	defer func() {
 		if recover() != nil {
-			err = fmt.Errorf("malformed key file: %s", filename)
+			err = fmt.Errorf("malformed key file")
 		}
 	}()
 
-	publicKey, err := keys.ReadPublicKey(file)
+	publicKey, err := keys.ReadPublicKey(reader)
 
-	return &publicKey, err
+	return publicKey, err
+}
+
+// Reads multiple public keys from a file using the crypt4gh keys module and
+// returns them in a list.
+func readMultiPublicKeyFile(filename string, k keySpecs) (key *[][32]byte, err error) {
+	file, err := os.ReadFile(filepath.Clean(filename))
+	if err != nil {
+		return nil, err
+	}
+
+	m := k.rgx.FindAllString(string(file), -1)
+
+	log.Infof("Reading %d concatenated Public keys from file", len(m))
+
+	var list [][32]byte
+	for _, keyString := range m {
+		newKey := strings.NewReader(keyString)
+
+		publicKey, err := readPublicKey(newKey)
+		if err != nil {
+			return nil, fmt.Errorf(err.Error()+": %s", filename)
+		}
+
+		list = append(list, publicKey)
+	}
+
+	return &list, err
 }
 
 // Generates a crypt4gh key pair, returning only the private key, as the
@@ -336,7 +389,7 @@ func generatePrivateKey() (*[32]byte, error) {
 
 // Encrypts the data from `filename` into `outFilename` for the given `pubKey`,
 // using the given `privateKey`.
-func encrypt(filename, outFilename string, pubKey, privateKey [32]byte) error {
+func encrypt(filename, outFilename string, pubKeyList [][32]byte, privateKey [32]byte) error {
 	// check if outfile exists
 	if helpers.FileExists(outFilename) {
 		return fmt.Errorf("outfile %s already exists", outFilename)
@@ -365,7 +418,7 @@ func encrypt(filename, outFilename string, pubKey, privateKey [32]byte) error {
 	}()
 
 	// Create crypt4gh writer
-	pubKeyList := [][32]byte{pubKey}
+
 	crypt4GHWriter, err := streaming.NewCrypt4GHWriter(outFile,
 		privateKey, pubKeyList, nil)
 	if err != nil {
@@ -382,9 +435,79 @@ func encrypt(filename, outFilename string, pubKey, privateKey [32]byte) error {
 	return nil
 }
 
-//
-// structs
-//
+// Checks the first n bytes of a file for text matching the given regex pattern.
+// If a match is found then the byte size of the file is returned.
+func checkKeyFile(pubkey string, k keySpecs) (int64, error) {
+	f, err := os.Open(pubkey)
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Errorf("Error closing file: %s\n", err)
+		}
+	}()
+
+	b := make([]byte, k.nbytes)
+	if _, err = f.Read(b); err != nil {
+		return 0, err
+	}
+	match := k.rgx.MatchString(string(b))
+
+	if !match {
+		return 0, fmt.Errorf("invalid key format in file: %s", pubkey)
+	}
+
+	// get file size
+	fs, err := f.Stat()
+	if err != nil {
+		return 0, err
+	}
+
+	return fs.Size(), nil
+}
+
+// Takes a key file list and specs about the expected key and returns the parsed public key(s)
+// in a list ready to be used by crypt4gh package
+func createPubKeyList(publicKeyFileList []string, c4ghKeySpecs keySpecs) ([][32]byte, error) {
+	pubKeyList := [][32]byte{}
+
+	for _, pubkey := range publicKeyFileList {
+
+		// Check that pub key file(s) have a valid format. This ensures that some large
+		// datafile is not read in by user's mistake before we read in the whole file below.
+		fileSize, err := checkKeyFile(pubkey, c4ghKeySpecs)
+		if err != nil {
+			return nil, err
+		}
+
+		// If file contains concatenated pub keys, parse them in a list, append the list and move along.
+		if fileSize > int64(c4ghKeySpecs.nbytes) {
+			publicKeys, err := readMultiPublicKeyFile(pubkey, c4ghKeySpecs)
+			if err != nil {
+				return nil, err
+			}
+			pubKeyList = append(pubKeyList, *publicKeys...)
+
+			continue
+		}
+
+		publicKey, err := readPublicKeyFile(pubkey)
+		if err != nil {
+			return nil, err
+		}
+		pubKeyList = append(pubKeyList, *publicKey)
+	}
+
+	return pubKeyList, nil
+}
+
+func newKeySpecs() keySpecs {
+	return keySpecs{
+		rgx:    regexp.MustCompile(`-{5}BEGIN CRYPT4GH PUBLIC KEY-{5}\n.*\n-{5}END CRYPT4GH PUBLIC KEY-{5}`),
+		nbytes: 115,
+	}
+}
 
 // struct to keep track of all the checksums for a given unencrypted input file.
 type hashSet struct {
@@ -392,4 +515,9 @@ type hashSet struct {
 	unencryptedMd5    string
 	encryptedSha256   string
 	unencryptedSha256 string
+}
+
+type keySpecs struct {
+	rgx    *regexp.Regexp // text pattern to match
+	nbytes int            // first n bytes of file to parse
 }

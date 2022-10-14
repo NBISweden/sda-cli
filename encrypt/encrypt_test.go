@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/NBISweden/sda-cli/helpers"
@@ -15,13 +16,14 @@ import (
 
 type EncryptTests struct {
 	suite.Suite
-	tempDir       string
-	publicKey     *os.File
-	privateKey    *os.File
-	fileOk        *os.File
-	encryptedFile *os.File
-	pubKeyData    [32]byte
-	secKeyData    [32]byte
+	tempDir        string
+	publicKey      *os.File
+	privateKey     *os.File
+	fileOk         *os.File
+	encryptedFile  *os.File
+	pubKeyData     [32]byte
+	secKeyData     [32]byte
+	multiPublicKey *os.File
 }
 
 func TestEncryptTestSuite(t *testing.T) {
@@ -65,6 +67,23 @@ func (suite *EncryptTests) SetupTest() {
 		log.Fatalf("failed to write temporary private key file, %v", err)
 	}
 
+	// Create temp file with concatenated pub keys.
+	// Append same key twice. Works until we decide that we do not allow duplicates.
+	suite.multiPublicKey, err = os.CreateTemp(suite.tempDir, "pubkey-")
+	if err != nil {
+		log.Fatal("Cannot create temporary public key file", err)
+	}
+
+	input, err := os.ReadFile(suite.publicKey.Name())
+	if err != nil {
+		log.Fatal("Cannot read from public key file", err)
+	}
+
+	err = os.WriteFile(suite.multiPublicKey.Name(), append(input, input...), 0600)
+	if err != nil {
+		log.Fatal("cannot write to temporary multi-key file", err)
+	}
+
 	// create an existing test file with some known content
 	suite.fileOk, err = ioutil.TempFile(suite.tempDir, "testfile-")
 	if err != nil {
@@ -91,6 +110,7 @@ func (suite *EncryptTests) SetupTest() {
 func (suite *EncryptTests) TearDownTest() {
 	os.Remove(suite.publicKey.Name())
 	os.Remove(suite.privateKey.Name())
+	os.Remove(suite.multiPublicKey.Name())
 	os.Remove(suite.fileOk.Name())
 	os.Remove(suite.encryptedFile.Name())
 	os.Remove(suite.tempDir)
@@ -120,9 +140,47 @@ func (suite *EncryptTests) TestcheckFiles() {
 }
 
 func (suite *EncryptTests) TestreadPublicKey() {
-	publicKey, err := readPublicKey(suite.publicKey.Name())
+	file, err := os.Open(suite.publicKey.Name())
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+	publicKey, err := readPublicKey(file)
+	assert.NoError(suite.T(), err)
+	suite.Equal(publicKey, suite.pubKeyData)
+
+	malformedKey := "-----BEGIN CRYPT4GH PUBLIC KEY-----\nvery bad\n-----END CRYPT4GH PUBLIC KEY-----"
+	badFile := strings.NewReader(malformedKey)
+	_, err = readPublicKey(badFile)
+	assert.EqualError(suite.T(), err, "malformed key file")
+}
+
+func (suite *EncryptTests) TestreadPublicKeyFile() {
+	publicKey, err := readPublicKeyFile(suite.publicKey.Name())
 	assert.NoError(suite.T(), err)
 	suite.Equal(*publicKey, suite.pubKeyData)
+}
+
+func (suite *EncryptTests) TestreadMultiPublicKeyFile() {
+	specs := newKeySpecs()
+	publicKey, err := readMultiPublicKeyFile(suite.multiPublicKey.Name(), specs)
+	assert.NoError(suite.T(), err)
+	b := *publicKey
+	suite.Equal(b[0], suite.pubKeyData)
+	suite.Equal(b[1], suite.pubKeyData)
+}
+
+func (suite *EncryptTests) TestcheckKeyFile() {
+	specs := newKeySpecs()
+	// file that contains key(s) in valid format
+	size, err := checkKeyFile(suite.multiPublicKey.Name(), specs)
+	assert.NoError(suite.T(), err)
+	suite.Equal(size, int64(230))
+
+	// file that does not contain a key in valid format
+	size, err = checkKeyFile(suite.fileOk.Name(), specs)
+	assert.ErrorContains(suite.T(), err, "invalid key format in file:")
+	suite.Equal(size, int64(0))
 }
 
 func (suite *EncryptTests) TestcalculateHashes() {
@@ -144,4 +202,16 @@ func (suite *EncryptTests) TestcalculateHashes() {
 	suite.Equal(hashes.unencryptedSha256, "ed7002b439e9ac845f22357d822bac1444730fbdb6016d3ec9432297b9ec9f73")
 	suite.Equal(hashes.encryptedMd5, "9a0364b9e99bb480dd25e1f0284c8555")
 	suite.Equal(hashes.encryptedSha256, "ed7002b439e9ac845f22357d822bac1444730fbdb6016d3ec9432297b9ec9f73")
+}
+
+func (suite *EncryptTests) TestEncryptFunction() {
+	// pub key not given
+	os.Args = []string{"encrypt", suite.fileOk.Name()}
+	err := Encrypt(os.Args)
+	assert.EqualError(suite.T(), err, "public key not provided")
+
+	// no such pub key file
+	os.Args = []string{"encrypt", "-key", "somekey", suite.fileOk.Name()}
+	err = Encrypt(os.Args)
+	assert.EqualError(suite.T(), err, "open somekey: no such file or directory")
 }

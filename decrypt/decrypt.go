@@ -22,7 +22,7 @@ import (
 var Usage = `
 USAGE: %s decrypt -key <private-key-file> [file(s)]
 
-Decrypt: Decrypts files from the Sensitive Data Archive (SDA) with the provided
+decrypt: Decrypts files from the Sensitive Data Archive (SDA) with the provided
          private key. If the private key is encrypted, the password can be
          supplied in the C4GH_PASSWORD environment variable, or at the interactive
          password prompt.

@@ -18,7 +18,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help encrypt` command
 var Usage = `
-USAGE: %s createKey <name> (-outdir <dirname>)
+USAGE: %s createKey (-outdir <dirname>) <name>
 
 createKey: Creates a crypt4gh encryption key pair, and saves it to
            <name>.pub.pem, and <name>.sec.pem.
