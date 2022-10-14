@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -163,10 +162,7 @@ func (suite *EncryptTests) TestreadPublicKeyFile() {
 }
 
 func (suite *EncryptTests) TestreadMultiPublicKeyFile() {
-	specs := keySpecs{
-		rgx:    regexp.MustCompile(`-{5}[A-Z]*\s[4A-Z]*\s[A-Z]*\s[A-Z]*-{5}\n.*\n-{5}[A-Z]*\s[4A-Z]*\s[A-Z]*\s[A-Z]*-{5}`),
-		nbytes: 115,
-	}
+	specs := newKeySpecs()
 	publicKey, err := readMultiPublicKeyFile(suite.multiPublicKey.Name(), specs)
 	assert.NoError(suite.T(), err)
 	b := *publicKey
@@ -175,10 +171,7 @@ func (suite *EncryptTests) TestreadMultiPublicKeyFile() {
 }
 
 func (suite *EncryptTests) TestcheckKeyFile() {
-	specs := keySpecs{
-		rgx:    regexp.MustCompile(`-{5}[A-Z]*\s[4A-Z]*\s[A-Z]*\s[A-Z]*-{5}\n.*\n-{5}[A-Z]*\s[4A-Z]*\s[A-Z]*\s[A-Z]*-{5}`),
-		nbytes: 115,
-	}
+	specs := newKeySpecs()
 	// file that contains key(s) in valid format
 	size, err := checkKeyFile(suite.multiPublicKey.Name(), specs)
 	assert.NoError(suite.T(), err)

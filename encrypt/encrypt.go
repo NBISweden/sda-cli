@@ -128,10 +128,7 @@ func Encrypt(args []string) error {
 	log.Infof("Ready to encrypt %d file(s)", len(files))
 
 	// Initialize a c4gh public key specs instance
-	c4ghKeySpecs := keySpecs{
-		rgx:    regexp.MustCompile(`-{5}BEGIN CRYPT4GH PUBLIC KEY-{5}\n.*\n-{5}END CRYPT4GH PUBLIC KEY-{5}`),
-		nbytes: 115,
-	}
+	c4ghKeySpecs := newKeySpecs()
 
 	// Read the public key(s) to be used for encryption. The matching private
 	// key will be able to decrypt the file.
@@ -503,6 +500,13 @@ func createPubKeyList(publicKeyFileList []string, c4ghKeySpecs keySpecs) ([][32]
 	}
 
 	return pubKeyList, nil
+}
+
+func newKeySpecs() keySpecs {
+	return keySpecs{
+		rgx:    regexp.MustCompile(`-{5}BEGIN CRYPT4GH PUBLIC KEY-{5}\n.*\n-{5}END CRYPT4GH PUBLIC KEY-{5}`),
+		nbytes: 115,
+	}
 }
 
 // struct to keep track of all the checksums for a given unencrypted input file.
