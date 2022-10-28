@@ -70,7 +70,12 @@ Passing a combination of the above arguments is allowed, as well:
 
 Once your files are encrypted, they are ready to be submitted to the SDA/BP archive. The s3 storage requires users to be authenticated, therefore a configuration files needs to be downloaded before starting the uploading of the files.
 
-The configuration file can be downloaded by logging in with a Life Science RI account [here](https://login.sda.nbis.se/) for SDA and [here](https://login.bp.nbis.se/) for Big Picture. The configuration file should be placed in the root folder of the repository.
+The configuration file can be downloaded by logging in with a Life Science RI account:
+
+* For SDA use [this](https://login.sda.nbis.se/)
+* For BigPicture use [this](https://login.bp.nbis.se/)
+
+The configuration file should be placed in the root folder of the repository.
 
 ### Upload file(s)
 
