@@ -72,7 +72,6 @@ Once your files are encrypted, they are ready to be submitted to the SDA/BP arch
 
 The configuration file can be downloaded by logging in with a Life Science RI account:
 
-* For SDA use [this](https://login.sda.nbis.se/)
 * For BigPicture use [this](https://login.bp.nbis.se/)
 
 The configuration file should be placed in the root folder of the repository.
