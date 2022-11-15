@@ -3,7 +3,6 @@ package list
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -100,14 +99,14 @@ func (suite *TestSuite) TestFunctionality() {
 	`, strings.TrimPrefix(ts.URL, "http://"))
 
 	// Create config file
-	configPath, err := ioutil.TempFile(os.TempDir(), "s3cmd.conf")
+	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd.conf")
 	if err != nil {
 		log.Panic(err)
 	}
 	defer os.Remove(configPath.Name())
 
 	// Write config file
-	err = ioutil.WriteFile(configPath.Name(), []byte(confFile), 0600)
+	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
 		log.Printf("failed to write temp config file, %v", err)
 	}
@@ -123,7 +122,7 @@ func (suite *TestSuite) TestFunctionality() {
 	defer os.RemoveAll(dir)
 
 	// Create test file to upload
-	testfile, err := ioutil.TempFile(dir, "dummy")
+	testfile, err := os.CreateTemp(dir, "dummy")
 	if err != nil {
 		log.Panic(err)
 	}

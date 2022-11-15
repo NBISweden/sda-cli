@@ -1,7 +1,6 @@
 package download
 
 import (
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -44,7 +43,7 @@ func (suite *TestSuite) TestdownloadFileWrongUrl() {
 
 func (suite *TestSuite) TestWrongUrlsFile() {
 
-	urlsListPath, err := ioutil.TempFile(os.TempDir(), "urls_list-")
+	urlsListPath, err := os.CreateTemp(os.TempDir(), "urls_list-")
 	assert.NoError(suite.T(), err)
 	defer os.Remove(urlsListPath.Name())
 
@@ -59,11 +58,11 @@ someUrlToFile2
 someUrlToFile3
 `
 
-	urlsListPath, err := ioutil.TempFile(os.TempDir(), "urls_list-")
+	urlsListPath, err := os.CreateTemp(os.TempDir(), "urls_list-")
 	assert.NoError(suite.T(), err)
 	defer os.Remove(urlsListPath.Name())
 
-	err = ioutil.WriteFile(urlsListPath.Name(), []byte(urlsListFile), 0600)
+	err = os.WriteFile(urlsListPath.Name(), []byte(urlsListFile), 0600)
 	if err != nil {
 		log.Printf("failed to write temp config file, %v", err)
 	}
@@ -184,7 +183,7 @@ http://url/to/file3.c4gh
 	assert.NoError(suite.T(), err)
 
 	// Check that the file contains the correct urls
-	expectedUrls, err := ioutil.ReadFile(urlsFilePath)
+	expectedUrls, err := os.ReadFile(urlsFilePath)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expectedUrls, []byte(urlsList))
 
@@ -201,7 +200,7 @@ http://url/to/file3.c4gh
 	assert.NoError(suite.T(), err)
 
 	// Check that the file contains the correct urls
-	expectedUrls, err = ioutil.ReadFile(urlsFilePath)
+	expectedUrls, err = os.ReadFile(urlsFilePath)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expectedUrls, []byte(urlsList))
 

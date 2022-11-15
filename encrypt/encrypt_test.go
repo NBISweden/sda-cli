@@ -2,7 +2,6 @@ package encrypt
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -41,13 +40,13 @@ func (suite *EncryptTests) SetupTest() {
 	}
 
 	// Create a temporary directory for our files
-	suite.tempDir, err = ioutil.TempDir(os.TempDir(), "sda-cli-test-")
+	suite.tempDir, err = os.MkdirTemp(os.TempDir(), "sda-cli-test-")
 	if err != nil {
 		log.Fatal("Couldn't create temporary test directory", err)
 	}
 
 	// Write the keys to temporary files
-	suite.publicKey, err = ioutil.TempFile(suite.tempDir, "pubkey-")
+	suite.publicKey, err = os.CreateTemp(suite.tempDir, "pubkey-")
 	if err != nil {
 		log.Fatal("Cannot create temporary public key file", err)
 	}
@@ -57,7 +56,7 @@ func (suite *EncryptTests) SetupTest() {
 		log.Fatalf("failed to write temporary public key file, %v", err)
 	}
 
-	suite.privateKey, err = ioutil.TempFile(suite.tempDir, "seckey-")
+	suite.privateKey, err = os.CreateTemp(suite.tempDir, "seckey-")
 	if err != nil {
 		log.Fatal("cannot create temporary private key file", err)
 	}
@@ -85,23 +84,23 @@ func (suite *EncryptTests) SetupTest() {
 	}
 
 	// create an existing test file with some known content
-	suite.fileOk, err = ioutil.TempFile(suite.tempDir, "testfile-")
+	suite.fileOk, err = os.CreateTemp(suite.tempDir, "testfile-")
 	if err != nil {
 		log.Fatal("cannot create temporary public key file", err)
 	}
 
-	err = ioutil.WriteFile(suite.fileOk.Name(), []byte("content"), 0600)
+	err = os.WriteFile(suite.fileOk.Name(), []byte("content"), 0600)
 	if err != nil {
 		log.Fatalf("failed to write to testfile: %s", err)
 	}
 
 	// create an existing encrypted test file
-	suite.encryptedFile, err = ioutil.TempFile(suite.tempDir, "encrypted-input")
+	suite.encryptedFile, err = os.CreateTemp(suite.tempDir, "encrypted-input")
 	if err != nil {
 		log.Fatal("cannot create temporary encrypted testfile", err)
 	}
 
-	err = ioutil.WriteFile(suite.encryptedFile.Name(), []byte("crypt4gh"), 0600)
+	err = os.WriteFile(suite.encryptedFile.Name(), []byte("crypt4gh"), 0600)
 	if err != nil {
 		log.Fatalf("failed to write to temporary encrypted testfile: %s", err)
 	}

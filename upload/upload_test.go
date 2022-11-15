@@ -3,7 +3,6 @@ package upload
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -51,14 +50,14 @@ guess_mime_type!True
 encrypt = False
 `
 
-	configPath, err := ioutil.TempFile(os.TempDir(), "s3cmd-")
+	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	defer os.Remove(configPath.Name())
 
-	err = ioutil.WriteFile(configPath.Name(), []byte(confFile), 0600)
+	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
 		log.Printf("failed to write temp config file, %v", err)
 	}
@@ -69,7 +68,7 @@ encrypt = False
 
 func (suite *TestSuite) TestConfigMissingCredentials() {
 
-	configPath, err := ioutil.TempFile(os.TempDir(), "s3cmd-")
+	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -85,14 +84,14 @@ func (suite *TestSuite) TestConfigMissingEndpoint() {
 access_token = someToken
 access_key = someUser
 `
-	configPath, err := ioutil.TempFile(os.TempDir(), "s3cmd-")
+	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	defer os.Remove(configPath.Name())
 
-	err = ioutil.WriteFile(configPath.Name(), []byte(confFile), 0600)
+	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
 		log.Printf("failed to write temp config file, %v", err)
 	}
@@ -118,14 +117,14 @@ human_readable_sizes = True
 guess_mime_type = True
 encrypt = False
 `
-	configPath, err := ioutil.TempFile(os.TempDir(), "s3cmd-")
+	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	defer os.Remove(configPath.Name())
 
-	err = ioutil.WriteFile(configPath.Name(), []byte(confFile), 0600)
+	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
 		log.Printf("failed to write temp config file, %v", err)
 	}
@@ -152,14 +151,14 @@ func (suite *TestSuite) TestSampleNoFiles() {
 	guess_mime_type = True
 	encrypt = False
 	`
-	configPath, err := ioutil.TempFile(os.TempDir(), "s3cmd.conf")
+	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd.conf")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	defer os.Remove(configPath.Name())
 
-	err = ioutil.WriteFile(configPath.Name(), []byte(confFile), 0600)
+	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
 		log.Printf("failed to write temp config file, %v", err)
 	}
@@ -223,13 +222,13 @@ func (suite *TestSuite) TestTokenExpiration() {
 func (suite *TestSuite) TestcreateFilePaths() {
 
 	// Create temp dir with file
-	dir, err := ioutil.TempDir(os.TempDir(), "test")
+	dir, err := os.MkdirTemp(os.TempDir(), "test")
 	if err != nil {
 		log.Panic(err)
 	}
 	defer os.RemoveAll(dir)
 
-	testfile, err := ioutil.TempFile(dir, "testfile")
+	testfile, err := os.CreateTemp(dir, "testfile")
 	if err != nil {
 		log.Panic(err)
 	}
@@ -295,29 +294,29 @@ func (suite *TestSuite) TestFunctionality() {
 	encrypt = False
 	`, strings.TrimPrefix(ts.URL, "http://"))
 
-	configPath, err := ioutil.TempFile(os.TempDir(), "s3cmd.conf")
+	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd.conf")
 	if err != nil {
 		log.Panic(err)
 	}
 	defer os.Remove(configPath.Name())
 
-	err = ioutil.WriteFile(configPath.Name(), []byte(confFile), 0600)
+	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
 		log.Printf("failed to write temp config file, %v", err)
 	}
 
 	// Create temp dir with file
-	dir, err := ioutil.TempDir(os.TempDir(), "test")
+	dir, err := os.MkdirTemp(os.TempDir(), "test")
 	if err != nil {
 		log.Panic(err)
 	}
 	defer os.RemoveAll(dir)
 
-	testfile, err := ioutil.TempFile(dir, "testfile")
+	testfile, err := os.CreateTemp(dir, "testfile")
 	if err != nil {
 		log.Panic(err)
 	}
-	err = ioutil.WriteFile(testfile.Name(), []byte("content"), 0600)
+	err = os.WriteFile(testfile.Name(), []byte("content"), 0600)
 	if err != nil {
 		log.Printf("failed to write temp config file, %v", err)
 	}
@@ -375,7 +374,7 @@ func (suite *TestSuite) TestFunctionality() {
 	}
 
 	// Write the keys to temporary files
-	publicKey, err := ioutil.TempFile(dir, "pubkey-")
+	publicKey, err := os.CreateTemp(dir, "pubkey-")
 	if err != nil {
 		log.Panic("Cannot create temporary public key file", err)
 	}

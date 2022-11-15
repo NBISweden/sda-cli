@@ -2,7 +2,7 @@ package decrypt
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -31,13 +31,13 @@ func (suite *DecryptTests) SetupTest() {
 	var err error
 
 	// Create a temporary directory for our files
-	suite.tempDir, err = ioutil.TempDir(os.TempDir(), "sda-cli-test-")
+	suite.tempDir, err = os.MkdirTemp(os.TempDir(), "sda-cli-test-")
 	if err != nil {
 		log.Error("Couldn't create temporary test directory", err)
 	}
 
 	// create a test file...
-	suite.testFile, err = ioutil.TempFile(suite.tempDir, "testfile-")
+	suite.testFile, err = os.CreateTemp(suite.tempDir, "testfile-")
 	if err != nil {
 		log.Error("cannot create temporary public key file", err)
 	}
@@ -46,7 +46,7 @@ func (suite *DecryptTests) SetupTest() {
 	suite.fileContent = []byte("This is some fine content right here.")
 
 	// ... and write the known content to it
-	err = ioutil.WriteFile(suite.testFile.Name(), suite.fileContent, 0600)
+	err = os.WriteFile(suite.testFile.Name(), suite.fileContent, 0600)
 	if err != nil {
 		log.Errorf("failed to write to testfile: %s", err)
 	}
@@ -157,7 +157,7 @@ func (suite *DecryptTests) Testdecrypt() {
 	if err != nil {
 		log.Errorf("Couldn't open decrypted file %s for content checking", decryptedFile)
 	}
-	fileData, err := ioutil.ReadAll(inFile)
+	fileData, err := io.ReadAll(inFile)
 	if err != nil {
 		log.Error("Couldn't read decrypted filedata for content checking")
 	}
