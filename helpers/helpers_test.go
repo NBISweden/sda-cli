@@ -2,7 +2,6 @@ package helpers
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"runtime"
@@ -26,18 +25,18 @@ func (suite *HelperTests) SetupTest() {
 	var err error
 
 	// Create a temporary directory for our files
-	suite.tempDir, err = ioutil.TempDir(os.TempDir(), "sda-cli-test-")
+	suite.tempDir, err = os.MkdirTemp(os.TempDir(), "sda-cli-test-")
 	if err != nil {
 		log.Fatal("Couldn't create temporary test directory", err)
 	}
 
 	// create an existing test file with some known content
-	suite.testFile, err = ioutil.TempFile(suite.tempDir, "testfile-")
+	suite.testFile, err = os.CreateTemp(suite.tempDir, "testfile-")
 	if err != nil {
 		log.Fatal("cannot create temporary public key file", err)
 	}
 
-	err = ioutil.WriteFile(suite.testFile.Name(), []byte("content"), 0600)
+	err = os.WriteFile(suite.testFile.Name(), []byte("content"), 0600)
 	if err != nil {
 		log.Fatalf("failed to write to testfile: %s", err)
 	}

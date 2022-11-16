@@ -2,7 +2,6 @@ package createKey
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -26,7 +25,7 @@ func (suite *CreateKeyTests) SetupTest() {
 	var err error
 
 	// Create a temporary directory for our files
-	suite.tempDir, err = ioutil.TempDir(os.TempDir(), "sda-cli-test-")
+	suite.tempDir, err = os.MkdirTemp(os.TempDir(), "sda-cli-test-")
 	assert.NoError(suite.T(), err)
 }
 
