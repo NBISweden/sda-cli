@@ -178,12 +178,12 @@ where `<keypair_name>` is the base name of the key files. This command will crea
 
 ### Download file
 
-The `sda-cli` tool allows for downloading file(s)/datasets. The whole dataset is stored in a file named `urls_list.txt`. Using this file or the URL where it is stored, it is possible to download the files. There are three different ways to pass the location of the file to the tool, similar to the [dataset size section](#get-dataset-size):
-1. a URL to the file containing the locations of the dataset files
-2. a URL to a folder containing the `urls_list.txt` file with the locations of the dataset files
+The `sda-cli` tool allows for downloading file(s)/datasets. The URLs of the respective dataset files that are available for downloading are stored in a file named `urls_list.txt`. `sda-cli` allows to download files only by using such a file or the URL where it is stored. There are three different ways to pass the location of the file to the tool, similar to the [dataset size section](#get-dataset-size):
+1. a direct URL to `urls_list.txt` or a file with a different name but containing the locations of the dataset files
+2. a URL to a folder containing the `urls_list.txt` file
 3. the path to a local file containing the locations of the dataset files.
 
-Given this argument, the dataset can be retrieved using the following command:
+Given this argument, the whole dataset can be retrieved using the following command:
 ```bash
 ./sda-cli download <urls_file>
 ```
@@ -192,6 +192,7 @@ The tool also allows for selecting a folder where the files will be downloaded, 
 ```bash
 ./sda-cli download -outdir <outdir> <urls_file>
 ```
+**Note**: If needed, the user can download a selection of files from an available dataset by providing a customized `urls_list.txt` file.
 
 ## Decrypt file
 
