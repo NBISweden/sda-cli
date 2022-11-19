@@ -1,7 +1,9 @@
 package helpers
 
 import (
+	"encoding/xml"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -84,6 +86,28 @@ func PromptPassword(message string) (password string, err error) {
 	return prompt.Run()
 }
 
+// ParseS3ErrorResponse checks if reader stream is xml encoded and if yes unmarshals
+// the xml response and returns it.
+func ParseS3ErrorResponse(respBody io.Reader) (string, error) {
+
+	respMsg, err := io.ReadAll(respBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to read from response body, reason: %v", err)
+	}
+
+	if !strings.Contains(string(respMsg), `xml version`) {
+		return "", fmt.Errorf("cannot parse response body, reason: not xml")
+	}
+
+	xmlErrorResponse := XMLerrorResponse{}
+	err = xml.Unmarshal(respMsg, &xmlErrorResponse)
+	if err != nil {
+		return "", fmt.Errorf("failed to unmarshal xml response, reason: %v", err)
+	}
+
+	return fmt.Sprintf("%+v", xmlErrorResponse), nil
+}
+
 //
 // shared structs
 //
@@ -93,4 +117,11 @@ func PromptPassword(message string) (password string, err error) {
 type EncryptionFileSet struct {
 	Unencrypted string
 	Encrypted   string
+}
+
+// struct type to unmarshall xml error response from s3 server
+type XMLerrorResponse struct {
+	Code     string `xml:"Code"`
+	Message  string `xml:"Message"`
+	Resource string `xml:"Resource"`
 }
