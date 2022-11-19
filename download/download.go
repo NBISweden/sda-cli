@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/NBISweden/sda-cli/helpers"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -75,6 +76,16 @@ func downloadFile(url string, filePath string) error {
 		return fmt.Errorf("failed to download file, reason: %v", err)
 	}
 	defer resp.Body.Close()
+
+	// Check reponse status and report S3 error response
+	if resp.StatusCode >= 400 {
+		errorDetails, err := helpers.ParseS3ErrorResponse(resp.Body)
+		if err != nil {
+			log.Error(err.Error())
+		}
+
+		return fmt.Errorf("request failed with `%s`, details: %v", resp.Status, errorDetails)
+	}
 
 	// Create the file in the current location
 	out, err := os.Create(filePath)
