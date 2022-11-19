@@ -19,14 +19,14 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s download (-outdir <dir>) [url(s) | file]
+USAGE: %s download (-outdir <dir>) [url | file]
 
-download: Downloads files from the Sensitive Data Archive (SDA). The files will
-	  be downloaded in the current directory, if outdir is not defined.
-	  If a directory is provided (ending with "/"), then the tool will attempt
-	  to first download the urls_list.txt file, and then download all files in
-	  this list. If file urls are given, they files will be downloaded creating
-	  the same folder structure locally.
+download: Downloads files from the Sensitive Data Archive (SDA). A list with urls
+	  for files to download must be provided either as a url directly to a remote
+	  url_list.txt file or to its containing directory (ending with "/").
+	  Alternatively, the local path to such a file may be given, instead.
+	  The files will be downloaded in the current directory, if outdir is not
+	  defined and their folder structure is preserved.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
