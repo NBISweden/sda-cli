@@ -269,8 +269,29 @@ else
     exit 1
 fi
 
+# Check that Download handles http responses with error status code
 
-# Download files using a url to urls_list.txt
+# Try downloading nonexistent file
+printf "%s" "Attempting to download a nonexistent file from S3..."
+errorMessage="reason: request failed with \`404 Not Found\`, details: {Code:NoSuchKey"
+if ./sda-cli download -outdir downloads http://localhost:9000/download/imaginary/path/ 2>&1 | grep -q "$errorMessage"; then
+    echo "bad download request handled properly"
+else
+    echo "Failed to handle bad download request"
+    exit 1
+fi
+
+# Try downloading from private bucket
+printf "%s" "Attempting to download from S3 bucket with ACL=private..."
+errorMessage="reason: request failed with \`403 Forbidden\`, details: {Code:AllAccessDisabled"
+if ./sda-cli download -outdir downloads http://localhost:9000/minio/test/dummy/data_file1.c4gh 2>&1 | grep -q "$errorMessage"; then
+    echo "bad download request handled properly"
+else
+    echo "Failed to handle bad download request"
+    exit 1
+fi
+
+# Download files using a folder url
 ./sda-cli download -outdir downloads http://localhost:9000/download/A352764B-2KB4-4738-B6B5-BA55D25FB469/
 
 if [ -f downloads/data_file.c4gh ]; then
@@ -282,7 +303,7 @@ fi
 
 rm -r downloads
 
-# Download files using a folder url
+# Download files using a url to urls_list.txt
 ./sda-cli download -outdir downloads http://localhost:9000/download/A352764B-2KB4-4738-B6B5-BA55D25FB469/urls_list.txt
 
 if [ -f downloads/data_file.c4gh ]; then

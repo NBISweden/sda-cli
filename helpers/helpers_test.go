@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -121,4 +122,32 @@ module: this module does all the fancies stuff,
 	testCorrect := FormatSubcommandUsage(correctUsage)
 	suite.Equal(correctFormat, testCorrect)
 
+}
+
+func (suite *HelperTests) TestParseS3ErrorResponse() {
+	// check bad response body by creating and passing
+	// a dummy faulty io.Reader
+	f, _ := os.Open(`doesn't exist`)
+	defer f.Close()
+	msg, err := ParseS3ErrorResponse(f)
+	suite.Equal("", msg)
+	suite.ErrorContains(err, "failed to read from response body")
+
+	// check not xml
+	payload := strings.NewReader("some non xml text")
+	msg, err = ParseS3ErrorResponse(payload)
+	suite.Equal("", msg)
+	suite.EqualError(err, "cannot parse response body, reason: not xml")
+
+	// check with malformed xml
+	payload.Reset("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><ed</Code><Message>All access to this bucket has been disabled.</Message><Resource>/minio/test/dummy/data_file1.c4gh</Resource><RequestId></RequestId><HostId>73e4c710-46e8-4846-b70b-86ee905a3ab0</HostId></Error>")
+	msg, err = ParseS3ErrorResponse(payload)
+	suite.Equal("", msg)
+	suite.ErrorContains(err, "failed to unmarshal xml response")
+
+	// check with good xml
+	payload.Reset("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>AllAccessDisabled</Code><Message>All access to this bucket has been disabled.</Message><Resource>/minio/test/dummy/data_file1.c4gh</Resource><RequestId></RequestId><HostId>73e4c710-46e8-4846-b70b-86ee905a3ab0</HostId></Error>")
+	msg, err = ParseS3ErrorResponse(payload)
+	suite.Equal("{Code:AllAccessDisabled Message:All access to this bucket has been disabled. Resource:/minio/test/dummy/data_file1.c4gh}", msg)
+	suite.NoError(err)
 }

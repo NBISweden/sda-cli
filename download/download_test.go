@@ -1,6 +1,7 @@
 package download
 
 import (
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -109,6 +110,37 @@ func (suite *TestSuite) TestDownloadFile() {
 
 	// Remove the file created from the downloadFile function
 	_ = os.Remove(file)
+}
+
+// Test that the get returns an error when response code is >=400 and that
+// the error is parsed correctly when the S3 backend response is in xml
+func (suite *TestSuite) TestdownloadFileErrorStatusCode() {
+
+	file := "somefile.c4gh"
+
+	// Case when the user tried to download from a private bucket
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = io.WriteString(w, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>A352764B-2KB4-4738-B6B5-BA55D25FB469</Key><BucketName>download</BucketName><Resource>/download/A352764B-2KB4-4738-B6B5-BA55D25FB469</Resource><RequestId>1728F10EAA85663B</RequestId><HostId>73e4c710-46e8-4846-b70b-86ee905a3ab0</HostId></Error>")
+	}))
+	defer ts.Close()
+
+	err := downloadFile(ts.URL, file)
+	assert.EqualError(suite.T(), err, "request failed with `404 Not Found`, details: {Code:NoSuchKey Message:The specified key does not exist. Resource:/download/A352764B-2KB4-4738-B6B5-BA55D25FB469}")
+
+	// Case when the user tried to download from a private bucket
+	ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = io.WriteString(w, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>AllAccessDisabled</Code><Message>All access to this bucket has been disabled.</Message><Resource>/minio/test/dummy/data_file1.c4gh</Resource><RequestId></RequestId><HostId>73e4c710-46e8-4846-b70b-86ee905a3ab0</HostId></Error>")
+	}))
+	defer ts.Close()
+
+	err = downloadFile(ts.URL, file)
+	assert.EqualError(suite.T(), err, "request failed with `403 Forbidden`, details: {Code:AllAccessDisabled Message:All access to this bucket has been disabled. Resource:/minio/test/dummy/data_file1.c4gh}")
+
+	// Check that the downloadFile function did not create any file in case of error
+	_, err = os.Stat(file)
+	assert.EqualError(suite.T(), err, "stat somefile.c4gh: no such file or directory")
 }
 
 func (suite *TestSuite) TestCreateFilePath() {
