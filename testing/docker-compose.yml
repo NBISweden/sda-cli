@@ -51,8 +51,12 @@ services:
     image: ghcr.io/neicnordic/sda-s3proxy:latest
     container_name: proxy
     depends_on:
-      - mq_server
-      - s3_backend
+      mq_server:
+        condition: service_healthy
+      s3_backend:
+        condition: service_healthy
+      database:
+        condition: service_healthy
     restart: always
     environment:
       - LOG_LEVEL=info
@@ -62,6 +66,12 @@ services:
       - AWS_BUCKET=test
       - AWS_REGION=us-east-1
       - AWS_READYPATH=/minio/health/ready
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=lega_in
+      - DB_PASSWORD=lega_in
+      - DB_DATABASE=lega
+      - DB_SSLMODE=disable
       - BROKER_HOST=mq
       - BROKER_USER=test
       - BROKER_PASSWORD=test
@@ -77,6 +87,18 @@ services:
     ports:
       - "8000:8000"
       - "8001:8001"
-
+  database:
+    container_name: db
+    image: neicnordic/sda-db:v2.0.2
+    environment:
+      - DB_LEGA_IN_PASSWORD=lega_in
+      - DB_LEGA_OUT_PASSWORD=lega_out
+      - PGVOLUME=/var/lib/postgresql
+      - NOTLS=true
+    volumes:
+      - psqldata:/var/lib/postgresql
+    ports:
+      - 2345:5432
 volumes:
   data:
+  psqldata:
