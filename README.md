@@ -221,3 +221,9 @@ The github actions include a release workflow that builds binaries for different
 
 In order for the automatic release to get triggered, the releases should be of the format `vX.X.X`, e.g. `v1.0.0`.
 
+## Update releaser
+
+Before pushing a change to the releaser, make sure to run the check for the configuration file, running:
+```sh
+goreleaser check -f .goreleaser.yaml
+```
