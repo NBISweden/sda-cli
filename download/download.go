@@ -56,7 +56,7 @@ func createFilePathFromURL(file string, baseDir string) (fileName string, err er
 	fileName = filepath.Join(baseDir, match[1])
 
 	var filePath string
-	if strings.Contains(fileName, "/") {
+	if strings.Contains(fileName, string(os.PathSeparator)) {
 		filePath = filepath.Dir(fileName)
 		err = os.MkdirAll(filePath, os.ModePerm)
 		if err != nil {
