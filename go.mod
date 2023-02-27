@@ -7,7 +7,7 @@ require (
 	github.com/manifoldco/promptui v0.9.0
 	github.com/neicnordic/crypt4gh v1.6.2
 	github.com/sirupsen/logrus v1.9.0
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	gopkg.in/ini.v1 v1.67.0
 )
 
