@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -34,11 +35,14 @@ func (suite *TestSuite) SetupTest() {
 }
 
 func (suite *TestSuite) TestConfigNoFile() {
-
+	msg := "open nofile.conf: no such file or directory"
+	if runtime.GOOS == "windows" {
+		msg = "open nofile.conf: The system cannot find the file specified."
+	}
 	configPath := "nofile.conf"
 
 	_, err := LoadConfigFile(configPath)
-	assert.EqualError(suite.T(), err, "open nofile.conf: no such file or directory")
+	assert.EqualError(suite.T(), err, msg)
 }
 
 func (suite *TestSuite) TestConfigWrongFile() {
@@ -180,9 +184,14 @@ func (suite *TestSuite) TestSampleNoFiles() {
 	assert.EqualError(suite.T(), err, "-r"+" is not a valid target directory")
 
 	// Test passing flags at the end as well
+
+	msg := "stat somefileOrfolder: no such file or directory"
+	if runtime.GOOS == "windows" {
+		msg = "CreateFile somefileOrfolder: The system cannot find the file specified."
+	}
 	os.Args = []string{"upload", "-config", configPath.Name(), "-r", "somefileOrfolder", "-targetDir", "somedir"}
 	err = Upload(os.Args)
-	assert.EqualError(suite.T(), err, "stat somefileOrfolder: no such file or directory")
+	assert.EqualError(suite.T(), err, msg)
 
 	os.Args = []string{"upload", "-config", configPath.Name(), "somefiles", "-targetDir"}
 	err = Upload(os.Args)
@@ -239,12 +248,21 @@ func (suite *TestSuite) TestcreateFilePaths() {
 	assert.ErrorContains(suite.T(), err, "is not a directory")
 
 	// Input is a directory
-	_, _, err = createFilePaths(dir)
+	_, out, err := createFilePaths(dir)
 	assert.NoError(suite.T(), err)
+	expect := testfile.Name()
+	if runtime.GOOS == "windows" {
+		expect = fmt.Sprint(os.TempDir() + "/" + filepath.Base(dir) + "/" + filepath.Base(testfile.Name()))
+	}
+	assert.Equal(suite.T(), expect, fmt.Sprint(os.TempDir()+"/"+out[0]))
 
 	// Input is invalid
+	msg := "no such file or directory"
+	if runtime.GOOS == "windows" {
+		msg = "The system cannot find the file specified."
+	}
 	_, _, err = createFilePaths("nonexistent")
-	assert.ErrorContains(suite.T(), err, "no such file or directory")
+	assert.ErrorContains(suite.T(), err, msg)
 }
 
 func (suite *TestSuite) TestFormatUploadFilePath() {
