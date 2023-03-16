@@ -216,9 +216,9 @@ func createFilePaths(dirPath string) ([]string, []string, error) {
 
 			// Create and write upload paths in a list
 			// Remove possible trailing "/" so that "path" and "path/" behave the same
-			dirPath = strings.TrimSuffix(dirPath, "/")
+			dirPath = strings.TrimSuffix(dirPath, string(os.PathSeparator))
 			pathToTrim := strings.TrimSuffix(dirPath, filepath.Base(dirPath))
-			outPath := strings.TrimPrefix(path, pathToTrim)
+			outPath := formatUploadFilePath(strings.TrimPrefix(path, pathToTrim))
 			outFiles = append(outFiles, outPath)
 		}
 
@@ -230,6 +230,20 @@ func createFilePaths(dirPath string) ([]string, []string, error) {
 	}
 
 	return files, outFiles, nil
+}
+
+// formatUploadFilePath ensures that path separators are "/", and that special
+// characters are replaced with safe characters.
+func formatUploadFilePath(filePath string) string {
+
+	outPath := filepath.ToSlash(filePath)
+
+	for _, char := range []string{":", ";"} {
+		outPath = strings.ReplaceAll(outPath, char, "_")
+	}
+	log.Debugf("Converted filepath %v to %v", filePath, outPath)
+
+	return outPath
 }
 
 // Upload function uploads files to the s3 bucket. Input can be files or
@@ -319,7 +333,7 @@ func Upload(args []string) error {
 			outFiles = append(outFiles, upFilePaths...)
 		} else {
 			files = append(files, filePath)
-			outFiles = append(outFiles, filepath.Base(filePath))
+			outFiles = append(outFiles, formatUploadFilePath(filepath.Base(filePath)))
 		}
 	}
 
