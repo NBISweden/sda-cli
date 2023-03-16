@@ -6,5 +6,6 @@ personal/
 
 # compiled binary
 sda-cli
+sda-cli.exe
 
 dist/

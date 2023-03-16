@@ -247,6 +247,21 @@ func (suite *TestSuite) TestcreateFilePaths() {
 	assert.ErrorContains(suite.T(), err, "no such file or directory")
 }
 
+func (suite *TestSuite) TestFormatUploadFilePath() {
+
+	unixPath := "a/b/c.c4gh"
+	testPath := filepath.Join("a", "b", "c.c4gh")
+	uploadPath := formatUploadFilePath(testPath)
+
+	assert.Equal(suite.T(), unixPath, uploadPath)
+
+	weirdPath := "a/b:/c;.c4gh"
+	goodPath := "a/b_/c_.c4gh"
+	formattedPath := formatUploadFilePath(weirdPath)
+
+	assert.Equal(suite.T(), goodPath, formattedPath)
+}
+
 func (suite *TestSuite) TestFunctionality() {
 
 	// Create a fake s3 backend
