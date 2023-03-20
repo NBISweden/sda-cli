@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -36,8 +37,11 @@ func (suite *TestSuite) TestFileDoesNotExist() {
 	os.Args = []string{"filesize", "somefile"}
 
 	err := DatasetSize(os.Args)
-
-	assert.EqualError(suite.T(), err, "open somefile: no such file or directory")
+	msg := "open somefile: no such file or directory"
+	if runtime.GOOS == "windows" {
+		msg = "open somefile: The system cannot find the file specified."
+	}
+	assert.EqualError(suite.T(), err, msg)
 }
 
 // Test the size of the file returned from the function

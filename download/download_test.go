@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -139,8 +141,12 @@ func (suite *TestSuite) TestdownloadFileErrorStatusCode() {
 	assert.EqualError(suite.T(), err, "request failed with `403 Forbidden`, details: {Code:AllAccessDisabled Message:All access to this bucket has been disabled. Resource:/minio/test/dummy/data_file1.c4gh}")
 
 	// Check that the downloadFile function did not create any file in case of error
+	msg := "stat somefile.c4gh: no such file or directory"
+	if runtime.GOOS == "windows" {
+		msg = "CreateFile somefile.c4gh: The system cannot find the file specified."
+	}
 	_, err = os.Stat(file)
-	assert.EqualError(suite.T(), err, "stat somefile.c4gh: no such file or directory")
+	assert.EqualError(suite.T(), err, msg)
 }
 
 func (suite *TestSuite) TestCreateFilePath() {
@@ -148,9 +154,10 @@ func (suite *TestSuite) TestCreateFilePath() {
 	fileName := "https://some/base/A352744B-2CB4-4738-B6B5-BA55D25FB469/some/file.txt"
 	baseDir := "one/directory"
 
+	expect := filepath.Join("one", "directory", "some", "file.txt")
 	path, err := createFilePathFromURL(fileName, baseDir)
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), path, "one/directory/some/file.txt")
+	assert.Equal(suite.T(), expect, path)
 
 	_, err = os.Stat(baseDir)
 	assert.NoError(suite.T(), err)

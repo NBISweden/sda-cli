@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -184,14 +185,22 @@ func (suite *EncryptTests) TestcheckKeyFile() {
 
 func (suite *EncryptTests) TestcalculateHashes() {
 	// unencrypted file doesn't exist
+	msg := "open no-unencrypted: no such file or directory"
+	if runtime.GOOS == "windows" {
+		msg = "open no-unencrypted: The system cannot find the file specified."
+	}
 	testNoUnencrypted := helpers.EncryptionFileSet{Unencrypted: "no-unencrypted", Encrypted: suite.fileOk.Name()}
 	_, err := calculateHashes(testNoUnencrypted)
-	assert.EqualError(suite.T(), err, "open no-unencrypted: no such file or directory")
+	assert.EqualError(suite.T(), err, msg)
 
 	// encrypted file doesn't exist
+	msg = "open no-encrypted: no such file or directory"
+	if runtime.GOOS == "windows" {
+		msg = "open no-encrypted: The system cannot find the file specified."
+	}
 	testNoEncrypted := helpers.EncryptionFileSet{Unencrypted: suite.fileOk.Name(), Encrypted: "no-encrypted"}
 	_, err = calculateHashes(testNoEncrypted)
-	assert.EqualError(suite.T(), err, "open no-encrypted: no such file or directory")
+	assert.EqualError(suite.T(), err, msg)
 
 	// encrypted file doesn't exist
 	testFileOk := helpers.EncryptionFileSet{Unencrypted: suite.fileOk.Name(), Encrypted: suite.fileOk.Name()}
@@ -210,7 +219,11 @@ func (suite *EncryptTests) TestEncryptFunction() {
 	assert.EqualError(suite.T(), err, "public key not provided")
 
 	// no such pub key file
+	msg := "open somekey: no such file or directory"
+	if runtime.GOOS == "windows" {
+		msg = "open somekey: The system cannot find the file specified."
+	}
 	os.Args = []string{"encrypt", "-key", "somekey", suite.fileOk.Name()}
 	err = Encrypt(os.Args)
-	assert.EqualError(suite.T(), err, "open somekey: no such file or directory")
+	assert.EqualError(suite.T(), err, msg)
 }
