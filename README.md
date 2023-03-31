@@ -8,6 +8,8 @@ common user actions in the SDA.
 This tool can be used to encrypt and upload data when submitting to the archive,
 and to download and decrypt with retrieving data from the archive.
 
+It is recommended to use precompiled executables for `sda-cli` which can be found at https://github.com/NBISweden/sda-cli/releases
+
 To get help on the usage of the tool, please use the following command
 ```bash
 ./sda-cli help
@@ -72,7 +74,7 @@ Once your files are encrypted, they are ready to be submitted to the SDA/BP arch
 
 The configuration file can be downloaded by logging in with a Life Science RI account:
 
-* For BigPicture use [this](https://login.bp.nbis.se/)
+* For BigPicture use https://login.bp.nbis.se/
 
 The configuration file should be placed in the root folder of the repository.
 
@@ -206,7 +208,7 @@ where `<keypair_name>.sec.pem` the private key created in the [relevant section]
 This section contains the information required to install, modify and run the `sda-cli` tool.
 
 ## Requirements
-The `sda-cli` is written in golang. In order to be able to modify, build and run the tool, golang needs to be installed. The instructions for installing go can be found [here](https://go.dev/doc/install).
+The `sda-cli` is written in golang. In order to be able to modify, build and run the tool, golang (>= 1.20) needs to be installed. The instructions for installing `go` can be found [here](https://go.dev/doc/install).
 
 ## Build tool
 To build the `sda-cli` tool run the following command from the root folder of the repository
