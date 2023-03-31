@@ -1,12 +1,12 @@
 # Instructions to test uploading/downloading for BigPicture
 
-## Get the repo
+### Get the repo
 The command line tool `sda-cli`` can be obtained by
 ```    
 git clone https://github.com/NBISweden/sda-cli
 ```
 
-## Build the executable
+### Build the executable
 The `sda-cli` executable can be built by the following command
 > Make sure you have installed go >= 1.20, see 
 https://go.dev/doc/install for instructions.
