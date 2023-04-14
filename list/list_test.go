@@ -3,6 +3,7 @@ package list
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -117,7 +118,7 @@ func (suite *TestSuite) TestFunctionality() {
 	dir := "dummy"
 	err = os.Mkdir(dir, 0755)
 	if err != nil {
-		log.Panic(err)
+		log.Error(err)
 	}
 	defer os.RemoveAll(dir)
 
@@ -143,16 +144,17 @@ func (suite *TestSuite) TestFunctionality() {
 
 	log.SetOutput(os.Stdout)
 
-	var listOutput bytes.Buffer
-	log.SetOutput(&listOutput)
-	defer log.SetOutput(os.Stdout)
+	rescueStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
 
 	os.Args = []string{"list", "-config", configPath.Name()}
 	err = List(os.Args)
 	assert.NoError(suite.T(), err)
 
-	logMsg1 := fmt.Sprintf("%v", strings.TrimSuffix(listOutput.String(), "\n"))
+	w.Close()
+	os.Stdout = rescueStdout
+	listOutput, _ := io.ReadAll(r)
 	msg1 := fmt.Sprintf("%v", filepath.Base(testfile.Name()))
-	assert.Contains(suite.T(), logMsg1, msg1)
-
+	assert.Contains(suite.T(), string(listOutput), msg1)
 }
