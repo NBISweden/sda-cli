@@ -95,8 +95,7 @@ access_key = someUser
 
 	defer os.Remove(configPath.Name())
 
-	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
-	if err != nil {
+	if err := os.WriteFile(configPath.Name(), []byte(confFile), 0600); err != nil {
 		log.Printf("failed to write temp config file, %v", err)
 	}
 
@@ -170,18 +169,15 @@ func (suite *TestSuite) TestSampleNoFiles() {
 	// Test Upload function
 	os.Args = []string{"upload", "-config", configPath.Name()}
 
-	err = Upload(os.Args)
-	assert.EqualError(suite.T(), err, "no files to upload")
+	assert.EqualError(suite.T(), Upload(os.Args), "no files to upload")
 
 	// Test handling of mistakenly passing a filename as an upload folder
 	os.Args = []string{"upload", "-config", configPath.Name(), "-targetDir", configPath.Name()}
-	err = Upload(os.Args)
-	assert.EqualError(suite.T(), err, configPath.Name()+" is not a valid target directory")
+	assert.EqualError(suite.T(), Upload(os.Args), configPath.Name()+" is not a valid target directory")
 
 	// Test handling of mistakenly passing a flag as an upload folder
 	os.Args = []string{"upload", "-config", configPath.Name(), "-targetDir", "-r"}
-	err = Upload(os.Args)
-	assert.EqualError(suite.T(), err, "-r"+" is not a valid target directory")
+	assert.EqualError(suite.T(), Upload(os.Args), "-r"+" is not a valid target directory")
 
 	// Test passing flags at the end as well
 
@@ -190,12 +186,10 @@ func (suite *TestSuite) TestSampleNoFiles() {
 		msg = "CreateFile somefileOrfolder: The system cannot find the file specified."
 	}
 	os.Args = []string{"upload", "-config", configPath.Name(), "-r", "somefileOrfolder", "-targetDir", "somedir"}
-	err = Upload(os.Args)
-	assert.EqualError(suite.T(), err, msg)
+	assert.EqualError(suite.T(), Upload(os.Args), msg)
 
 	os.Args = []string{"upload", "-config", configPath.Name(), "somefiles", "-targetDir"}
-	err = Upload(os.Args)
-	assert.EqualError(suite.T(), err, "-config is not a valid target directory")
+	assert.EqualError(suite.T(), Upload(os.Args), "-config is not a valid target directory")
 
 	// Test uploadFiles function
 	config, _ := LoadConfigFile(configPath.Name())
@@ -361,8 +355,7 @@ func (suite *TestSuite) TestFunctionality() {
 
 	// Test recursive upload
 	os.Args = []string{"upload", "-config", configPath.Name(), "-r", dir}
-	err = Upload(os.Args)
-	assert.NoError(suite.T(), err)
+	assert.NoError(suite.T(), Upload(os.Args))
 
 	// Check logs that file was uploaded
 	logMsg := fmt.Sprintf("%v", strings.TrimSuffix(str.String(), "\n"))
@@ -412,16 +405,14 @@ func (suite *TestSuite) TestFunctionality() {
 		log.Panic("Cannot create temporary public key file", err)
 	}
 
-	err = keys.WriteCrypt4GHX25519PublicKey(publicKey, pubKeyData)
-	if err != nil {
+	if err = keys.WriteCrypt4GHX25519PublicKey(publicKey, pubKeyData); err != nil {
 		log.Panicf("failed to write temporary public key file, %v", err)
 	}
 
 	// Empty buffer logs
 	str.Reset()
 	newArgs := []string{"upload", "-config", configPath.Name(), "--encrypt-with-key", publicKey.Name(), testfile.Name(), "-targetDir", "someDir"}
-	err = Upload(newArgs)
-	assert.NoError(suite.T(), err)
+	assert.NoError(suite.T(), Upload(newArgs))
 
 	// Check logs that encrypted file was uploaded
 	logMsg = fmt.Sprintf("%v", strings.TrimSuffix(str.String(), "\n"))
@@ -443,20 +434,17 @@ func (suite *TestSuite) TestFunctionality() {
 
 	// Check that trying to encrypt already encrypted files returns error and aborts
 	newArgs = []string{"upload", "-config", configPath.Name(), "--encrypt-with-key", publicKey.Name(), dir, "-r"}
-	err = Upload(newArgs)
-	assert.EqualError(suite.T(), err, "aborting")
+	assert.EqualError(suite.T(), Upload(newArgs), "aborting")
 
 	// Check handling of passing source files as pub key
 	// (code checks first for errors related with file args)
 	newArgs = []string{"upload", "-config", configPath.Name(), "--encrypt-with-key", testfile.Name()}
-	err = Upload(newArgs)
-	assert.EqualError(suite.T(), err, "no files to upload")
+	assert.EqualError(suite.T(), Upload(newArgs), "no files to upload")
 
 	// If both a bad key and already encrypted file args are given,
 	// file arg errors are captured first
 	newArgs = []string{"upload", "-config", configPath.Name(), "--encrypt-with-key", "somekey", testfile.Name()}
-	err = Upload(newArgs)
-	assert.EqualError(suite.T(), err, "aborting")
+	assert.EqualError(suite.T(), Upload(newArgs), "aborting")
 
 	// Remove hash files created by Encrypt
 	if err := os.Remove("checksum_encrypted.md5"); err != nil {
