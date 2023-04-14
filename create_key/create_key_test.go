@@ -1,4 +1,4 @@
-package createKey
+package createkey
 
 import (
 	"fmt"
