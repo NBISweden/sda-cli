@@ -359,7 +359,7 @@ func Upload(args []string) error {
 	}
 
 	// Upload files
-	if err = uploadFiles(files, outFiles, *targetDir, config); err != nil {
+	if err = uploadFiles(files, outFiles, filepath.ToSlash(*targetDir), config); err != nil {
 		return err
 	}
 

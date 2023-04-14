@@ -379,13 +379,13 @@ func (suite *TestSuite) TestFunctionality() {
 	assert.Equal(suite.T(), aws.StringValue(result.Contents[0].Key), fmt.Sprintf("%s/%s", filepath.Base(dir), filepath.Base(testfile.Name())))
 
 	// Test upload to a different folder
-	os.Args = []string{"upload", "-config", configPath.Name(), testfile.Name(), "-targetDir", "a"}
-	err = Upload(os.Args)
-	assert.NoError(suite.T(), err)
+	targetPath := filepath.Join("a", "b", "c")
+	os.Args = []string{"upload", "-config", configPath.Name(), testfile.Name(), "-targetDir", targetPath}
+	assert.NoError(suite.T(), Upload(os.Args))
 
 	// Check logs that file was uploaded
 	logMsg = fmt.Sprintf("%v", strings.TrimSuffix(str.String(), "\n"))
-	msg = fmt.Sprintf("file uploaded to %s/dummy/a/%s", ts.URL, filepath.Base(testfile.Name()))
+	msg = fmt.Sprintf("file uploaded to %s/dummy/%s/%s", ts.URL, filepath.ToSlash(targetPath), filepath.Base(testfile.Name()))
 	assert.Contains(suite.T(), logMsg, msg)
 
 	// Check that file showed up in the s3 bucket correctly
@@ -395,7 +395,7 @@ func (suite *TestSuite) TestFunctionality() {
 	if err != nil {
 		log.Panic(err.Error())
 	}
-	assert.Equal(suite.T(), aws.StringValue(result.Contents[0].Key), fmt.Sprintf("a/%s", filepath.Base(testfile.Name())))
+	assert.Equal(suite.T(), aws.StringValue(result.Contents[0].Key), fmt.Sprintf("%s/%s", filepath.ToSlash(targetPath), filepath.Base(testfile.Name())))
 
 	// Test encrypt-with-key on upload.
 	// Tests specific to encrypt module are not repeated here.
