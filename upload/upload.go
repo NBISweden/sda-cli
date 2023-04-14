@@ -99,7 +99,7 @@ func LoadConfigFile(path string) (*Config, error) {
 
 	// Where 15 is the default chunk size of the library
 	if config.MultipartChunkSizeMb <= 15 {
-		config.MultipartChunkSizeMb = 50
+		config.MultipartChunkSizeMb = 15
 	}
 
 	return config, nil
