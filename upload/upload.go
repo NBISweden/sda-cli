@@ -271,7 +271,7 @@ func Upload(args []string) error {
 	info, err := os.Stat(*targetDir)
 
 	// Dereference the pointer to a string
-	targetDirString := ""
+	var targetDirString string
 	if targetDir != nil {
 		targetDirString = *targetDir
 	}
