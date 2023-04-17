@@ -251,6 +251,8 @@ func formatUploadFilePath(filePath string) string {
 func Upload(args []string) error {
 	var files []string
 	var outFiles []string
+	*pubKeyPath = ""
+	*targetDir = ""
 
 	// Shift flag and their arguments from the end to the beginning
 	// if more boolean flags are added in the future the following needs a slight modification
