@@ -99,7 +99,7 @@ func LoadConfigFile(path string) (*Config, error) {
 
 	// Where 15 is the default chunk size of the library
 	if config.MultipartChunkSizeMb <= 15 {
-		config.MultipartChunkSizeMb = 50
+		config.MultipartChunkSizeMb = 15
 	}
 
 	return config, nil
@@ -251,6 +251,8 @@ func formatUploadFilePath(filePath string) string {
 func Upload(args []string) error {
 	var files []string
 	var outFiles []string
+	*pubKeyPath = ""
+	*targetDir = ""
 
 	// Shift flag and their arguments from the end to the beginning
 	// if more boolean flags are added in the future the following needs a slight modification
@@ -271,7 +273,7 @@ func Upload(args []string) error {
 	info, err := os.Stat(*targetDir)
 
 	// Dereference the pointer to a string
-	targetDirString := ""
+	var targetDirString string
 	if targetDir != nil {
 		targetDirString = *targetDir
 	}
@@ -358,10 +360,5 @@ func Upload(args []string) error {
 		}
 	}
 
-	// Upload files
-	if err = uploadFiles(files, outFiles, *targetDir, config); err != nil {
-		return err
-	}
-
-	return nil
+	return uploadFiles(files, outFiles, filepath.ToSlash(*targetDir), config)
 }

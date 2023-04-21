@@ -14,7 +14,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/inhies/go-bytesize"
-	log "github.com/sirupsen/logrus"
 )
 
 // Help text and command line flags.
@@ -106,7 +105,7 @@ func List(args []string) error {
 
 	for i := range result.Contents {
 		file := *result.Contents[i].Key
-		log.Printf("%s \t %s \n", bytesize.New(float64((*result.Contents[i].Size))), file[strings.Index(file, "/")+1:])
+		fmt.Printf("%s \t %s \n", bytesize.New(float64((*result.Contents[i].Size))), file[strings.Index(file, "/")+1:])
 	}
 
 	return nil
