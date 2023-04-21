@@ -77,7 +77,15 @@ func LoadConfigFile(path string) (*Config, error) {
 		return config, err
 	}
 
-	if err := cfg.Section("").MapTo(config); err != nil {
+	// ini sees a DEFAULT section by default
+	var iniSection string
+	if len(cfg.SectionStrings()) > 1 {
+		iniSection = cfg.SectionStrings()[1]
+	} else {
+		iniSection = cfg.SectionStrings()[0]
+	}
+
+	if err := cfg.Section(iniSection).MapTo(config); err != nil {
 		return nil, err
 	}
 
