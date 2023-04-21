@@ -70,6 +70,32 @@ encrypt = False
 	assert.EqualError(suite.T(), err, "key-value delimiter not found: guess_mime_type!True\n")
 }
 
+func (suite *TestSuite) TestConfigS3cmdFileFormat() {
+	var confFile = `
+	[some header]
+	access_token = someToken
+	host_base = someHostBase
+	host_bucket = someHostBase
+	secret_key = someUser
+	access_key = someUser
+`
+
+	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer os.Remove(configPath.Name())
+
+	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
+	if err != nil {
+		log.Printf("failed to write temp config file, %v", err)
+	}
+
+	_, err = LoadConfigFile(configPath.Name())
+	assert.NoError(suite.T(), err)
+}
+
 func (suite *TestSuite) TestConfigMissingCredentials() {
 
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
