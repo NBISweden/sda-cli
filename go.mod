@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.262
 	github.com/manifoldco/promptui v0.9.0
 	github.com/neicnordic/crypt4gh v1.7.5
-	github.com/sirupsen/logrus v1.9.0
+	github.com/sirupsen/logrus v1.9.2
 	github.com/stretchr/testify v1.8.3
 	gopkg.in/ini.v1 v1.67.0
 )
