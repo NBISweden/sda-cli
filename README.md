@@ -112,7 +112,7 @@ The user can specify a different path for uploading files/folders with the `-tar
 ```
 will create `<upload_folder>` under the user's base folder with  contents `<upload_folder>/<encrypted_file_1_to_upload>` and `<upload_folder>/<folder_1_to_upload>`. Note that the given `<upload_folder>` may well be a folder path, e.g. `<folder1/folder2>`, and in this case `<encrypted_file_1_to_upload>` will be uploaded to `folder1/folder2/<encrypted_file_1_to_upload>`.
 
-As a side note the argument list may include wildcards, for example,
+As a side note it is possible to include all the contents of a directory with `/.`, for example,
 ```bash
 ./sda-cli upload -config <configuration_file> -r <folder_to_upload>/. -targetDir <new_folder_name>
 ```
