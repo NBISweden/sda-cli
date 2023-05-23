@@ -65,11 +65,12 @@ func init() {
 // Encrypt takes a set of arguments, parses them, and attempts to encrypt the
 // given data files with the given public key file
 func Encrypt(args []string) error {
+
 	publicKeyFileList = nil
-	// Parse flags.
-	err := Args.Parse(args[1:])
+	// Call ParseArgs to take care of all the flag parsing
+	err := helpers.ParseArgs(args, Args)
 	if err != nil {
-		return fmt.Errorf("could not parse arguments: %s", err)
+		return err
 	}
 
 	// Exit if public key is not provided

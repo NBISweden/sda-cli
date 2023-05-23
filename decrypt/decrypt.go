@@ -44,9 +44,11 @@ var privateKeyFile = Args.String("key", "",
 // Decrypt takes a set of arguments, parses them, and attempts to decrypt the
 // given data files with the given private key file..
 func Decrypt(args []string) error {
-	err := Args.Parse(args[1:])
+
+	// Call ParseArgs to take care of all the flag parsing
+	err := helpers.ParseArgs(args, Args)
 	if err != nil {
-		return fmt.Errorf("argument parsing failed, reason: %v", err)
+		return err
 	}
 
 	// format input and output files

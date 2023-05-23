@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/NBISweden/sda-cli/upload"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -66,10 +67,10 @@ func listFiles(config *upload.Config, prefix string) (result *s3.ListObjectsV2Ou
 
 // List function lists the contents of an s3
 func List(args []string) error {
-
-	err := Args.Parse(args[1:])
+	// Call ParseArgs to take care of all the flag parsing
+	err := helpers.ParseArgs(args, Args)
 	if err != nil {
-		return fmt.Errorf("failed parsing arguments, reason: %v", err)
+		return err
 	}
 
 	prefix := ""
