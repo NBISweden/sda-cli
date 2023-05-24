@@ -1,7 +1,9 @@
 package helpers
 
 import (
+	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -9,10 +11,17 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/golang-jwt/jwt"
 	"github.com/manifoldco/promptui"
 	log "github.com/sirupsen/logrus"
 	"github.com/vbauerster/mpb/v8"
+	"gopkg.in/ini.v1"
 )
 
 //
@@ -193,4 +202,123 @@ func (r *CustomReader) ReadAt(p []byte, off int64) (int, error) {
 
 func (r *CustomReader) Seek(offset int64, whence int) (int64, error) {
 	return r.Fp.Seek(offset, whence)
+}
+
+// Config struct for storing the s3cmd file values
+type Config struct {
+	AccessKey            string `ini:"access_key"`
+	SecretKey            string `ini:"secret_key"`
+	AccessToken          string `ini:"access_token"`
+	HostBucket           string `ini:"host_bucket"`
+	HostBase             string `ini:"host_base"`
+	MultipartChunkSizeMb int64  `ini:"multipart_chunk_size_mb"`
+	GuessMimeType        bool   `ini:"guess_mime_type"`
+	Encoding             string `ini:"encoding"`
+	CheckSslCertificate  bool   `ini:"check_ssl_certificate"`
+	CheckSslHostname     bool   `ini:"check_ssl_hostname"`
+	UseHTTPS             bool   `ini:"use_https"`
+	SocketTimeout        int    `ini:"socket_timeout"`
+	HumanReadableSizes   bool   `ini:"human_readable_sizes"`
+}
+
+// LoadConfigFile loads ini configuration file to the Config struct
+func LoadConfigFile(path string) (*Config, error) {
+
+	config := &Config{}
+
+	cfg, err := ini.Load(path)
+	if err != nil {
+		return config, err
+	}
+
+	// ini sees a DEFAULT section by default
+	var iniSection string
+	if len(cfg.SectionStrings()) > 1 {
+		iniSection = cfg.SectionStrings()[1]
+	} else {
+		iniSection = cfg.SectionStrings()[0]
+	}
+
+	if err := cfg.Section(iniSection).MapTo(config); err != nil {
+		return nil, err
+	}
+
+	if config.AccessKey == "" || config.AccessToken == "" {
+		return nil, errors.New("failed to find credentials in configuration file")
+	}
+
+	if config.HostBase == "" {
+		return nil, errors.New("failed to find endpoint in configuration file")
+	}
+
+	if config.UseHTTPS {
+		config.HostBase = "https://" + config.HostBase
+	}
+
+	if config.Encoding == "" {
+		config.Encoding = "UTF-8"
+	}
+
+	// Where 15 is the default chunk size of the library
+	if config.MultipartChunkSizeMb <= 15 {
+		config.MultipartChunkSizeMb = 15
+	}
+
+	return config, nil
+}
+
+// CheckTokenExpiration is used to determine whether the token is expiring in less than a day
+func CheckTokenExpiration(accessToken string) (bool, error) {
+
+	// Parse jwt token with unverifies, since we don't need to check the signatures here
+	token, _, err := new(jwt.Parser).ParseUnverified(accessToken, jwt.MapClaims{})
+	if err != nil {
+		return false, fmt.Errorf("could not parse token, reason: %s", err)
+	}
+
+	var expiration time.Time
+	if claims, ok := token.Claims.(jwt.MapClaims); ok {
+		// Check if the token has exp claim
+		if claims["exp"] == nil {
+			return false, fmt.Errorf("could not parse token, reason: no expiration date")
+		}
+		switch iat := claims["exp"].(type) {
+		case float64:
+			expiration = time.Unix(int64(iat), 0)
+		case json.Number:
+			tmp, _ := iat.Int64()
+			expiration = time.Unix(tmp, 0)
+		}
+	} else {
+		return false, fmt.Errorf("broken token (claims are empty): %v\nerror: %s", claims, err)
+	}
+
+	tomorrow := time.Now().AddDate(0, 0, 1)
+
+	return tomorrow.After(expiration), nil
+}
+
+func ListFiles(config Config, prefix string) (result *s3.ListObjectsV2Output, err error) {
+	sess := session.Must(session.NewSession(&aws.Config{
+		// The region for the backend is always the specified one
+		// and not present in the configuration from auth - hardcoded
+		Region:           aws.String("us-west-2"),
+		Credentials:      credentials.NewStaticCredentials(config.AccessKey, config.AccessKey, config.AccessToken),
+		Endpoint:         aws.String(config.HostBase),
+		DisableSSL:       aws.Bool(!config.UseHTTPS),
+		S3ForcePathStyle: aws.Bool(true),
+	}))
+
+	svc := s3.New(sess)
+
+	result, err = svc.ListObjectsV2(&s3.ListObjectsV2Input{
+		Bucket: aws.String(config.AccessKey + "/"),
+		Prefix: aws.String(config.AccessKey + "/" + prefix),
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to list objects, reason: %v", err)
+	}
+
+	return result, nil
 }

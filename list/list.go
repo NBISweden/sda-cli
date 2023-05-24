@@ -9,11 +9,6 @@ import (
 	"strings"
 
 	"github.com/NBISweden/sda-cli/helpers"
-	"github.com/NBISweden/sda-cli/upload"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/inhies/go-bytesize"
 )
 
@@ -43,31 +38,6 @@ var Args = flag.NewFlagSet("list", flag.ExitOnError)
 var configPath = Args.String("config", "",
 	"S3 config file to use for listing.")
 
-func listFiles(config *upload.Config, prefix string) (result *s3.ListObjectsV2Output, err error) {
-	sess := session.Must(session.NewSession(&aws.Config{
-		// The region for the backend is always the specified one
-		// and not present in the configuration from auth - hardcoded
-		Region:           aws.String("us-west-2"),
-		Credentials:      credentials.NewStaticCredentials(config.AccessKey, config.AccessKey, config.AccessToken),
-		Endpoint:         aws.String(config.HostBase),
-		DisableSSL:       aws.Bool(!config.UseHTTPS),
-		S3ForcePathStyle: aws.Bool(true),
-	}))
-
-	svc := s3.New(sess)
-
-	result, err = svc.ListObjectsV2(&s3.ListObjectsV2Input{
-		Bucket: aws.String(config.AccessKey + "/"),
-		Prefix: aws.String(config.AccessKey + "/" + prefix),
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to list objects, reason: %v", err)
-	}
-
-	return result, nil
-}
-
 // List function lists the contents of an s3
 func List(args []string) error {
 	// Call ParseArgs to take care of all the flag parsing
@@ -89,12 +59,12 @@ func List(args []string) error {
 	}
 
 	// Get the configuration in the struct
-	config, err := upload.LoadConfigFile(*configPath)
+	config, err := helpers.LoadConfigFile(*configPath)
 	if err != nil {
 		return fmt.Errorf("failed to load config file, reason: %v", err)
 	}
 
-	expiring, err := upload.CheckTokenExpiration(config.AccessToken)
+	expiring, err := helpers.CheckTokenExpiration(config.AccessToken)
 	if err != nil {
 		return err
 	}
@@ -102,7 +72,7 @@ func List(args []string) error {
 		fmt.Fprintln(os.Stderr, "The provided token expires in less than 24 hours")
 		fmt.Fprintln(os.Stderr, "Consider renewing the token.")
 	}
-	result, err := listFiles(config, prefix)
+	result, err := helpers.ListFiles(*config, prefix)
 	if err != nil {
 		return err
 	}
