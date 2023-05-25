@@ -26,7 +26,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s upload -config <s3config-file> (--encrypt-with-key <public-key-file>) (-r) [file(s)|folder(s)] (-targetDir <upload-directory>)
+USAGE: %s upload -config <s3config-file> (--encrypt-with-key <public-key-file>) (--force-unencrypted) (-r) [file(s)|folder(s)] (-targetDir <upload-directory>)
 
 upload: Uploads files to the Sensitive Data Archive (SDA). All files to upload
         are required to be encrypted and have the .c4gh file extension.
@@ -43,6 +43,8 @@ var ArgHelp = `
 var Args = flag.NewFlagSet("upload", flag.ExitOnError)
 
 var configPath = Args.String("config", "", "S3 config file to use for uploading.")
+
+var forceUnencrypted = Args.Bool("force-unencrypted", false, "Force uploading unencrypted files.")
 
 var dirUpload = Args.Bool("r", false, "Upload directories recursively.")
 
@@ -150,6 +152,32 @@ func uploadFiles(files, outFiles []string, targetDir string, config *Config) err
 	// check also here in case sth went wrong with input files
 	if len(files) == 0 {
 		return errors.New("no files to upload")
+	}
+
+	// Loop through the list of files and check if they are encrypted
+	// If we run into an unencrypted file and the flag force-unencrypted is not set, we stop the upload
+	for _, filename := range files {
+		f, err := os.Open(path.Clean(filename))
+		if err != nil {
+			return err
+		}
+		// Check if the file is encrypted and warn if not
+		// Extracting the first 8 bytes of the header - crypt4gh
+		magicWord := make([]byte, 8)
+		_, err = f.Read(magicWord)
+		if err != nil {
+			fmt.Printf("error reading input file %s, reason: %v", filename, err)
+		}
+		if string(magicWord) != "crypt4gh" {
+			fmt.Printf("Input file %s is not encrypted\n", filename)
+			log.Infof("input file %s is not encrypted", filepath.Clean(filename))
+			if !*forceUnencrypted {
+				fmt.Println("Quitting...")
+
+				return errors.New("unencrypted file found")
+			}
+			fmt.Println("force-unencrypted flag provided, continuing...")
+		}
 	}
 
 	// The session the S3 Uploader will use
