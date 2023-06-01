@@ -3,11 +3,11 @@ module github.com/NBISweden/sda-cli
 go 1.20
 
 require (
-	github.com/aws/aws-sdk-go v1.44.262
+	github.com/aws/aws-sdk-go v1.44.271
 	github.com/manifoldco/promptui v0.9.0
-	github.com/neicnordic/crypt4gh v1.7.4
-	github.com/sirupsen/logrus v1.9.0
-	github.com/stretchr/testify v1.8.2
+	github.com/neicnordic/crypt4gh v1.7.5
+	github.com/sirupsen/logrus v1.9.2
+	github.com/stretchr/testify v1.8.3
 	gopkg.in/ini.v1 v1.67.0
 )
 
@@ -26,9 +26,10 @@ require (
 	github.com/schollz/progressbar/v3 v3.13.1 // indirect
 	github.com/shabbyrobe/gocovmerge v0.0.0-20180507124511-f6ea450bfb63 // indirect
 	github.com/vbauerster/mpb/v8 v8.4.0 // indirect
-	golang.org/x/crypto v0.8.0 // indirect
+	golang.org/x/crypto v0.9.0 // indirect
 	golang.org/x/sys v0.8.0 // indirect
 	golang.org/x/term v0.8.0 // indirect
+
 	golang.org/x/tools v0.1.12 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
