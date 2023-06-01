@@ -170,7 +170,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *Config) err
 	for k, filename := range files {
 		// create progress bar instance
 		p := mpb.New()
-		fmt.Printf("Uploading %s with config %s\n", filename, *configPath)
+		log.Printf("Uploading %s with config %s\n", filename, *configPath)
 
 		f, err := os.Open(path.Clean(filename))
 		if err != nil {
@@ -220,8 +220,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *Config) err
 			return err
 		}
 		log.Infof("file uploaded to %s", string(aws.StringValue(&result.Location)))
-		// wait for all bars to complete and flush
-		p.Wait()
+		p.Shutdown()
 	}
 
 	return nil
