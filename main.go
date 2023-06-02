@@ -42,6 +42,7 @@ var Commands = map[string]commandInfo{
 // Main does argument parsing, then delegates to one of the sub modules
 func main() {
 
+	log.SetLevel(log.WarnLevel)
 	command, args := ParseArgs()
 
 	var err error
@@ -62,10 +63,10 @@ func main() {
 	case "list":
 		err = list.List(args)
 	default:
-		log.Fatal("Unknown command:", command)
+		fmt.Fprintf(os.Stderr, "Unknown command: %s", command)
 	}
 	if err != nil {
-		log.Fatal(err)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 	}
 }
 

@@ -168,7 +168,8 @@ func uploadFiles(files, outFiles []string, targetDir string, config *Config) err
 
 	for k, filename := range files {
 
-		log.Infof("Uploading %s with config %s", filename, *configPath)
+		log.Infof("Uploading %s with config %s\n", filename, *configPath)
+		fmt.Printf("Uploading %s with config %s\n", filename, *configPath)
 
 		f, err := os.Open(path.Clean(filename))
 		if err != nil {
@@ -189,7 +190,8 @@ func uploadFiles(files, outFiles []string, targetDir string, config *Config) err
 		if err != nil {
 			return err
 		}
-		log.Infof("file uploaded to %s", string(aws.StringValue(&result.Location)))
+		log.Infof("file uploaded to %s\n", string(aws.StringValue(&result.Location)))
+		fmt.Printf("file uploaded to %s\n", string(aws.StringValue(&result.Location)))
 	}
 
 	return nil
@@ -324,7 +326,7 @@ func Upload(args []string) error {
 		}
 		if fileInfo.IsDir() {
 			if !*dirUpload {
-				log.Warning(errors.New("-r not specified; omitting directory: " + filePath))
+				fmt.Println(errors.New("-r not specified; omitting directory: " + filePath))
 
 				continue
 			}
@@ -334,7 +336,7 @@ func Upload(args []string) error {
 			}
 
 			if len(dirFilePaths) == 0 {
-				log.Warningf("Omitting directory: %s because it is empty", filePath)
+				fmt.Printf("Omitting directory: %s because it is empty\n", filePath)
 
 				continue
 			}
