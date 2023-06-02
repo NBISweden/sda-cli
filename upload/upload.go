@@ -12,12 +12,15 @@ import (
 	"time"
 
 	"github.com/NBISweden/sda-cli/encrypt"
+	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/golang-jwt/jwt"
 	log "github.com/sirupsen/logrus"
+	"github.com/vbauerster/mpb/v8"
+	"github.com/vbauerster/mpb/v8/decor"
 	"gopkg.in/ini.v1"
 )
 
@@ -162,22 +165,45 @@ func uploadFiles(files, outFiles []string, targetDir string, config *Config) err
 		DisableSSL:       aws.Bool(!config.UseHTTPS),
 		S3ForcePathStyle: aws.Bool(true),
 	}))
-
 	// Create an uploader with the session and default options
 	uploader := s3manager.NewUploader(sess)
-
 	for k, filename := range files {
-
-		log.Infof("Uploading %s with config %s", filename, *configPath)
+		// create progress bar instance
+		p := mpb.New()
+		log.Printf("Uploading %s with config %s\n", filename, *configPath)
 
 		f, err := os.Open(path.Clean(filename))
 		if err != nil {
 			return err
 		}
 
+		fileInfo, err := f.Stat()
+		if err != nil {
+			return err
+		}
+		file := fmt.Sprintf("File %s:", filepath.Base(filename))
+		// Creates a custom reader. The progress bar starts with the file name,
+		// followed by the uploading status and the progress bar itself.
+		// It is marked as done when the upload is complete
+		reader := helpers.CustomReader{
+			Fp:      f,
+			Size:    fileInfo.Size(),
+			SignMap: map[int64]struct{}{},
+			Bar: p.AddBar(fileInfo.Size(),
+				mpb.PrependDecorators(
+					decor.Name(file, decor.WC{W: len(file) + 1, C: decor.DidentRight}),
+					decor.Name("uploading", decor.WCSyncSpaceR),
+					decor.Counters(decor.SizeB1024(0), "% .1f / % .1f"),
+				),
+				mpb.AppendDecorators(
+					decor.OnComplete(decor.Percentage(decor.WC{W: 5}), "done"),
+				),
+			),
+		}
+
 		// Upload the file to S3.
 		result, err := uploader.Upload(&s3manager.UploadInput{
-			Body:            f,
+			Body:            &reader,
 			Bucket:          aws.String(config.AccessKey),
 			Key:             aws.String(targetDir + "/" + outFiles[k]),
 			ContentEncoding: aws.String(config.Encoding),
@@ -186,10 +212,15 @@ func uploadFiles(files, outFiles []string, targetDir string, config *Config) err
 			// Delete parts of failed multipart, since we cannot currently continue them
 			u.LeavePartsOnError = false
 		})
+		// Print the progress bar. Second check is to filter out some junk from the output
+		if result != nil && result.VersionID != nil {
+			fmt.Println(result)
+		}
 		if err != nil {
 			return err
 		}
 		log.Infof("file uploaded to %s", string(aws.StringValue(&result.Location)))
+		p.Shutdown()
 	}
 
 	return nil
