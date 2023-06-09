@@ -28,21 +28,22 @@ import (
 var Usage = `
 USAGE: %s encrypt -key <public-key-file> (-outdir <dir>) (-continue=true) [file(s)]
 
-encrypt: Encrypts files according to the crypt4gh standard used in the Sensitive
-         Data Archive (SDA). Each given file will be encrypted and written to
-         <filename>.c4gh. Both encrypted and unencrypted checksums will be
-         calculated and written to:
-          - checksum_unencrypted.md5
-          - checksum_encrypted.md5
-          - checksum_unencrypted.sha256
-          - checksum_encrypted.sha256
+encrypt:
+    Encrypts files according to the crypt4gh standard used in the
+    Sensitive Data Archive (SDA).  Each given file will be encrypted
+    and written to <filename>.c4gh.  Both encrypted and unencrypted
+    checksums will be calculated and written to:
+        - checksum_unencrypted.md5
+        - checksum_encrypted.md5
+        - checksum_unencrypted.sha256
+        - checksum_encrypted.sha256
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help
 var ArgHelp = `
-  [files]
-        all flagless arguments will be used as filenames for encryption.`
+    [files]
+        All flagless arguments will be used as filenames for encryption.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help

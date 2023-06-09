@@ -20,17 +20,20 @@ import (
 var Usage = `
 USAGE: %s createKey (-outdir <dirname>) <name>
 
-createKey: Creates a crypt4gh encryption key pair, and saves it to
-           <name>.pub.pem, and <name>.sec.pem.
-           NOTE: keys created using this function should not be used when
-           encrypting submission files, they should only be used for decrypting
-           files downloaded from the archive.
+createKey:
+    Creates a crypt4gh encryption key pair, and saves it to
+    <name>.pub.pem, and <name>.sec.pem.
+
+    NOTE:
+        Keys created using this function should not be used when
+        encrypting submission files, they should only be used for
+        decrypting files downloaded from the archive.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help.
 var ArgHelp = `
-  [name]
+    [name]
         The basename of the keyfiles to generate`
 
 // Args is a flagset that needs to be exported so that it can be written to the

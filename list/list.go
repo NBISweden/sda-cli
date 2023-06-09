@@ -23,15 +23,17 @@ import (
 var Usage = `
 USAGE: %s list -config <s3config-file> [prefix]
 
-list: Lists recursively all files under the user's folder in the Sensitive Data Archive (SDA). 
-      If the [prefix] parameter is used, only the files under the specified path will be returned.
+list:
+    Lists recursively all files under the user's folder in the Sensitive
+    Data Archive (SDA).  If the [prefix] parameter is used, only the
+    files under the specified path will be returned.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help
 var ArgHelp = `
-  [prefix]
-        the location/folder of the s3 to list contents`
+    [prefix]
+        The location/folder of the s3 to list contents.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help

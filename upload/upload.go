@@ -31,15 +31,18 @@ import (
 var Usage = `
 USAGE: %s upload -config <s3config-file> (--encrypt-with-key <public-key-file>) (-r) [file(s)|folder(s)] (-targetDir <upload-directory>)
 
-upload: Uploads files to the Sensitive Data Archive (SDA). All files to upload
-        are required to be encrypted and have the .c4gh file extension.
+upload:
+    Uploads files to the Sensitive Data Archive (SDA).  All files
+    to upload are required to be encrypted and have the .c4gh file
+    extension.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help
 var ArgHelp = `
-  [file(s)|folder(s)]
-        all flagless arguments will be used as file or directory names to upload. Directories will be skipped if '-r' is not provided.`
+    [file(s)|folder(s)]
+        All flagless arguments will be used as file or directory names
+        to upload.  Directories will be skipped if '-r' is not provided.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
