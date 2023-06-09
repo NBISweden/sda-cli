@@ -49,7 +49,8 @@ var ArgHelp = `
 // main program help
 var Args = flag.NewFlagSet("encrypt", flag.ExitOnError)
 
-var outDir = Args.String("outdir", "", "Output directory for encrypted files")
+var outDir = Args.String("outdir", "",
+	"Output directory for encrypted files.")
 
 var continueEncrypt = Args.Bool("continue", false, "Do not exit on file errors but skip and continue.")
 

@@ -48,13 +48,21 @@ var ArgHelp = `
 // main program help
 var Args = flag.NewFlagSet("upload", flag.ExitOnError)
 
-var configPath = Args.String("config", "", "S3 config file to use for uploading.")
+var configPath = Args.String("config", "",
+	"S3 config file to use for uploading.")
 
-var dirUpload = Args.Bool("r", false, "Upload directories recursively.")
+var dirUpload = Args.Bool("r", false,
+	"Upload directories recursively.")
 
-var targetDir = Args.String("targetDir", "", "Upload files|folders into this directory. If flag is omitted, all data will be uploaded in the user's base directory.")
+var targetDir = Args.String("targetDir", "",
+	"Upload files or folders into this directory.\n" +
+	"If flag is omitted, all data will be uploaded\n" +
+	"in the user's base directory.")
 
-var pubKeyPath = Args.String("encrypt-with-key", "", "Public key file to use for encryption of files before upload. The key file may optionally contain several\n concatenated public keys. The argument list may include only unencrypted data if this flag is set.")
+var pubKeyPath = Args.String("encrypt-with-key", "",
+	"Public key file to use for encryption of files before upload.\n" +
+	"The key file may optionally contain several concatenated public keys.\n" +
+	"The argument list may include only unencrypted data if this flag is set.")
 
 // Config struct for storing the s3cmd file values
 type Config struct {

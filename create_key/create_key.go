@@ -34,13 +34,14 @@ createKey:
 // the module help.
 var ArgHelp = `
     [name]
-        The basename of the keyfiles to generate`
+        The basename of the keyfiles to generate.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
 var Args = flag.NewFlagSet("createKey", flag.ExitOnError)
 
-var outDir = Args.String("outdir", "", "Output directory for the key files")
+var outDir = Args.String("outdir", "",
+	"Output directory for the key files.")
 
 // CreateKey takes two arguments, a base filename, and optionally an output
 // directory specified with `-outdir`.

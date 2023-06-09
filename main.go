@@ -18,8 +18,8 @@ import (
 
 var Usage = `USAGE: %s <command> [command-args]
 
-This is a helper tool that can help with common tasks when interacting with the
-Sensitive Data Archive (SDA).
+This is a helper tool that can help with common tasks when interacting
+with the Sensitive Data Archive (SDA).
 `
 
 // Map of the sub-commands, and their arguments and usage text strings

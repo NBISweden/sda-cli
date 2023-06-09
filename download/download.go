@@ -41,7 +41,8 @@ var ArgHelp = `
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
 var Args = flag.NewFlagSet("download", flag.ExitOnError)
-var outDir = Args.String("outdir", "", "Directory for downloaded files")
+var outDir = Args.String("outdir", "",
+	"Directory for downloaded files.")
 
 // Gets the file name for a URL, using regex
 func createFilePathFromURL(file string, baseDir string) (fileName string, err error) {

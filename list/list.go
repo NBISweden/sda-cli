@@ -39,7 +39,8 @@ var ArgHelp = `
 // main program help
 var Args = flag.NewFlagSet("list", flag.ExitOnError)
 
-var configPath = Args.String("config", "", "S3 config file to use for listing.")
+var configPath = Args.String("config", "",
+	"S3 config file to use for listing.")
 
 func listFiles(config *upload.Config, prefix string) (result *s3.ListObjectsV2Output, err error) {
 	sess := session.Must(session.NewSession(&aws.Config{
