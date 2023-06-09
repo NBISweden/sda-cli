@@ -110,7 +110,7 @@ func Help(command string) {
 	info, isLegal := Commands[command]
 	if isLegal {
 		// print subcommand help
-		fmt.Fprintf(os.Stderr, info.usage + "\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, info.usage+"\n", os.Args[0])
 		fmt.Fprintln(os.Stderr, "Command line arguments:")
 		info.args.PrintDefaults()
 		fmt.Fprintln(os.Stderr, info.argHelp)

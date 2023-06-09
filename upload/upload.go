@@ -55,14 +55,14 @@ var dirUpload = Args.Bool("r", false,
 	"Upload directories recursively.")
 
 var targetDir = Args.String("targetDir", "",
-        "Upload files or folders into this directory.  If flag is omitted,\n" +
-        "all data will be uploaded in the user's base directory.")
+	"Upload files or folders into this directory.  If flag is omitted,\n"+
+		"all data will be uploaded in the user's base directory.")
 
 var pubKeyPath = Args.String("encrypt-with-key", "",
-        "Public key file to use for encryption of files before upload.\n" +
-        "The key file may optionally contain several concatenated\n" +
-        "public keys.  The argument list may include only unencrypted\n" +
-        "data if this flag is set.")
+	"Public key file to use for encryption of files before upload.\n"+
+		"The key file may optionally contain several concatenated\n"+
+		"public keys.  The argument list may include only unencrypted\n"+
+		"data if this flag is set.")
 
 // Config struct for storing the s3cmd file values
 type Config struct {
