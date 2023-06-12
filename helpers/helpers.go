@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"encoding/xml"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -105,6 +106,34 @@ func ParseS3ErrorResponse(respBody io.Reader) (string, error) {
 	}
 
 	return fmt.Sprintf("%+v", xmlErrorResponse), nil
+}
+
+// Removes all positional arguments from os.Args, and returns them.
+// This function assumes that all flags have exactly one value.
+func getPositional() (positional []string) {
+	i := 1
+	for i < len(os.Args) {
+		if os.Args[i][0] == '-' {
+			// if the current arg is a flag, skip the flag and its value
+			i += 2
+		} else {
+			// if the current arg is positional, remove it and add it to
+			// `positional`
+			positional = append(positional, os.Args[i])
+			os.Args = append(os.Args[:i], os.Args[i+1:]...)
+		}
+	}
+
+	return positional
+}
+
+func ParseArgs(args []string, argFlags *flag.FlagSet) error {
+	var pos = getPositional()
+	// append positional args back at the end of os.Args
+	os.Args = append(os.Args, pos...)
+	err := argFlags.Parse(args[1:])
+
+	return err
 }
 
 //

@@ -159,11 +159,11 @@ func GetURLsListFile(currentPath string, fileLocation string) (urlsFilePath stri
 // Download function downloads the files included in the urls_list.txt file.
 // The argument can be a local file or a url to an S3 folder
 func Download(args []string) error {
-	// Parse flags. There are no flags at the moment, but in case some are added
-	// we check for them.
-	err := Args.Parse(args[1:])
+
+	// Call ParseArgs to take care of all the flag parsing
+	err := helpers.ParseArgs(args, Args)
 	if err != nil {
-		return fmt.Errorf("failed parsing arguments, reason: %v", err)
+		return err
 	}
 
 	// Args() returns the non-flag arguments, which we assume are filenames.
