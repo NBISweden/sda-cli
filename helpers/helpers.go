@@ -2,14 +2,17 @@ package helpers
 
 import (
 	"encoding/xml"
+	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/manifoldco/promptui"
 	log "github.com/sirupsen/logrus"
+	"github.com/vbauerster/mpb/v8"
 )
 
 //
@@ -68,11 +71,8 @@ func FormatSubcommandUsage(usageString string) string {
 	}
 	// reformat lines
 	usage := lines[0]
-	helpStart := lines[2]
-	indent := strings.Index(helpStart, " ")
-	format := "\n%s\n\n%" + fmt.Sprintf("%v", indent+1) + "s%s\n\n"
 
-	return fmt.Sprintf(format, strings.Join(lines[2:], "\n"), " ", usage)
+	return fmt.Sprintf("\n%s\n\n    %s\n\n", strings.Join(lines[2:], "\n"), usage)
 }
 
 // PromptPassword creates a user prompt for inputting passwords, where all
@@ -108,6 +108,34 @@ func ParseS3ErrorResponse(respBody io.Reader) (string, error) {
 	return fmt.Sprintf("%+v", xmlErrorResponse), nil
 }
 
+// Removes all positional arguments from os.Args, and returns them.
+// This function assumes that all flags have exactly one value.
+func getPositional() (positional []string) {
+	i := 1
+	for i < len(os.Args) {
+		if os.Args[i][0] == '-' {
+			// if the current arg is a flag, skip the flag and its value
+			i += 2
+		} else {
+			// if the current arg is positional, remove it and add it to
+			// `positional`
+			positional = append(positional, os.Args[i])
+			os.Args = append(os.Args[:i], os.Args[i+1:]...)
+		}
+	}
+
+	return positional
+}
+
+func ParseArgs(args []string, argFlags *flag.FlagSet) error {
+	var pos = getPositional()
+	// append positional args back at the end of os.Args
+	os.Args = append(os.Args, pos...)
+	err := argFlags.Parse(args[1:])
+
+	return err
+}
+
 //
 // shared structs
 //
@@ -124,4 +152,45 @@ type XMLerrorResponse struct {
 	Code     string `xml:"Code"`
 	Message  string `xml:"Message"`
 	Resource string `xml:"Resource"`
+}
+
+// progress bar definitions
+// Produces a progress bar with decorators that can produce different styles
+// Check https://github.com/vbauerster/mpb for more info and how to use it
+type CustomReader struct {
+	Fp      *os.File
+	Size    int64
+	Reads   int64
+	Bar     *mpb.Bar
+	SignMap map[int64]struct{}
+	Mux     sync.Mutex
+}
+
+func (r *CustomReader) Read(p []byte) (int, error) {
+	return r.Fp.Read(p)
+}
+
+func (r *CustomReader) ReadAt(p []byte, off int64) (int, error) {
+	n, err := r.Fp.ReadAt(p, off)
+	if err != nil {
+		return n, err
+	}
+
+	r.Bar.SetTotal(r.Size, false)
+
+	r.Mux.Lock()
+	// Ignore the first signature call
+	if _, ok := r.SignMap[off]; ok {
+		r.Reads += int64(n)
+		r.Bar.SetCurrent(r.Reads)
+	} else {
+		r.SignMap[off] = struct{}{}
+	}
+	r.Mux.Unlock()
+
+	return n, err
+}
+
+func (r *CustomReader) Seek(offset int64, whence int) (int64, error) {
+	return r.Fp.Seek(offset, whence)
 }

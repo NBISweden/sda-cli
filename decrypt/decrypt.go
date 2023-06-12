@@ -22,17 +22,18 @@ import (
 var Usage = `
 USAGE: %s decrypt -key <private-key-file> [file(s)]
 
-decrypt: Decrypts files from the Sensitive Data Archive (SDA) with the provided
-         private key. If the private key is encrypted, the password can be
-         supplied in the C4GH_PASSWORD environment variable, or at the interactive
-         password prompt.
+decrypt:
+    Decrypts files from the Sensitive Data Archive (SDA) with the
+    provided private key.  If the private key is encrypted, the password
+    can be supplied in the C4GH_PASSWORD environment variable, or at the
+    interactive password prompt.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help
 var ArgHelp = `
-  [file(s)]
-        all flagless arguments will be used as filenames for decryption.`
+    [file(s)]
+        All flagless arguments will be used as filenames for decryption.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
@@ -44,9 +45,11 @@ var privateKeyFile = Args.String("key", "",
 // Decrypt takes a set of arguments, parses them, and attempts to decrypt the
 // given data files with the given private key file..
 func Decrypt(args []string) error {
-	err := Args.Parse(args[1:])
+
+	// Call ParseArgs to take care of all the flag parsing
+	err := helpers.ParseArgs(args, Args)
 	if err != nil {
-		return fmt.Errorf("argument parsing failed, reason: %v", err)
+		return err
 	}
 
 	// format input and output files

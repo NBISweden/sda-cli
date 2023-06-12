@@ -109,14 +109,16 @@ func (suite *HelperTests) TestFormatSubcommandUsage() {
 
 	correctUsage := `USAGE: %s module <args>
 
-module: this module does all the fancies stuff,
-        and virtually none of the non-fancy stuff.`
+module:
+    this module does all the fancies stuff,
+    and virtually none of the non-fancy stuff.`
 
 	correctFormat := fmt.Sprintf(`
-module: this module does all the fancies stuff,
-        and virtually none of the non-fancy stuff.
+module:
+    this module does all the fancies stuff,
+    and virtually none of the non-fancy stuff.
 
-        USAGE: %s module <args>
+    USAGE: %s module <args>
 
 `, os.Args[0])
 	testCorrect := FormatSubcommandUsage(correctUsage)

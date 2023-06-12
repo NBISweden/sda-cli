@@ -28,27 +28,29 @@ import (
 var Usage = `
 USAGE: %s encrypt -key <public-key-file> (-outdir <dir>) (-continue=true) [file(s)]
 
-encrypt: Encrypts files according to the crypt4gh standard used in the Sensitive
-         Data Archive (SDA). Each given file will be encrypted and written to
-         <filename>.c4gh. Both encrypted and unencrypted checksums will be
-         calculated and written to:
-          - checksum_unencrypted.md5
-          - checksum_encrypted.md5
-          - checksum_unencrypted.sha256
-          - checksum_encrypted.sha256
+encrypt:
+    Encrypts files according to the crypt4gh standard used in the
+    Sensitive Data Archive (SDA).  Each given file will be encrypted
+    and written to <filename>.c4gh.  Both encrypted and unencrypted
+    checksums will be calculated and written to:
+        - checksum_unencrypted.md5
+        - checksum_encrypted.md5
+        - checksum_unencrypted.sha256
+        - checksum_encrypted.sha256
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help
 var ArgHelp = `
-  [files]
-        all flagless arguments will be used as filenames for encryption.`
+    [files]
+        All flagless arguments will be used as filenames for encryption.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
 var Args = flag.NewFlagSet("encrypt", flag.ExitOnError)
 
-var outDir = Args.String("outdir", "", "Output directory for encrypted files")
+var outDir = Args.String("outdir", "",
+	"Output directory for encrypted files.")
 
 var continueEncrypt = Args.Bool("continue", false, "Do not exit on file errors but skip and continue.")
 
@@ -65,11 +67,12 @@ func init() {
 // Encrypt takes a set of arguments, parses them, and attempts to encrypt the
 // given data files with the given public key file
 func Encrypt(args []string) error {
+
 	publicKeyFileList = nil
-	// Parse flags.
-	err := Args.Parse(args[1:])
+	// Call ParseArgs to take care of all the flag parsing
+	err := helpers.ParseArgs(args, Args)
 	if err != nil {
-		return fmt.Errorf("could not parse arguments: %s", err)
+		return err
 	}
 
 	// Exit if public key is not provided
