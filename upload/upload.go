@@ -53,11 +53,9 @@ var Args = flag.NewFlagSet("upload", flag.ExitOnError)
 var configPath = Args.String("config", "",
 	"S3 config file to use for uploading.")
 
-
 var forceUnencrypted = Args.Bool("force-unencrypted", false, "Force uploading unencrypted files.")
 
 var dirUpload = Args.Bool("r", false, "Upload directories recursively.")
-
 
 var targetDir = Args.String("targetDir", "",
 	"Upload files or folders into this directory.  If flag is omitted,\n"+
@@ -338,11 +336,14 @@ func Upload(args []string) error {
 	// Shift flag and their arguments from the end to the beginning
 	// if more boolean flags are added in the future the following needs a slight modification
 	for k := len(args) - 1; k > 0; k-- {
-		if args[len(args)-1][0:1] != "-" && (args[len(args)-2][0:1] != "-" || args[len(args)-2] == "-r") {
+		log.Printf("#%s: %d:", args, k)
+		log.Printf("args[%d][0:1]:%s \nargs[%d][0:1]:%s\n\n", len(args)-1, args[len(args)-1][0:1], len(args)-2, args[len(args)-2])
+		if args[len(args)-1][0:1] != "-" && (args[len(args)-2][0:1] != "-" || args[len(args)-2] == "-r" || args[len(args)-2] == "--force-unencrypted") {
 
 			break
 		}
 		args = append(args[0:1], append(args[len(args)-1:], args[1:len(args)-1]...)...)
+		log.Println("    #args2:", args)
 	}
 
 	err := Args.Parse(args[1:])

@@ -110,6 +110,8 @@ func ParseS3ErrorResponse(respBody io.Reader) (string, error) {
 
 // Removes all positional arguments from os.Args, and returns them.
 // This function assumes that all flags have exactly one value.
+// If we were to use this func in Upload, we would have to split
+// the if statement to a switch to take into account the boolean flags
 func getPositional() (positional []string) {
 	i := 1
 	for i < len(os.Args) {
@@ -128,9 +130,12 @@ func getPositional() (positional []string) {
 }
 
 func ParseArgs(args []string, argFlags *flag.FlagSet) error {
+	fmt.Println("args: ", args)
 	var pos = getPositional()
+	fmt.Println("pos: ", pos)
 	// append positional args back at the end of os.Args
 	os.Args = append(os.Args, pos...)
+	fmt.Println("args: ", os.Args)
 	err := argFlags.Parse(args[1:])
 
 	return err
