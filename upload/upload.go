@@ -29,29 +29,40 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s upload -config <s3config-file> (--encrypt-with-key <public-key-file>) (-r) [file(s)|folder(s)] (-targetDir <upload-directory>)
+USAGE: %s upload -config <s3config-file> (--encrypt-with-key <public-key-file>) (-r) [file(s) | folder(s)] (-targetDir <upload-directory>)
 
-upload: Uploads files to the Sensitive Data Archive (SDA). All files to upload
-        are required to be encrypted and have the .c4gh file extension.
+upload:
+    Uploads files to the Sensitive Data Archive (SDA).  All files
+    to upload are required to be encrypted and have the .c4gh file
+    extension.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help
 var ArgHelp = `
-  [file(s)|folder(s)]
-        all flagless arguments will be used as file or directory names to upload. Directories will be skipped if '-r' is not provided.`
+    [file(s)|folder(s)]
+        All flagless arguments will be used as file or directory names
+        to upload.  Directories will be skipped if '-r' is not provided.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
 var Args = flag.NewFlagSet("upload", flag.ExitOnError)
 
-var configPath = Args.String("config", "", "S3 config file to use for uploading.")
+var configPath = Args.String("config", "",
+	"S3 config file to use for uploading.")
 
-var dirUpload = Args.Bool("r", false, "Upload directories recursively.")
+var dirUpload = Args.Bool("r", false,
+	"Upload directories recursively.")
 
-var targetDir = Args.String("targetDir", "", "Upload files|folders into this directory. If flag is omitted, all data will be uploaded in the user's base directory.")
+var targetDir = Args.String("targetDir", "",
+	"Upload files or folders into this directory.  If flag is omitted,\n"+
+		"all data will be uploaded in the user's base directory.")
 
-var pubKeyPath = Args.String("encrypt-with-key", "", "Public key file to use for encryption of files before upload. The key file may optionally contain several\n concatenated public keys. The argument list may include only unencrypted data if this flag is set.")
+var pubKeyPath = Args.String("encrypt-with-key", "",
+	"Public key file to use for encryption of files before upload.\n"+
+		"The key file may optionally contain several concatenated\n"+
+		"public keys.  The argument list may include only unencrypted\n"+
+		"data if this flag is set.")
 
 // Config struct for storing the s3cmd file values
 type Config struct {

@@ -22,24 +22,27 @@ import (
 var Usage = `
 USAGE: %s download (-outdir <dir>) [url | file]
 
-download: Downloads files from the Sensitive Data Archive (SDA). A list with urls
-	  for files to download must be provided either as a url directly to a remote
-	  url_list.txt file or to its containing directory (ending with "/").
-	  Alternatively, the local path to such a file may be given, instead.
-	  The files will be downloaded in the current directory, if outdir is not
-	  defined and their folder structure is preserved.
+download:
+    Downloads files from the Sensitive Data Archive (SDA).  A list with
+    URLs for files to download must be provided either as a URL directly
+    to a remote url_list.txt file or to its containing directory
+    (ending with "/"). Alternatively, the local path to such a file may
+    be given, instead.  The files will be downloaded in the current
+    directory, if outdir is not defined and their folder structure is
+    preserved.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help
 var ArgHelp = `
-  [urls]
-        all flagless arguments will be used as download urls.`
+    [urls]
+        All flagless arguments will be used as download URLs.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
 var Args = flag.NewFlagSet("download", flag.ExitOnError)
-var outDir = Args.String("outdir", "", "Directory for downloaded files")
+var outDir = Args.String("outdir", "",
+	"Directory for downloaded files.")
 
 // Gets the file name for a URL, using regex
 func createFilePathFromURL(file string, baseDir string) (fileName string, err error) {

@@ -70,11 +70,8 @@ func FormatSubcommandUsage(usageString string) string {
 	}
 	// reformat lines
 	usage := lines[0]
-	helpStart := lines[2]
-	indent := strings.Index(helpStart, " ")
-	format := "\n%s\n\n%" + fmt.Sprintf("%v", indent+1) + "s%s\n\n"
 
-	return fmt.Sprintf(format, strings.Join(lines[2:], "\n"), " ", usage)
+	return fmt.Sprintf("\n%s\n\n    %s\n\n", strings.Join(lines[2:], "\n"), usage)
 }
 
 // PromptPassword creates a user prompt for inputting passwords, where all
