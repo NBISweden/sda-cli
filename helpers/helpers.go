@@ -122,10 +122,14 @@ func ParseS3ErrorResponse(respBody io.Reader) (string, error) {
 func getPositional() (positional []string) {
 	i := 1
 	for i < len(os.Args) {
-		if os.Args[i][0] == '-' {
+		switch {
+		case os.Args[i] == "-r" || os.Args[i] == "--force-overwrite" || os.Args[i] == "--force-unencrypted":
+			// if the current args is a boolean flag, skip it
+			i++
+		case os.Args[i][0] == '-':
 			// if the current arg is a flag, skip the flag and its value
 			i += 2
-		} else {
+		default:
 			// if the current arg is positional, remove it and add it to
 			// `positional`
 			positional = append(positional, os.Args[i])

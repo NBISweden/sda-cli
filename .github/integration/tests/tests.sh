@@ -58,6 +58,9 @@ else
     exit 1
 fi
 
+# Try to upload a file twice with the --force-overwrite flag
+output=$(./sda-cli upload -config testing/s3cmd.conf --force-overwrite data_file.c4gh)
+
 # Create and encrypt multiple files in a folder
 
 # Create folder and encrypt files in it
@@ -70,7 +73,7 @@ check_encypted_file "data_files_enc/data_file.c4gh data_files_enc/data_file1.c4g
 for k in data_file.c4gh data_file1.c4gh
 do
     # Upload and check file
-    ./sda-cli upload -force-overwrite -config testing/s3cmd.conf "data_files_enc/$k"
+    ./sda-cli upload -config testing/s3cmd.conf --force-overwrite "data_files_enc/$k"
     check_uploaded_file test/dummy/$k $k
 done
 
@@ -83,8 +86,8 @@ cp data_files_enc/data_file.c4gh data_files_enc/dir1/data_file.c4gh
 cp data_files_enc/data_file.c4gh data_files_enc/dir1/dir2/data_file.c4gh
 cp data_files_enc/data_file.c4gh data_files_enc/dir1/dir2/data_file2.c4gh
 
-# Upload a folder recursively and a single file, testing -force-overwrite flag works for existing files
-./sda-cli upload -force-overwrite -config testing/s3cmd.conf -r data_files_enc/dir1 data_files_enc/data_file3.c4gh
+# Upload a folder recursively and a single file
+./sda-cli upload -config testing/s3cmd.conf -r data_files_enc/dir1 data_files_enc/data_file3.c4gh
 
 # Check that files were uploaded with the local path prefix `data_files_enc` stripped from the target path
 for k in dir1/data_file.c4gh dir1/dir2/data_file.c4gh dir1/dir2/data_file2.c4gh data_file3.c4gh
@@ -96,10 +99,10 @@ done
 
 # Upload a folder recursively and a single file in a specified upload folder
 uploadDir="testfolder"
-./sda-cli upload -force-overwrite -config testing/s3cmd.conf -targetDir "$uploadDir" -r data_files_enc/dir1 data_files_enc/data_file3.c4gh
+./sda-cli upload -config testing/s3cmd.conf -targetDir "$uploadDir" -r data_files_enc/dir1 data_files_enc/data_file3.c4gh
 
 # Do it again to test that we can pass -targetDir at the end
-./sda-cli upload -force-overwrite -config testing/s3cmd.conf -r data_files_enc/dir1 data_files_enc/data_file3.c4gh -targetDir "$uploadDir"
+./sda-cli upload --force-overwrite -config testing/s3cmd.conf -r data_files_enc/dir1 data_files_enc/data_file3.c4gh -targetDir "$uploadDir"
 
 # Check that files were uploaded with the local path prefix `data_files_enc` stripped from the
 # target path and into the specified upload folder
@@ -111,7 +114,7 @@ done
 # Upload all contents of a folder recursively to a specified upload folder
 
 uploadDir="testfolder2"
-./sda-cli upload -force-overwrite -config testing/s3cmd.conf -targetDir "$uploadDir" -r data_files_enc/dir1/.
+./sda-cli upload -config testing/s3cmd.conf -targetDir "$uploadDir" -r data_files_enc/dir1/.
 
 # Check that files were uploaded with the local path prefix `data_files_enc/dir1` stripped from the
 # target path and into the specified upload folder
@@ -126,7 +129,7 @@ mkdir data_files_unenc && mkdir data_files_unenc/dir1
 cp data_file data_files_unenc/. && cp data_file data_files_unenc/dir1/data_file1
 
 uploadDir="testEncryptUpload"
-./sda-cli upload -force-overwrite -config testing/s3cmd.conf -encrypt-with-key sda_key.pub.pem -r data_files_unenc -targetDir "$uploadDir"
+./sda-cli upload -config testing/s3cmd.conf -encrypt-with-key sda_key.pub.pem -r data_files_unenc -targetDir "$uploadDir"
 
 check_encypted_file "data_files_unenc/data_file.c4gh" "data_files_unenc/dir1/data_file1.c4gh"
 
