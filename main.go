@@ -12,6 +12,7 @@ import (
 	"github.com/NBISweden/sda-cli/encrypt"
 	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/NBISweden/sda-cli/list"
+	"github.com/NBISweden/sda-cli/login"
 	"github.com/NBISweden/sda-cli/upload"
 	log "github.com/sirupsen/logrus"
 )
@@ -37,6 +38,7 @@ var Commands = map[string]commandInfo{
 	"upload":      {upload.Args, upload.Usage, upload.ArgHelp},
 	"datasetsize": {datasetsize.Args, datasetsize.Usage, datasetsize.ArgHelp},
 	"list":        {list.Args, list.Usage, list.ArgHelp},
+	"login":       {login.Args, login.Usage, login.ArgHelp},
 }
 
 // Main does argument parsing, then delegates to one of the sub modules
@@ -61,6 +63,18 @@ func main() {
 		err = datasetsize.DatasetSize(args)
 	case "list":
 		err = list.List(args)
+	case "login":
+		url := "https://login.elixir-czech.org/oidc"
+		clientID := "8b7b0168-6b16-4fd2-baec-b0a28b0d5cb0" // sda test
+		target := "s3.bp.nbis.se"
+		deviceLogin := login.NewDeviceLogin(url, clientID, target)
+		err := deviceLogin.Login(args)
+		if err != nil {
+			log.Errorf("login failed: %v", err)
+			os.Exit(1)
+		}
+		log.Info("Success")
+		log.Infof("Logged in as %v", deviceLogin.UserInfo.Name)
 	default:
 		log.Fatal("Unknown command:", command)
 	}
