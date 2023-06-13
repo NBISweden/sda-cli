@@ -380,13 +380,17 @@ func (suite *TestSuite) TestFunctionality() {
 	defer log.SetOutput(os.Stdout)
 
 	// Test recursive upload
-	os.Args = []string{"upload", "-config", configPath.Name(), "-r", dir}
+	os.Args = []string{"upload", "--force-unencrypted", "-config", configPath.Name(), "-r", dir}
 	assert.NoError(suite.T(), Upload(os.Args))
 
 	// Check logs that file was uploaded
-	logMsg := fmt.Sprintf("%v", strings.TrimSuffix(str.String(), "\n"))
+	logMsg := strings.ReplaceAll(fmt.Sprintf("%v", strings.TrimSuffix(str.String(), "\n")), "\\\\", "\\")
 	msg := fmt.Sprintf("file uploaded to %s/dummy/%s/%s", ts.URL, filepath.Base(dir), filepath.Base(testfile.Name()))
 	assert.Contains(suite.T(), logMsg, msg)
+
+	// Check in the logs for a warning that the file was unencrypted
+	warnMsg := fmt.Sprintf("input file %s is not encrypted", filepath.Clean(testfile.Name()))
+	assert.Contains(suite.T(), logMsg, warnMsg)
 
 	// Check that file showed up in the s3 bucket correctly
 	result, err := s3Client.ListObjects(&s3.ListObjectsInput{
@@ -399,7 +403,7 @@ func (suite *TestSuite) TestFunctionality() {
 
 	// Test upload to a different folder
 	targetPath := filepath.Join("a", "b", "c")
-	os.Args = []string{"upload", "-config", configPath.Name(), testfile.Name(), "-targetDir", targetPath}
+	os.Args = []string{"upload", "--force-unencrypted", "-config", configPath.Name(), testfile.Name(), "-targetDir", targetPath}
 	assert.NoError(suite.T(), Upload(os.Args))
 	// Check logs that file was uploaded
 	logMsg = fmt.Sprintf("%v", strings.TrimSuffix(str.String(), "\n"))
@@ -436,7 +440,7 @@ func (suite *TestSuite) TestFunctionality() {
 
 	// Empty buffer logs
 	str.Reset()
-	newArgs := []string{"upload", "-config", configPath.Name(), "--encrypt-with-key", publicKey.Name(), testfile.Name(), "-targetDir", "someDir"}
+	newArgs := []string{"upload", "--force-unencrypted", "-config", configPath.Name(), "--encrypt-with-key", publicKey.Name(), testfile.Name(), "-targetDir", "someDir"}
 	assert.NoError(suite.T(), Upload(newArgs))
 
 	// Check logs that encrypted file was uploaded
@@ -566,7 +570,7 @@ func (suite *TestSuite) TestRecursiveToDifferentTarget() {
 	log.SetOutput(&str)
 	// Test recursive upload to a different folder
 	targetPath := filepath.Join("a", "b", "c")
-	os.Args = []string{"upload", "-config", configPath.Name(), "-r", dir, "-targetDir", targetPath}
+	os.Args = []string{"upload", "--force-unencrypted", "-config", configPath.Name(), "-r", dir, "-targetDir", targetPath}
 	assert.NoError(suite.T(), Upload(os.Args))
 	// Check logs that file was uploaded
 	logMsg := fmt.Sprintf("%v", strings.TrimSuffix(str.String(), "\n"))

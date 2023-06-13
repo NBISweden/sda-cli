@@ -29,7 +29,9 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s upload -config <s3config-file> (--encrypt-with-key <public-key-file>) (-r) [file(s) | folder(s)] (-targetDir <upload-directory>)
+
+USAGE: %s upload -config <s3config-file> (--encrypt-with-key <public-key-file>) (--force-unencrypted) (-r) [file(s) | folder(s)] (-targetDir <upload-directory>)
+
 
 upload:
     Uploads files to the Sensitive Data Archive (SDA).  All files
@@ -51,8 +53,9 @@ var Args = flag.NewFlagSet("upload", flag.ExitOnError)
 var configPath = Args.String("config", "",
 	"S3 config file to use for uploading.")
 
-var dirUpload = Args.Bool("r", false,
-	"Upload directories recursively.")
+var forceUnencrypted = Args.Bool("force-unencrypted", false, "Force uploading unencrypted files.")
+
+var dirUpload = Args.Bool("r", false, "Upload directories recursively.")
 
 var targetDir = Args.String("targetDir", "",
 	"Upload files or folders into this directory.  If flag is omitted,\n"+
@@ -164,6 +167,32 @@ func uploadFiles(files, outFiles []string, targetDir string, config *Config) err
 	// check also here in case sth went wrong with input files
 	if len(files) == 0 {
 		return errors.New("no files to upload")
+	}
+
+	// Loop through the list of files and check if they are encrypted
+	// If we run into an unencrypted file and the flag force-unencrypted is not set, we stop the upload
+	for _, filename := range files {
+		f, err := os.Open(path.Clean(filename))
+		if err != nil {
+			return err
+		}
+		// Check if the file is encrypted and warn if not
+		// Extracting the first 8 bytes of the header - crypt4gh
+		magicWord := make([]byte, 8)
+		_, err = f.Read(magicWord)
+		if err != nil {
+			fmt.Printf("error reading input file %s, reason: %v", filename, err)
+		}
+		if string(magicWord) != "crypt4gh" {
+			fmt.Printf("Input file %s is not encrypted\n", filename)
+			log.Infof("input file %s is not encrypted", filepath.Clean(filename))
+			if !*forceUnencrypted {
+				fmt.Println("Quitting...")
+
+				return errors.New("unencrypted file found")
+			}
+			fmt.Println("force-unencrypted flag provided, continuing...")
+		}
 	}
 
 	// The session the S3 Uploader will use
@@ -307,11 +336,14 @@ func Upload(args []string) error {
 	// Shift flag and their arguments from the end to the beginning
 	// if more boolean flags are added in the future the following needs a slight modification
 	for k := len(args) - 1; k > 0; k-- {
-		if args[len(args)-1][0:1] != "-" && (args[len(args)-2][0:1] != "-" || args[len(args)-2] == "-r") {
+		log.Printf("#%s: %d:", args, k)
+		log.Printf("args[%d][0:1]:%s \nargs[%d][0:1]:%s\n\n", len(args)-1, args[len(args)-1][0:1], len(args)-2, args[len(args)-2])
+		if args[len(args)-1][0:1] != "-" && (args[len(args)-2][0:1] != "-" || args[len(args)-2] == "-r" || args[len(args)-2] == "--force-unencrypted") {
 
 			break
 		}
 		args = append(args[0:1], append(args[len(args)-1:], args[1:len(args)-1]...)...)
+		log.Println("    #args2:", args)
 	}
 
 	err := Args.Parse(args[1:])
