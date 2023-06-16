@@ -258,12 +258,8 @@ func Upload(args []string) error {
 	*pubKeyPath = ""
 	*targetDir = ""
 
+	// Call ParseArgs to take care of all the flag parsing
 	err := helpers.ParseArgs(args, Args)
-	if err != nil {
-		return err
-	}
-
-	err = Args.Parse(args[1:])
 	if err != nil {
 		return fmt.Errorf("failed parsing arguments, reason: %v", err)
 	}
