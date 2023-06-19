@@ -12,12 +12,15 @@ import (
 	"time"
 
 	"github.com/NBISweden/sda-cli/encrypt"
+	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/golang-jwt/jwt"
 	log "github.com/sirupsen/logrus"
+	"github.com/vbauerster/mpb/v8"
+	"github.com/vbauerster/mpb/v8/decor"
 	"gopkg.in/ini.v1"
 )
 
@@ -26,29 +29,43 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s upload -config <s3config-file> (--encrypt-with-key <public-key-file>) (-r) [file(s)|folder(s)] (-targetDir <upload-directory>)
 
-upload: Uploads files to the Sensitive Data Archive (SDA). All files to upload
-        are required to be encrypted and have the .c4gh file extension.
+USAGE: %s upload -config <s3config-file> (--encrypt-with-key <public-key-file>) (--force-unencrypted) (-r) [file(s) | folder(s)] (-targetDir <upload-directory>)
+
+
+upload:
+    Uploads files to the Sensitive Data Archive (SDA).  All files
+    to upload are required to be encrypted and have the .c4gh file
+    extension.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help
 var ArgHelp = `
-  [file(s)|folder(s)]
-        all flagless arguments will be used as file or directory names to upload. Directories will be skipped if '-r' is not provided.`
+    [file(s)|folder(s)]
+        All flagless arguments will be used as file or directory names
+        to upload.  Directories will be skipped if '-r' is not provided.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
 var Args = flag.NewFlagSet("upload", flag.ExitOnError)
 
-var configPath = Args.String("config", "", "S3 config file to use for uploading.")
+var configPath = Args.String("config", "",
+	"S3 config file to use for uploading.")
+
+var forceUnencrypted = Args.Bool("force-unencrypted", false, "Force uploading unencrypted files.")
 
 var dirUpload = Args.Bool("r", false, "Upload directories recursively.")
 
-var targetDir = Args.String("targetDir", "", "Upload files|folders into this directory. If flag is omitted, all data will be uploaded in the user's base directory.")
+var targetDir = Args.String("targetDir", "",
+	"Upload files or folders into this directory.  If flag is omitted,\n"+
+		"all data will be uploaded in the user's base directory.")
 
-var pubKeyPath = Args.String("encrypt-with-key", "", "Public key file to use for encryption of files before upload. The key file may optionally contain several\n concatenated public keys. The argument list may include only unencrypted data if this flag is set.")
+var pubKeyPath = Args.String("encrypt-with-key", "",
+	"Public key file to use for encryption of files before upload.\n"+
+		"The key file may optionally contain several concatenated\n"+
+		"public keys.  The argument list may include only unencrypted\n"+
+		"data if this flag is set.")
 
 // Config struct for storing the s3cmd file values
 type Config struct {
@@ -152,6 +169,32 @@ func uploadFiles(files, outFiles []string, targetDir string, config *Config) err
 		return errors.New("no files to upload")
 	}
 
+	// Loop through the list of files and check if they are encrypted
+	// If we run into an unencrypted file and the flag force-unencrypted is not set, we stop the upload
+	for _, filename := range files {
+		f, err := os.Open(path.Clean(filename))
+		if err != nil {
+			return err
+		}
+		// Check if the file is encrypted and warn if not
+		// Extracting the first 8 bytes of the header - crypt4gh
+		magicWord := make([]byte, 8)
+		_, err = f.Read(magicWord)
+		if err != nil {
+			fmt.Printf("error reading input file %s, reason: %v", filename, err)
+		}
+		if string(magicWord) != "crypt4gh" {
+			fmt.Printf("Input file %s is not encrypted\n", filename)
+			log.Infof("input file %s is not encrypted", filepath.Clean(filename))
+			if !*forceUnencrypted {
+				fmt.Println("Quitting...")
+
+				return errors.New("unencrypted file found")
+			}
+			fmt.Println("force-unencrypted flag provided, continuing...")
+		}
+	}
+
 	// The session the S3 Uploader will use
 	sess := session.Must(session.NewSession(&aws.Config{
 		// The region for the backend is always the specified one
@@ -162,12 +205,12 @@ func uploadFiles(files, outFiles []string, targetDir string, config *Config) err
 		DisableSSL:       aws.Bool(!config.UseHTTPS),
 		S3ForcePathStyle: aws.Bool(true),
 	}))
-
 	// Create an uploader with the session and default options
 	uploader := s3manager.NewUploader(sess)
-
 	for k, filename := range files {
 
+		// create progress bar instance
+		p := mpb.New()
 		log.Infof("Uploading %s with config %s\n", filename, *configPath)
 		fmt.Printf("Uploading %s with config %s\n", filename, *configPath)
 
@@ -176,9 +219,33 @@ func uploadFiles(files, outFiles []string, targetDir string, config *Config) err
 			return err
 		}
 
+		fileInfo, err := f.Stat()
+		if err != nil {
+			return err
+		}
+		file := fmt.Sprintf("File %s:", filepath.Base(filename))
+		// Creates a custom reader. The progress bar starts with the file name,
+		// followed by the uploading status and the progress bar itself.
+		// It is marked as done when the upload is complete
+		reader := helpers.CustomReader{
+			Fp:      f,
+			Size:    fileInfo.Size(),
+			SignMap: map[int64]struct{}{},
+			Bar: p.AddBar(fileInfo.Size(),
+				mpb.PrependDecorators(
+					decor.Name(file, decor.WC{W: len(file) + 1, C: decor.DidentRight}),
+					decor.Name("uploading", decor.WCSyncSpaceR),
+					decor.Counters(decor.SizeB1024(0), "% .1f / % .1f"),
+				),
+				mpb.AppendDecorators(
+					decor.OnComplete(decor.Percentage(decor.WC{W: 5}), "done"),
+				),
+			),
+		}
+
 		// Upload the file to S3.
 		result, err := uploader.Upload(&s3manager.UploadInput{
-			Body:            f,
+			Body:            &reader,
 			Bucket:          aws.String(config.AccessKey),
 			Key:             aws.String(targetDir + "/" + outFiles[k]),
 			ContentEncoding: aws.String(config.Encoding),
@@ -187,11 +254,16 @@ func uploadFiles(files, outFiles []string, targetDir string, config *Config) err
 			// Delete parts of failed multipart, since we cannot currently continue them
 			u.LeavePartsOnError = false
 		})
+		// Print the progress bar. Second check is to filter out some junk from the output
+		if result != nil && result.VersionID != nil {
+			fmt.Println(result)
+		}
 		if err != nil {
 			return err
 		}
 		log.Infof("file uploaded to %s\n", string(aws.StringValue(&result.Location)))
 		fmt.Printf("file uploaded to %s\n", string(aws.StringValue(&result.Location)))
+		p.Shutdown()
 	}
 
 	return nil
@@ -267,11 +339,14 @@ func Upload(args []string) error {
 	// Shift flag and their arguments from the end to the beginning
 	// if more boolean flags are added in the future the following needs a slight modification
 	for k := len(args) - 1; k > 0; k-- {
-		if args[len(args)-1][0:1] != "-" && (args[len(args)-2][0:1] != "-" || args[len(args)-2] == "-r") {
+		log.Printf("#%s: %d:", args, k)
+		log.Printf("args[%d][0:1]:%s \nargs[%d][0:1]:%s\n\n", len(args)-1, args[len(args)-1][0:1], len(args)-2, args[len(args)-2])
+		if args[len(args)-1][0:1] != "-" && (args[len(args)-2][0:1] != "-" || args[len(args)-2] == "-r" || args[len(args)-2] == "--force-unencrypted") {
 
 			break
 		}
 		args = append(args[0:1], append(args[len(args)-1:], args[1:len(args)-1]...)...)
+		log.Println("    #args2:", args)
 	}
 
 	err := Args.Parse(args[1:])

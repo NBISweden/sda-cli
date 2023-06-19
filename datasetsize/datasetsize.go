@@ -20,17 +20,19 @@ import (
 var Usage = `
 USAGE: %s datasetsize [url(s) | file]
 
-datasetsize: List files that can be downloaded from the Sensitive Data Archive (SDA).
-	  If a URL is provided (ending with "/" or the urls_list.txt file), then the tool 
-	  will attempt to first download the urls_list.txt file, and then return a list 
-	  of the files with their respective sizes.
+datasetsize:
+    List files that can be downloaded from the Sensitive Data
+    Archive (SDA).  If a URL is provided (ending with "/" or the
+    urls_list.txt file), then the tool will attempt to first download
+    the urls_list.txt file, and then return a list of the files with
+    their respective sizes.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help
 var ArgHelp = `
-  [url]
-        the first flagless argument will be used as file location.`
+    [url]
+        The first flagless argument will be used as file location.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help

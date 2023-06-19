@@ -18,8 +18,8 @@ import (
 
 var Usage = `USAGE: %s <command> [command-args]
 
-This is a helper tool that can help with common tasks when interacting with the
-Sensitive Data Archive (SDA).
+This is a helper tool that can help with common tasks when interacting
+with the Sensitive Data Archive (SDA).
 `
 
 // Map of the sub-commands, and their arguments and usage text strings
@@ -111,7 +111,7 @@ func Help(command string) {
 	info, isLegal := Commands[command]
 	if isLegal {
 		// print subcommand help
-		fmt.Fprintf(os.Stderr, info.usage, os.Args[0])
+		fmt.Fprintf(os.Stderr, info.usage+"\n", os.Args[0])
 		fmt.Fprintln(os.Stderr, "Command line arguments:")
 		info.args.PrintDefaults()
 		fmt.Fprintln(os.Stderr, info.argHelp)
