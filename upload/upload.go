@@ -1,7 +1,6 @@
 package upload
 
 import (
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -9,7 +8,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/NBISweden/sda-cli/encrypt"
 	"github.com/NBISweden/sda-cli/helpers"
@@ -17,11 +15,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"github.com/golang-jwt/jwt"
 	log "github.com/sirupsen/logrus"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
-	"gopkg.in/ini.v1"
 )
 
 // Help text and command line flags.
@@ -29,9 +25,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-
-USAGE: %s upload -config <s3config-file> (--encrypt-with-key <public-key-file>) (--force-unencrypted) (-r) [file(s) | folder(s)] (-targetDir <upload-directory>)
-
+USAGE: %s upload -config <s3config-file> (--encrypt-with-key <public-key-file>) (--force-overwrite) (--force-unencrypted) (-r) [file(s) | folder(s)] (-targetDir <upload-directory>)
 
 upload:
     Uploads files to the Sensitive Data Archive (SDA).  All files
@@ -61,108 +55,16 @@ var targetDir = Args.String("targetDir", "",
 	"Upload files or folders into this directory.  If flag is omitted,\n"+
 		"all data will be uploaded in the user's base directory.")
 
+var forceOverwrite = Args.Bool("force-overwrite", false, "Force overwrite existing files.")
+
 var pubKeyPath = Args.String("encrypt-with-key", "",
 	"Public key file to use for encryption of files before upload.\n"+
 		"The key file may optionally contain several concatenated\n"+
 		"public keys.  The argument list may include only unencrypted\n"+
 		"data if this flag is set.")
 
-// Config struct for storing the s3cmd file values
-type Config struct {
-	AccessKey            string `ini:"access_key"`
-	SecretKey            string `ini:"secret_key"`
-	AccessToken          string `ini:"access_token"`
-	HostBucket           string `ini:"host_bucket"`
-	HostBase             string `ini:"host_base"`
-	MultipartChunkSizeMb int64  `ini:"multipart_chunk_size_mb"`
-	GuessMimeType        bool   `ini:"guess_mime_type"`
-	Encoding             string `ini:"encoding"`
-	CheckSslCertificate  bool   `ini:"check_ssl_certificate"`
-	CheckSslHostname     bool   `ini:"check_ssl_hostname"`
-	UseHTTPS             bool   `ini:"use_https"`
-	SocketTimeout        int    `ini:"socket_timeout"`
-	HumanReadableSizes   bool   `ini:"human_readable_sizes"`
-}
-
-// LoadConfigFile loads ini configuration file to the Config struct
-func LoadConfigFile(path string) (*Config, error) {
-
-	config := &Config{}
-
-	cfg, err := ini.Load(path)
-	if err != nil {
-		return config, err
-	}
-
-	// ini sees a DEFAULT section by default
-	var iniSection string
-	if len(cfg.SectionStrings()) > 1 {
-		iniSection = cfg.SectionStrings()[1]
-	} else {
-		iniSection = cfg.SectionStrings()[0]
-	}
-
-	if err := cfg.Section(iniSection).MapTo(config); err != nil {
-		return nil, err
-	}
-
-	if config.AccessKey == "" || config.AccessToken == "" {
-		return nil, errors.New("failed to find credentials in configuration file")
-	}
-
-	if config.HostBase == "" {
-		return nil, errors.New("failed to find endpoint in configuration file")
-	}
-
-	if config.UseHTTPS {
-		config.HostBase = "https://" + config.HostBase
-	}
-
-	if config.Encoding == "" {
-		config.Encoding = "UTF-8"
-	}
-
-	// Where 15 is the default chunk size of the library
-	if config.MultipartChunkSizeMb <= 15 {
-		config.MultipartChunkSizeMb = 15
-	}
-
-	return config, nil
-}
-
-// CheckTokenExpiration is used to determine whether the token is expiring in less than a day
-func CheckTokenExpiration(accessToken string) (bool, error) {
-
-	// Parse jwt token with unverifies, since we don't need to check the signatures here
-	token, _, err := new(jwt.Parser).ParseUnverified(accessToken, jwt.MapClaims{})
-	if err != nil {
-		return false, fmt.Errorf("could not parse token, reason: %s", err)
-	}
-
-	var expiration time.Time
-	if claims, ok := token.Claims.(jwt.MapClaims); ok {
-		// Check if the token has exp claim
-		if claims["exp"] == nil {
-			return false, fmt.Errorf("could not parse token, reason: no expiration date")
-		}
-		switch iat := claims["exp"].(type) {
-		case float64:
-			expiration = time.Unix(int64(iat), 0)
-		case json.Number:
-			tmp, _ := iat.Int64()
-			expiration = time.Unix(tmp, 0)
-		}
-	} else {
-		return false, fmt.Errorf("broken token (claims are empty): %v\nerror: %s", claims, err)
-	}
-
-	tomorrow := time.Now().AddDate(0, 0, 1)
-
-	return tomorrow.After(expiration), nil
-}
-
 // Function uploadFiles uploads the files in the input list to the s3 bucket
-func uploadFiles(files, outFiles []string, targetDir string, config *Config) error {
+func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Config) error {
 
 	// check also here in case sth went wrong with input files
 	if len(files) == 0 {
@@ -215,6 +117,29 @@ func uploadFiles(files, outFiles []string, targetDir string, config *Config) err
 		f, err := os.Open(path.Clean(filename))
 		if err != nil {
 			return err
+		}
+
+		// Check if files exists in S3
+		var listPrefix string
+		if targetDir != "" {
+			listPrefix = targetDir + "/" + outFiles[k]
+		} else {
+			listPrefix = outFiles[k]
+		}
+		fileExists, err := helpers.ListFiles(*config, listPrefix)
+		if err != nil {
+			log.Error("Couldn't get the file list ", err)
+		}
+		if len(fileExists.Contents) > 0 {
+			if aws.StringValue(fileExists.Contents[0].Key) == filepath.Clean(config.AccessKey+"/"+targetDir+"/"+outFiles[k]) {
+				fmt.Printf("File %s is already uploaded!\n", filepath.Base(filename))
+				if !*forceOverwrite {
+					fmt.Println("Quitting...")
+
+					return errors.New("file already uploaded")
+				}
+				fmt.Println("force-overwrite flag provided, continuing...")
+			}
 		}
 
 		fileInfo, err := f.Stat()
@@ -333,20 +258,8 @@ func Upload(args []string) error {
 	*pubKeyPath = ""
 	*targetDir = ""
 
-	// Shift flag and their arguments from the end to the beginning
-	// if more boolean flags are added in the future the following needs a slight modification
-	for k := len(args) - 1; k > 0; k-- {
-		log.Printf("#%s: %d:", args, k)
-		log.Printf("args[%d][0:1]:%s \nargs[%d][0:1]:%s\n\n", len(args)-1, args[len(args)-1][0:1], len(args)-2, args[len(args)-2])
-		if args[len(args)-1][0:1] != "-" && (args[len(args)-2][0:1] != "-" || args[len(args)-2] == "-r" || args[len(args)-2] == "--force-unencrypted") {
-
-			break
-		}
-		args = append(args[0:1], append(args[len(args)-1:], args[1:len(args)-1]...)...)
-		log.Println("    #args2:", args)
-	}
-
-	err := Args.Parse(args[1:])
+	// Call ParseArgs to take care of all the flag parsing
+	err := helpers.ParseArgs(args, Args)
 	if err != nil {
 		return fmt.Errorf("failed parsing arguments, reason: %v", err)
 	}
@@ -370,12 +283,12 @@ func Upload(args []string) error {
 	}
 
 	// Get the configuration in the struct
-	config, err := LoadConfigFile(*configPath)
+	config, err := helpers.LoadConfigFile(*configPath)
 	if err != nil {
 		return err
 	}
 
-	expiring, err := CheckTokenExpiration(config.AccessToken)
+	expiring, err := helpers.CheckTokenExpiration(config.AccessToken)
 	if err != nil {
 		return err
 	}

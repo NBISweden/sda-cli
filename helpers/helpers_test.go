@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -152,4 +153,155 @@ func (suite *HelperTests) TestParseS3ErrorResponse() {
 	msg, err = ParseS3ErrorResponse(payload)
 	suite.Equal("{Code:AllAccessDisabled Message:All access to this bucket has been disabled. Resource:/minio/test/dummy/data_file1.c4gh}", msg)
 	suite.NoError(err)
+}
+
+func (suite *HelperTests) TestConfigNoFile() {
+	msg := "open nofile.conf: no such file or directory"
+	if runtime.GOOS == "windows" {
+		msg = "open nofile.conf: The system cannot find the file specified."
+	}
+	configPath := "nofile.conf"
+
+	_, err := LoadConfigFile(configPath)
+	assert.EqualError(suite.T(), err, msg)
+}
+
+func (suite *HelperTests) TestConfigWrongFile() {
+	var confFile = `
+access_token = someToken
+access_key = someUser
+host_bucket = someHostBase
+guess_mime_type!True
+encrypt = False
+`
+
+	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer os.Remove(configPath.Name())
+
+	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
+	if err != nil {
+		log.Printf("failed to write temp config file, %v", err)
+	}
+
+	_, err = LoadConfigFile(configPath.Name())
+	assert.EqualError(suite.T(), err, "key-value delimiter not found: guess_mime_type!True\n")
+}
+
+func (suite *HelperTests) TestConfigS3cmdFileFormat() {
+	var confFile = `
+	[some header]
+	access_token = someToken
+	host_base = someHostBase
+	host_bucket = someHostBase
+	secret_key = someUser
+	access_key = someUser
+`
+
+	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer os.Remove(configPath.Name())
+
+	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
+	if err != nil {
+		log.Printf("failed to write temp config file, %v", err)
+	}
+
+	_, err = LoadConfigFile(configPath.Name())
+	assert.NoError(suite.T(), err)
+}
+
+func (suite *HelperTests) TestConfigMissingCredentials() {
+
+	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer os.Remove(configPath.Name())
+
+	_, err = LoadConfigFile(configPath.Name())
+	assert.EqualError(suite.T(), err, "failed to find credentials in configuration file")
+}
+
+func (suite *HelperTests) TestConfigMissingEndpoint() {
+	var confFile = `
+access_token = someToken
+access_key = someUser
+`
+	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer os.Remove(configPath.Name())
+
+	if err := os.WriteFile(configPath.Name(), []byte(confFile), 0600); err != nil {
+		log.Printf("failed to write temp config file, %v", err)
+	}
+
+	_, err = LoadConfigFile(configPath.Name())
+	assert.EqualError(suite.T(), err, "failed to find endpoint in configuration file")
+}
+
+func (suite *HelperTests) TestConfig() {
+	var confFile = `
+access_token = someToken
+host_base = someHostBase
+encoding = UTF-8
+host_bucket = someHostBase
+multipart_chunk_size_mb = 50
+secret_key = someUser
+access_key = someUser
+use_https = True
+check_ssl_certificate = False
+check_ssl_hostname = False
+socket_timeout = 30
+human_readable_sizes = True
+guess_mime_type = True
+encrypt = False
+`
+	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer os.Remove(configPath.Name())
+
+	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
+	if err != nil {
+		log.Printf("failed to write temp config file, %v", err)
+	}
+
+	_, err = LoadConfigFile(configPath.Name())
+	assert.NoError(suite.T(), err)
+}
+
+func (suite *HelperTests) TestTokenExpiration() {
+	// Token without exp claim
+	// #nosec G101
+	token := "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNzA3NDgzOTQ0IiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.7r3JJptaxQpuN0I6JwEdfIchf7OOXu--OMFprfMtwzXl2UpmjGVeGy0LWhuzG4LljA2uAp5SPrWzz_U5YKcjuw"
+	expiring, err := CheckTokenExpiration(token)
+	assert.EqualError(suite.T(), err, "could not parse token, reason: no expiration date")
+	assert.False(suite.T(), expiring)
+
+	// Token with expired date
+	// #nosec G101
+	token = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNzA3NDgzOTQ0IiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwiZXhwIjoxNTE2MjM5MDIyfQ.bjYdbKzzR7jbZpLgm_bCqOr_wuaO8KSCEdVJpKEh1pdJ-7klsHdOwCQoBxbmdVPIVHE0jfEEzc9IvtztTeejmg"
+	expiring, err = CheckTokenExpiration(token)
+	assert.NoError(suite.T(), err)
+	assert.True(suite.T(), expiring)
+
+	// Token with valid expiration
+	// #nosec G101
+	token = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNzA3NDgzOTQ0IiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwiZXhwIjoxNzA3NDgzOTQ0fQ.D7hrpd3ROXp53NnXa0PL9js2Oi1KqpKpkVMic1B23X84ksX9kbbtn4Ad4BkhO8Tm35a5hBu95CGgw5b06sd3LQ"
+	expiring, err = CheckTokenExpiration(token)
+	assert.NoError(suite.T(), err)
+	assert.False(suite.T(), expiring)
 }

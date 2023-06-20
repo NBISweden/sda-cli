@@ -9,6 +9,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
 	github.com/vbauerster/mpb/v8 v8.4.0
+	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1
 	gopkg.in/ini.v1 v1.67.0
 )
 
@@ -26,7 +27,7 @@ require (
 	github.com/shabbyrobe/gocovmerge v0.0.0-20180507124511-f6ea450bfb63 // indirect
 	golang.org/x/crypto v0.9.0 // indirect
 	golang.org/x/sys v0.8.0 // indirect
-	golang.org/x/tools v0.1.12 // indirect
+	golang.org/x/tools v0.2.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
