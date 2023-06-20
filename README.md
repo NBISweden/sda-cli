@@ -70,13 +70,13 @@ Passing a combination of the above arguments is allowed, as well:
 
 ### Download the configuration file
 
-Once your files are encrypted, they are ready to be submitted to the SDA/BP archive. The s3 storage requires users to be authenticated, therefore a configuration files needs to be downloaded before starting the uploading of the files.
+Once your files are encrypted, they are ready to be submitted to the SDA/BP archive. The s3 storage requires users to be authenticated, therefore a configuration file needs to be downloaded before starting the uploading of the files.
 
 The configuration file can be downloaded by logging in with a Life Science RI account:
 
 * For BigPicture use https://login.bp.nbis.se/
 
-The configuration file should be placed in the root folder of the repository.
+Follow the dialogue to get authenticated and then click on `Download inbox s3cmd credentials` to download the configuration file named s3cmd.conf. The configuration file should be placed in the root folder of the repository.
 
 ### Upload file(s)
 
@@ -138,6 +138,8 @@ will first encrypt all files in `<folder_to_upload_with_unencrypted_data>` and t
 - If the input includes encrypted files, the tool will exit without performing further tasks.
 - The encrypted files will be created next to their unencrypted counterparts.
 - The tool will not overwrite existing encrypted files. It will exit early if encrypted counterparts of the source files already exist with the same source path.
+- If the flag `--force-overwrite` is used, the tool will overwrite any already existing file.
+- The cli will exit if the input has any un-encrypred files. To override that, use the flag `--force-unencrypted`.
 
 ## Get dataset size
 
