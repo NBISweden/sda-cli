@@ -92,7 +92,7 @@ func Encrypt(args []string) error {
 	// Make sure to exit with error status if any file is skipped
 	defer func() {
 		if skippedFiles != 0 {
-			log.Errorf("(%d/%d) files skipped", skippedFiles, len(files)+skippedFiles)
+			log.Errorf("(%d/%d) files skipped\n", skippedFiles, len(files)+skippedFiles)
 			os.Exit(1)
 		}
 	}()
@@ -112,7 +112,7 @@ func Encrypt(args []string) error {
 
 		// Skip files that do not pass the checks and print all error logs at the end
 		if err = checkFiles(eachFile); err != nil {
-			defer log.Errorf("Skipping input file %s. Reason: %s.", filename, err)
+			defer log.Errorf("Skipping input file %s. Reason: %s.\n", filename, err)
 			if !*continueEncrypt {
 				return fmt.Errorf("aborting")
 			}

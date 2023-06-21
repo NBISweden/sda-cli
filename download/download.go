@@ -201,10 +201,10 @@ func Download(args []string) error {
 		if err != nil {
 			return err
 		}
-		log.Infof("downloaded file from url %s", fileName)
+		fmt.Printf("downloaded file from url %s\n", fileName)
 	}
 
-	log.Info("finished downloading files from url")
+	fmt.Println("finished downloading files from url")
 
 	return nil
 }
