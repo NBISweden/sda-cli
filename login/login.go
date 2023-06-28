@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -122,6 +123,42 @@ func GetAuthInfo(baseURL string) (*AuthInfo, error) {
 	return &result, nil
 }
 
+// creates a .sda-cli-session file and updates its values
+func (login *DeviceLogin) Session() error {
+	log.Info("Creating session file")
+	file, err := os.Create(".sda-cli-session")
+	if err != nil {
+		return err
+	}
+
+	s3Config, err := login.GetS3Config()
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(file, `access_key = %v
+secret_key = %v
+access_token = %v
+host_bucket = %v
+host_base = %v
+multipart_chunk_size_mb = %v
+guess_mime_type = %v
+check_ssl_certificate = %v
+encoding = %v
+check_ssl_hostname = %v
+use_https = %v
+socket_timeout = %v
+human_readable_sizes = %v`,
+		s3Config.AccessKey, s3Config.SecretKey, s3Config.AccessToken,
+		s3Config.HostBucket, s3Config.HostBase, s3Config.MultipartChunkSizeMb,
+		s3Config.GuessMimeType, s3Config.CheckSslCertificate, s3Config.Encoding,
+		s3Config.CheckSslHostname, s3Config.UseHTTPS, s3Config.SocketTimeout,
+		s3Config.HumanReadableSizes)
+	defer file.Close()
+
+	return nil
+}
+
 // NewDeviceLogin() returns a new `DeviceLogin` with the given `url` and
 // `clientID` set.
 func NewDeviceLogin(args []string) (DeviceLogin, error) {
@@ -169,6 +206,14 @@ func (login *DeviceLogin) Login() error {
 	login.LoginResult = loginResult
 
 	login.UserInfo, err = login.getUserInfo()
+	if err != nil {
+		return err
+	}
+
+	err = login.Session()
+	if err != nil {
+		return err
+	}
 
 	return err
 }
@@ -235,8 +280,7 @@ func (login *DeviceLogin) getUserInfo() (*UserInfo, error) {
 // getWellKnown() makes a GET request to the `.well-known/openid-configuration`
 // endpoint of BaseURL and returns the result as `OIDCWellKnown`.
 func (login *DeviceLogin) getWellKnown() (*OIDCWellKnown, error) {
-	// TODO: remove. hardcoding for testing purposes
-	// login.BaseURL := "https://login.elixir-czech.org/oidc"
+
 	wellKnownURL := fmt.Sprintf("%v/.well-known/openid-configuration", login.BaseURL)
 	log.Println("wellKnownURL: ", wellKnownURL)
 	resp, err := http.Get(wellKnownURL)
@@ -260,9 +304,6 @@ func (login *DeviceLogin) getWellKnown() (*OIDCWellKnown, error) {
 // and sets the login.deviceLogin
 func (login *DeviceLogin) startDeviceLogin() (*DeviceLoginResponse, error) {
 
-	//TODO: remove. hardcoding for testing purposes
-	// login.ClientID = "8b7b0168-6b16-4fd2-baec-b0a28b0d5cb0"
-	// login.S3Target = "s3.bp.nbis.se"
 	loginBody := fmt.Sprintf("response_type=device_code&client_id=%v"+
 		"&scope=openid ga4gh_passport_v1 profile email", login.ClientID)
 

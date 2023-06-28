@@ -70,13 +70,15 @@ Passing a combination of the above arguments is allowed, as well:
 
 ### Download the configuration file
 
-Once your files are encrypted, they are ready to be submitted to the SDA/BP archive. The s3 storage requires users to be authenticated, therefore a configuration files needs to be downloaded before starting the uploading of the files.
+Once your files are encrypted, they are ready to be submitted to the SDA/BP archive. The s3 storage requires users to be authenticated, therefore a configuration file needs to be downloaded before starting the uploading of the files.
 
 The configuration file can be downloaded by logging in with a Life Science RI account:
 
 * For BigPicture use https://login.bp.nbis.se/
 
 The configuration file should be placed in the root folder of the repository.
+
+Alternatively, you can download the configuration file using the login command.
 
 ### Upload file(s)
 
@@ -203,6 +205,17 @@ Given that the instructions in the [download section](#download) have been follo
 ./sda-cli decrypt -key <keypair_name>.sec.pem <file_to_decrypt>
 ```
 where `<keypair_name>.sec.pem` the private key created in the [relevant section](#create-keys) and `<file_to_decrypt>` one of the files downloaded following the instructions of the [download section](#download-file).
+
+## Login
+
+You can login to download the configuration file needed for some of the the tool's operation using the login command:
+```bash
+./sda-cli login <login_target>
+```
+where `login_target` is the URL for the the RI Life Science login, or for Big Picture: https://login.bp.nbis.se/
+
+This will throw a link in the terminal for the user where they can go and log in.
+After the login is complete, a configuration file will be created in the tool's directory with the name of `sda-cli-session`
 
 # Developers' section
 This section contains the information required to install, modify and run the `sda-cli` tool.
