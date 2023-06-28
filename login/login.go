@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/NBISweden/sda-cli/helpers"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -63,7 +62,7 @@ type DeviceLoginResponse struct {
 	ExpiresIn       int    `json:"expires_in"`
 }
 
-type LoginResult struct {
+type Result struct {
 	AccessToken      string `json:"access_token"`
 	IDToken          string `json:"id_token"`
 	Scope            string `json:"scope"`
@@ -89,37 +88,67 @@ type DeviceLogin struct {
 	ClientID        string
 	S3Target        string
 	PollingInterval int
-	LoginResult     *LoginResult
+	LoginResult     *Result
 	UserInfo        *UserInfo
 	wellKnown       *OIDCWellKnown
 	deviceLogin     *DeviceLoginResponse
 }
 
+type AuthInfo struct {
+	ClientID  string `json:"client_id"`
+	OidcURI   string `json:"oidc_uri"`
+	PublicKey string `json:"public_key"`
+	InboxURI  string `json:"inbox_uri"`
+}
+
+// requests the /info endpoint to fetch the parameters needed for login
+func GetAuthInfo(baseURL string) (*AuthInfo, error) {
+	url := baseURL + "/info"
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	var result AuthInfo
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
 // NewDeviceLogin() returns a new `DeviceLogin` with the given `url` and
 // `clientID` set.
-func NewDeviceLogin(url, clientID, s3Target string) DeviceLogin {
-	return DeviceLogin{BaseURL: url, ClientID: clientID, PollingInterval: 2, S3Target: s3Target}
+func NewDeviceLogin(args []string) (DeviceLogin, error) {
+
+	var url string
+	err := Args.Parse(args[1:])
+	if err != nil {
+		return DeviceLogin{}, errors.New("failed parsing arguments")
+	}
+	if len(Args.Args()) == 1 {
+		url = Args.Args()[0]
+	}
+	log.Println("url: ", url)
+	info, err := GetAuthInfo(url)
+	if err != nil {
+		return DeviceLogin{}, errors.New("failed to get auth Info")
+	}
+	log.Println("info: ", info)
+
+	return DeviceLogin{BaseURL: info.OidcURI, ClientID: info.ClientID, PollingInterval: 2, S3Target: info.InboxURI}, nil
 }
 
 // Login() does a full login by fetching the remote configuration, starting the
 // login procedure, and then waiting for the user to complete login.
-func (login *DeviceLogin) Login(args []string) error {
+func (login *DeviceLogin) Login() error {
 
 	var err error
-
-	// Call ParseArgs to take care of all the flag parsing
-	err = helpers.ParseArgs(args, Args)
-	if err != nil {
-		return err
-	}
-
-	// Args() returns the argument, which is the url.
-	url := Args.Args()
-	if len(url) != 1 {
-		return fmt.Errorf("No URL provided as argument")
-	}
-	login.BaseURL = url[0]
-
 	login.wellKnown, err = login.getWellKnown()
 	if err != nil {
 		return fmt.Errorf("failed to fetch .well-known configuration: %v", err)
@@ -147,8 +176,10 @@ func (login *DeviceLogin) Login(args []string) error {
 // S3Config() returns an
 func (login *DeviceLogin) GetS3Config() (*S3Config, error) {
 	if login.LoginResult.AccessToken == "" {
+
 		return nil, errors.New("no login token available for config")
 	}
+
 	return &S3Config{
 		AccessKey:            login.UserInfo.Sub,
 		SecretKey:            login.UserInfo.Sub,
@@ -191,18 +222,23 @@ func (login *DeviceLogin) getUserInfo() (*UserInfo, error) {
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
 		err = fmt.Errorf("status code: %v", resp.StatusCode)
+
 		return nil, fmt.Errorf("request failed: %v", err)
 	}
 
 	var userinfo *UserInfo
 	err = json.Unmarshal(body, &userinfo)
+
 	return userinfo, err
 }
 
 // getWellKnown() makes a GET request to the `.well-known/openid-configuration`
 // endpoint of BaseURL and returns the result as `OIDCWellKnown`.
 func (login *DeviceLogin) getWellKnown() (*OIDCWellKnown, error) {
+	// TODO: remove. hardcoding for testing purposes
+	// login.BaseURL := "https://login.elixir-czech.org/oidc"
 	wellKnownURL := fmt.Sprintf("%v/.well-known/openid-configuration", login.BaseURL)
+	log.Println("wellKnownURL: ", wellKnownURL)
 	resp, err := http.Get(wellKnownURL)
 	if err != nil {
 		return nil, err
@@ -216,6 +252,7 @@ func (login *DeviceLogin) getWellKnown() (*OIDCWellKnown, error) {
 
 	var wellKnownConfig *OIDCWellKnown
 	err = json.Unmarshal(body, &wellKnownConfig)
+
 	return wellKnownConfig, err
 }
 
@@ -223,6 +260,9 @@ func (login *DeviceLogin) getWellKnown() (*OIDCWellKnown, error) {
 // and sets the login.deviceLogin
 func (login *DeviceLogin) startDeviceLogin() (*DeviceLoginResponse, error) {
 
+	//TODO: remove. hardcoding for testing purposes
+	// login.ClientID = "8b7b0168-6b16-4fd2-baec-b0a28b0d5cb0"
+	// login.S3Target = "s3.bp.nbis.se"
 	loginBody := fmt.Sprintf("response_type=device_code&client_id=%v"+
 		"&scope=openid ga4gh_passport_v1 profile email", login.ClientID)
 
@@ -240,6 +280,7 @@ func (login *DeviceLogin) startDeviceLogin() (*DeviceLoginResponse, error) {
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
 		err = fmt.Errorf("status code: %v", resp.StatusCode)
+
 		return nil, fmt.Errorf("request failed: %v", err)
 	}
 
@@ -257,7 +298,7 @@ func (login *DeviceLogin) startDeviceLogin() (*DeviceLoginResponse, error) {
 
 // waitForLogin() waits for the remote OIDC server to verify the completed login
 // by polling
-func (login *DeviceLogin) waitForLogin() (*LoginResult, error) {
+func (login *DeviceLogin) waitForLogin() (*Result, error) {
 
 	body := fmt.Sprintf("grant_type=urn:ietf:params:oauth:grant-type:device_code"+
 		"&client_id=%v&device_code=%v", login.ClientID, login.deviceLogin.DeviceCode)
@@ -286,7 +327,7 @@ func (login *DeviceLogin) waitForLogin() (*LoginResult, error) {
 				return nil, err
 			}
 
-			var loginResult *LoginResult
+			var loginResult *Result
 			err = json.Unmarshal(respBody, &loginResult)
 			if err != nil {
 				return nil, err
@@ -300,5 +341,6 @@ func (login *DeviceLogin) waitForLogin() (*LoginResult, error) {
 			break
 		}
 	}
+
 	return nil, errors.New("login timed out")
 }

@@ -64,17 +64,16 @@ func main() {
 	case "list":
 		err = list.List(args)
 	case "login":
-		url := "https://login.elixir-czech.org/oidc"
-		clientID := "8b7b0168-6b16-4fd2-baec-b0a28b0d5cb0" // sda test
-		target := "s3.bp.nbis.se"
-		deviceLogin := login.NewDeviceLogin(url, clientID, target)
-		err := deviceLogin.Login(args)
+		deviceLogin, err := login.NewDeviceLogin(args)
 		if err != nil {
-			log.Errorf("login failed: %v", err)
-			os.Exit(1)
+			fmt.Fprintf(os.Stderr, "failed to create device login: %v", err)
 		}
-		log.Info("Success")
-		log.Infof("Logged in as %v", deviceLogin.UserInfo.Name)
+		err = deviceLogin.Login()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Login failed: %v\n", err)
+		}
+		fmt.Println("Login Successful")
+		fmt.Printf("Logged in as %v", deviceLogin.UserInfo.Name)
 	default:
 		log.Fatal("Unknown command:", command)
 	}
