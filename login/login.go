@@ -173,6 +173,9 @@ func NewDeviceLogin(args []string) (DeviceLogin, error) {
 	}
 	log.Println("url: ", url)
 	info, err := GetAuthInfo(url)
+	info.ClientID = "8b7b0168-6b16-4fd2-baec-b0a28b0d5cb0"
+	info.InboxURI = "s3.bp.nbis.se"
+	info.OidcURI = "https://login.elixir-czech.org/oidc"
 	if err != nil {
 		return DeviceLogin{}, errors.New("failed to get auth Info")
 	}
@@ -280,7 +283,7 @@ func (login *DeviceLogin) getUserInfo() (*UserInfo, error) {
 // getWellKnown() makes a GET request to the `.well-known/openid-configuration`
 // endpoint of BaseURL and returns the result as `OIDCWellKnown`.
 func (login *DeviceLogin) getWellKnown() (*OIDCWellKnown, error) {
-
+	login.BaseURL = "https://login.elixir-czech.org/oidc"
 	wellKnownURL := fmt.Sprintf("%v/.well-known/openid-configuration", login.BaseURL)
 	log.Println("wellKnownURL: ", wellKnownURL)
 	resp, err := http.Get(wellKnownURL)
