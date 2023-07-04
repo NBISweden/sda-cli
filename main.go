@@ -71,9 +71,10 @@ func main() {
 		err = deviceLogin.Login()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Login failed: %v\n", err)
+		} else {
+			fmt.Println("Login Successful")
+			fmt.Printf("Logged in as %v", deviceLogin.UserInfo.Name)
 		}
-		fmt.Println("Login Successful")
-		fmt.Printf("Logged in as %v", deviceLogin.UserInfo.Name)
 	default:
 		log.Fatal("Unknown command:", command)
 	}

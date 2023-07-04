@@ -12,6 +12,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/ini.v1"
 )
 
 // Help text and command line flags.
@@ -124,9 +125,13 @@ func GetAuthInfo(baseURL string) (*AuthInfo, error) {
 }
 
 // creates a .sda-cli-session file and updates its values
-func (login *DeviceLogin) Session() error {
-	log.Info("Creating session file")
-	file, err := os.Create(".sda-cli-session")
+func (login *DeviceLogin) UpdateConfigFile() error {
+
+	_, err := os.Create(".sda-cli-session")
+	if err != nil {
+		return err
+	}
+	cfg, err := ini.Load(".sda-cli-session")
 	if err != nil {
 		return err
 	}
@@ -136,25 +141,14 @@ func (login *DeviceLogin) Session() error {
 		return err
 	}
 
-	fmt.Fprintf(file, `access_key = %v
-secret_key = %v
-access_token = %v
-host_bucket = %v
-host_base = %v
-multipart_chunk_size_mb = %v
-guess_mime_type = %v
-check_ssl_certificate = %v
-encoding = %v
-check_ssl_hostname = %v
-use_https = %v
-socket_timeout = %v
-human_readable_sizes = %v`,
-		s3Config.AccessKey, s3Config.SecretKey, s3Config.AccessToken,
-		s3Config.HostBucket, s3Config.HostBase, s3Config.MultipartChunkSizeMb,
-		s3Config.GuessMimeType, s3Config.CheckSslCertificate, s3Config.Encoding,
-		s3Config.CheckSslHostname, s3Config.UseHTTPS, s3Config.SocketTimeout,
-		s3Config.HumanReadableSizes)
-	defer file.Close()
+	err = ini.ReflectFrom(cfg, s3Config)
+	if err != nil {
+		return err
+	}
+	err = cfg.SaveTo(".sda-cli-session")
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -213,7 +207,7 @@ func (login *DeviceLogin) Login() error {
 		return err
 	}
 
-	err = login.Session()
+	err = login.UpdateConfigFile()
 	if err != nil {
 		return err
 	}
