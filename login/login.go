@@ -8,10 +8,11 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"gopkg.in/ini.v1"
 )
 
@@ -31,7 +32,10 @@ login:
 // the module help
 var ArgHelp = `
     [login-target]
-        The login target can be one of the following: bp.nbis.se`
+        The login target can be one of the following: 
+			https://login.bp.nbis.se/
+			https://login.test.fega.nbis.se/
+			https://login.gdi.nbis.se/`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
@@ -153,6 +157,20 @@ func (login *DeviceLogin) UpdateConfigFile() error {
 	return nil
 }
 
+func NewLogin(args []string) error {
+	deviceLogin, err := NewDeviceLogin(args)
+	if err != nil {
+		return fmt.Errorf("failed to contact authentication service")
+	}
+	err = deviceLogin.Login()
+	if err != nil {
+		return fmt.Errorf("Login failed")
+	}
+	fmt.Printf("Logged in as %v\n", deviceLogin.UserInfo.Name)
+
+	return err
+}
+
 // NewDeviceLogin() returns a new `DeviceLogin` with the given `url` and
 // `clientID` set.
 func NewDeviceLogin(args []string) (DeviceLogin, error) {
@@ -165,17 +183,31 @@ func NewDeviceLogin(args []string) (DeviceLogin, error) {
 	if len(Args.Args()) == 1 {
 		url = Args.Args()[0]
 	}
-	log.Println("url: ", url)
 	info, err := GetAuthInfo(url)
-	info.ClientID = "8b7b0168-6b16-4fd2-baec-b0a28b0d5cb0"
-	info.InboxURI = "s3.bp.nbis.se"
-	info.OidcURI = "https://login.elixir-czech.org/oidc"
 	if err != nil {
 		return DeviceLogin{}, errors.New("failed to get auth Info")
 	}
-	log.Println("info: ", info)
 
 	return DeviceLogin{BaseURL: info.OidcURI, ClientID: info.ClientID, PollingInterval: 2, S3Target: info.InboxURI}, nil
+}
+
+// open opens the specified URL in the default browser of the user.
+func open(url string) error {
+	var cmd string
+	var args []string
+
+	switch runtime.GOOS {
+	case "windows":
+		cmd = "cmd"
+		args = []string{"/c", "start"}
+	case "darwin":
+		cmd = "open"
+	default: // "linux", "freebsd", "openbsd", "netbsd"
+		cmd = "xdg-open"
+	}
+	args = append(args, url)
+
+	return exec.Command(cmd, args...).Start()
 }
 
 // Login() does a full login by fetching the remote configuration, starting the
@@ -193,8 +225,12 @@ func (login *DeviceLogin) Login() error {
 		return fmt.Errorf("failed to start device login: %v", err)
 	}
 	expires := time.Duration(login.deviceLogin.ExpiresIn * int(time.Second))
-	log.Infof("Login started (expires in %v minutes)", expires.Minutes())
-	log.Infof("Go to %v to finish logging in.", login.deviceLogin.VerificationURL)
+	fmt.Printf("Login started (expires in %v minutes)\n", expires.Minutes())
+
+	err = open(login.deviceLogin.VerificationURL)
+	if err != nil {
+		return fmt.Errorf("failed to open login URL: %v", err)
+	}
 
 	loginResult, err := login.waitForLogin()
 	if err != nil {
@@ -277,9 +313,8 @@ func (login *DeviceLogin) getUserInfo() (*UserInfo, error) {
 // getWellKnown() makes a GET request to the `.well-known/openid-configuration`
 // endpoint of BaseURL and returns the result as `OIDCWellKnown`.
 func (login *DeviceLogin) getWellKnown() (*OIDCWellKnown, error) {
-	login.BaseURL = "https://login.elixir-czech.org/oidc"
+
 	wellKnownURL := fmt.Sprintf("%v/.well-known/openid-configuration", login.BaseURL)
-	log.Println("wellKnownURL: ", wellKnownURL)
 	resp, err := http.Get(wellKnownURL)
 	if err != nil {
 		return nil, err

@@ -64,17 +64,7 @@ func main() {
 	case "list":
 		err = list.List(args)
 	case "login":
-		deviceLogin, err := login.NewDeviceLogin(args)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to create device login: %v", err)
-		}
-		err = deviceLogin.Login()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Login failed: %v\n", err)
-		} else {
-			fmt.Println("Login Successful")
-			fmt.Printf("Logged in as %v", deviceLogin.UserInfo.Name)
-		}
+		err = login.NewLogin(args)
 	default:
 		log.Fatal("Unknown command:", command)
 	}

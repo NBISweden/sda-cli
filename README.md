@@ -78,7 +78,7 @@ The configuration file can be downloaded by logging in with a Life Science RI ac
 
 The configuration file should be placed in the root folder of the repository.
 
-Alternatively, you can download the configuration file using the login command.
+Alternatively, you can download the configuration file using the [login command](#Login).
 
 ### Upload file(s)
 
@@ -212,10 +212,10 @@ You can login to download the configuration file needed for some of the the tool
 ```bash
 ./sda-cli login <login_target>
 ```
-where `login_target` is the URL for the the RI Life Science login, or for Big Picture: https://login.bp.nbis.se/
+where `login_target` is the URL can be the login endpoint for Big Picture (https://login.bp.nbis.se/), Federated EGA (https://login.test.fega.nbis.se/) or Genomic Data Infrastructure (https://login.gdi.nbis.se/)
 
 This will throw a link in the terminal for the user where they can go and log in.
-After the login is complete, a configuration file will be created in the tool's directory with the name of `sda-cli-session`
+After the login is complete, a configuration file will be created in the tool's directory with the name of `.sda-cli-session`
 
 # Developers' section
 This section contains the information required to install, modify and run the `sda-cli` tool.
