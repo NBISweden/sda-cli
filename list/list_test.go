@@ -39,7 +39,7 @@ func (suite *TestSuite) TestNoConfig() {
 	os.Args = []string{"list", "-config", ""}
 
 	err := List(os.Args)
-	assert.EqualError(suite.T(), err, "failed to find an s3 configuration file for listing data")
+	assert.EqualError(suite.T(), err, "failed to load config file, reason: failed to read the configuration file")
 }
 
 func (suite *TestSuite) TestTooManyArgs() {

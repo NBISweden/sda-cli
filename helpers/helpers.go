@@ -275,6 +275,19 @@ func LoadConfigFile(path string) (*Config, error) {
 	return config, nil
 }
 
+// GetAuth calls LoadConfig if we have a config file, otherwise try to load .sda-cli-session
+func GetAuth(path string) (*Config, error) {
+
+	if path != "" {
+		return LoadConfigFile(path)
+	}
+	if FileExists(".sda-cli-session") {
+		return LoadConfigFile(".sda-cli-session")
+	}
+
+	return nil, errors.New("failed to read the configuration file")
+}
+
 // CheckTokenExpiration is used to determine whether the token is expiring in less than a day
 func CheckTokenExpiration(accessToken string) (bool, error) {
 
