@@ -15,7 +15,7 @@ import (
 // Help text and command line flags.
 
 // Usage text that will be displayed as command line help text when using the
-// `help download` command
+// `help list` command
 var Usage = `
 USAGE: %s list -config <s3config-file> [prefix]
 
