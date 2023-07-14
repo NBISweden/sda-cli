@@ -38,13 +38,14 @@ wget https://raw.githubusercontent.com/NBISweden/EGA-SE-user-docs/main/crypt4gh_
 
 Now that the public key is downloaded, the file(s) can be encrypted using the binary file created in the first step of this guide. To encrypt a specific file, use the following command:
 ```bash
-./sda-cli encrypt -key <public_key> <file_to_encrypt>
+./sda-cli encrypt [-key <public_key>] <file_to_encrypt>
 ```
 where `<public_key>` the key downloaded in the previous step. The tool also allows for encrypting multiple files at once, by listing them separated with space like:
 ```bash
 ./sda-cli encrypt -key <public_key> <file_1_to_encrypt> <file_2_to_encrypt> <file_3_to_encrypt>
 ```
 This command comes with the `-continue` option, which will continue encrypting files, even if one of them fails. To enable this feature, the command should be executed with the `-continue=true` option.
+If no public key is provided, the tool will look for it from a previous login session.
 
 ### Encrypt file(s) with multiple keys
 
