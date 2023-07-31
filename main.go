@@ -81,14 +81,16 @@ func main() {
 func ParseArgs() (string, []string) {
 
 	// Print usage if no arguments are provided
-	if os.Args[1] == "version" || os.Args[1] == "-v" || os.Args[1] == "--ver" {
+	if len(os.Args) < 2 {
+		Help("help")
+	}
+
+	if os.Args[1] == "version" || os.Args[1] == "-v" || os.Args[1] == "--version" {
 		if len(os.Args) != 2 {
 			Help("version")
 		}
 
 		return "version", os.Args
-	} else if len(os.Args) < 2 {
-		Help("help")
 	}
 
 	// Extract `command` from arg 1, then remove it from the flag list.
