@@ -206,6 +206,12 @@ Given that the instructions in the [download section](#download) have been follo
 ```
 where `<keypair_name>.sec.pem` the private key created in the [relevant section](#create-keys) and `<file_to_decrypt>` one of the files downloaded following the instructions of the [download section](#download-file).
 
+## Version
+You can get the current version of the sda-cli by running:
+```bash
+./sda-cli version
+```
+
 # Developers' section
 This section contains the information required to install, modify and run the `sda-cli` tool.
 

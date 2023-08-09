@@ -13,8 +13,11 @@ import (
 	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/NBISweden/sda-cli/list"
 	"github.com/NBISweden/sda-cli/upload"
+	"github.com/NBISweden/sda-cli/version"
 	log "github.com/sirupsen/logrus"
 )
+
+var Version = "development"
 
 var Usage = `USAGE: %s <command> [command-args]
 
@@ -37,6 +40,7 @@ var Commands = map[string]commandInfo{
 	"upload":      {upload.Args, upload.Usage, upload.ArgHelp},
 	"datasetsize": {datasetsize.Args, datasetsize.Usage, datasetsize.ArgHelp},
 	"list":        {list.Args, list.Usage, list.ArgHelp},
+	"version":     {version.Args, version.Usage, version.ArgHelp},
 }
 
 // Main does argument parsing, then delegates to one of the sub modules
@@ -62,6 +66,8 @@ func main() {
 		err = datasetsize.DatasetSize(args)
 	case "list":
 		err = list.List(args)
+	case "version":
+		err = version.Version(Version)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s", command)
 	}
@@ -77,6 +83,14 @@ func ParseArgs() (string, []string) {
 	// Print usage if no arguments are provided
 	if len(os.Args) < 2 {
 		Help("help")
+	}
+
+	if os.Args[1] == "version" || os.Args[1] == "-v" || os.Args[1] == "--version" {
+		if len(os.Args) != 2 {
+			Help("version")
+		}
+
+		return "version", os.Args
 	}
 
 	// Extract `command` from arg 1, then remove it from the flag list.

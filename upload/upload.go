@@ -23,7 +23,7 @@ import (
 // Help text and command line flags.
 
 // Usage text that will be displayed as command line help text when using the
-// `help download` command
+// `help upload` command
 var Usage = `
 USAGE: %s upload -config <s3config-file> (--encrypt-with-key <public-key-file>) (--force-overwrite) (--force-unencrypted) (-r) [file(s) | folder(s)] (-targetDir <upload-directory>)
 
