@@ -163,7 +163,7 @@ func Download(args []string) error {
 	// Call ParseArgs to take care of all the flag parsing
 	err := helpers.ParseArgs(args, Args)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed parsing arguments, reason: %v", err)
 	}
 
 	// Args() returns the non-flag arguments, which we assume are filenames.
@@ -201,10 +201,10 @@ func Download(args []string) error {
 		if err != nil {
 			return err
 		}
-		log.Infof("downloaded file from url %s", fileName)
+		fmt.Printf("downloaded file from url %s\n", fileName)
 	}
 
-	log.Info("finished downloading files from url")
+	fmt.Println("finished downloading files from url")
 
 	return nil
 }

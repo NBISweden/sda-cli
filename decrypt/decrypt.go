@@ -49,7 +49,7 @@ func Decrypt(args []string) error {
 	// Call ParseArgs to take care of all the flag parsing
 	err := helpers.ParseArgs(args, Args)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed parsing arguments, reason: %v", err)
 	}
 
 	// format input and output files

@@ -76,7 +76,7 @@ The configuration file can be downloaded by logging in with a Life Science RI ac
 
 * For BigPicture use https://login.bp.nbis.se/
 
-The configuration file should be placed in the root folder of the repository.
+Follow the dialogue to get authenticated and then click on `Download inbox s3cmd credentials` to download the configuration file named s3cmd.conf. The configuration file should be placed in the root folder of the repository.
 
 Alternatively, you can download the configuration file using the [login command](#Login).
 
@@ -140,6 +140,8 @@ will first encrypt all files in `<folder_to_upload_with_unencrypted_data>` and t
 - If the input includes encrypted files, the tool will exit without performing further tasks.
 - The encrypted files will be created next to their unencrypted counterparts.
 - The tool will not overwrite existing encrypted files. It will exit early if encrypted counterparts of the source files already exist with the same source path.
+- If the flag `--force-overwrite` is used, the tool will overwrite any already existing file.
+- The cli will exit if the input has any un-encrypred files. To override that, use the flag `--force-unencrypted`.
 
 ## Get dataset size
 
@@ -206,6 +208,7 @@ Given that the instructions in the [download section](#download) have been follo
 ```
 where `<keypair_name>.sec.pem` the private key created in the [relevant section](#create-keys) and `<file_to_decrypt>` one of the files downloaded following the instructions of the [download section](#download-file).
 
+
 ## Login
 
 You can login to download the configuration file needed for some of the the tool's operation using the login command:
@@ -214,8 +217,15 @@ You can login to download the configuration file needed for some of the the tool
 ```
 where `login_target` is the URL can be the login endpoint for Big Picture (https://login.bp.nbis.se/), Federated EGA (https://login.test.fega.nbis.se/) or Genomic Data Infrastructure (https://login.gdi.nbis.se/)
 
-This will throw a link in the terminal for the user where they can go and log in.
+This will open a link for the user where they can go and log in.
 After the login is complete, a configuration file will be created in the tool's directory with the name of `.sda-cli-session`
+
+## Version
+You can get the current version of the sda-cli by running:
+```bash
+./sda-cli version
+```
+
 
 # Developers' section
 This section contains the information required to install, modify and run the `sda-cli` tool.
