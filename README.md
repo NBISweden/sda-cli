@@ -78,6 +78,8 @@ The configuration file can be downloaded by logging in with a Life Science RI ac
 
 Follow the dialogue to get authenticated and then click on `Download inbox s3cmd credentials` to download the configuration file named s3cmd.conf. The configuration file should be placed in the root folder of the repository.
 
+Alternatively, you can download the configuration file using the [login command](#Login).
+
 ### Upload file(s)
 
 Now that the configuration file is downloaded, the file(s) can be uploaded to the archive using the binary file created in the first step of this guide. To upload a specific file, use the following command:
@@ -206,11 +208,24 @@ Given that the instructions in the [download section](#download) have been follo
 ```
 where `<keypair_name>.sec.pem` the private key created in the [relevant section](#create-keys) and `<file_to_decrypt>` one of the files downloaded following the instructions of the [download section](#download-file).
 
+
+## Login
+
+You can login to download the configuration file needed for some of the the tool's operation using the login command:
+```bash
+./sda-cli login <login_target>
+```
+where `login_target` is the URL can be the login endpoint for Big Picture (https://login.bp.nbis.se/), Federated EGA (https://login.test.fega.nbis.se/) or Genomic Data Infrastructure (https://login.gdi.nbis.se/)
+
+This will open a link for the user where they can go and log in.
+After the login is complete, a configuration file will be created in the tool's directory with the name of `.sda-cli-session`
+
 ## Version
 You can get the current version of the sda-cli by running:
 ```bash
 ./sda-cli version
 ```
+
 
 # Developers' section
 This section contains the information required to install, modify and run the `sda-cli` tool.
