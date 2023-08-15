@@ -17,12 +17,13 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help list` command
 var Usage = `
-USAGE: %s list -config <s3config-file> [prefix]
+USAGE: %s list [-config <s3config-file>] [prefix]
 
 list:
     Lists recursively all files under the user's folder in the Sensitive
     Data Archive (SDA).  If the [prefix] parameter is used, only the
-    files under the specified path will be returned.
+    files under the specified path will be returned. If no config is
+	specified, the tool will look for a previous session.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
@@ -53,13 +54,8 @@ func List(args []string) error {
 		prefix = Args.Args()[0]
 	}
 
-	// Check that the s3 configuration file path exists
-	if *configPath == "" {
-		return errors.New("failed to find an s3 configuration file for listing data")
-	}
-
-	// Get the configuration in the struct
-	config, err := helpers.LoadConfigFile(*configPath)
+	// // Get the configuration file or the .sda-cli-session
+	config, err := helpers.GetAuth(*configPath)
 	if err != nil {
 		return fmt.Errorf("failed to load config file, reason: %v", err)
 	}

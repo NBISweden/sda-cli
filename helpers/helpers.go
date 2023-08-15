@@ -296,6 +296,13 @@ func GetPublicKey() (string, error) {
 		return "", errors.New("configuration file (.sda-cli-session) not found")
 	}
 
+	if FileExists(".sda-cli-session") {
+		file, err := os.Open(".sda-cli-session")
+		if err != nil {
+			fmt.Println("could not read file:", file)
+		}
+	}
+
 	// Load the configuration file
 	config, err := LoadConfigFile(".sda-cli-session")
 	if err != nil {

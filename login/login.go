@@ -133,10 +133,11 @@ func GetAuthInfo(baseURL string) (*AuthInfo, error) {
 // creates a .sda-cli-session file and updates its values
 func (login *DeviceLogin) UpdateConfigFile() error {
 
-	_, err := os.Create(".sda-cli-session")
+	out, err := os.Create(".sda-cli-session")
 	if err != nil {
 		return err
 	}
+
 	cfg, err := ini.Load(".sda-cli-session")
 	if err != nil {
 		return err
@@ -155,6 +156,7 @@ func (login *DeviceLogin) UpdateConfigFile() error {
 	if err != nil {
 		return err
 	}
+	defer out.Close()
 
 	return nil
 }

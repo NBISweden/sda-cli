@@ -161,13 +161,14 @@ where `urls_file` as described above.
 
 The uploaded files can be listed using the `list` parameter. This feature returns all the files in the user's bucket recursively and can be executed using:
 ```bash
-./sda-cli list -config <configuration_file>
+./sda-cli list [-config <configuration_file>]
 ```
  It also allows for requesting files/filepaths with a specified prefix using:
  ```bash
-./sda-cli list -config <configuration_file> <prefix>
+./sda-cli list [-config <configuration_file>] <prefix>
 ```
 This command will return any file/path starting with the defined `<prefix>`.
+If no config is given by the user, the tool will look for a previous login from the user.
 
 ## Download
 

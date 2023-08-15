@@ -80,7 +80,7 @@ func Encrypt(args []string) error {
 
 		sesKey, err := helpers.GetPublicKey()
 		if err != nil {
-			return fmt.Errorf("public key not provided, details: %v", err)
+			return fmt.Errorf("public key not provided or %v", err)
 		}
 		publicKeyFileList = append(publicKeyFileList, sesKey)
 	}
