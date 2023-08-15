@@ -113,6 +113,12 @@ func ParseArgs() (string, []string) {
 		Help(subcommand)
 	}
 
+	// list command can have no arguments since it can use the config from login
+	// so we immediately return in that case
+	if command == "list" {
+		return command, os.Args
+	}
+
 	// If no arguments are provided to the subcommand, it's not gonna be valid,
 	// so we print the subcommand help
 	if len(os.Args) == 1 {

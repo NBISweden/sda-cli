@@ -280,13 +280,8 @@ func Upload(args []string) error {
 		return errors.New(*targetDir + " is not a valid target directory")
 	}
 
-	// Check that we have an s3 configuration file
-	if *configPath == "" {
-		return errors.New("failed to find an s3 configuration file for uploading data")
-	}
-
-	// Get the configuration in the struct
-	config, err := helpers.LoadConfigFile(*configPath)
+	// Get the configuration file or the .sda-cli-session
+	config, err := helpers.GetAuth(*configPath)
 	if err != nil {
 		return err
 	}
