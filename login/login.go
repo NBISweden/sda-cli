@@ -55,6 +55,7 @@ type S3Config struct {
 	UseHTTPS             bool   `ini:"use_https"`
 	SocketTimeout        int    `ini:"socket_timeout"`
 	HumanReadableSizes   bool   `ini:"human_readable_sizes"`
+	PublicKey            string `ini:"public_key"`
 }
 
 type OIDCWellKnown struct {
@@ -93,6 +94,7 @@ type DeviceLogin struct {
 	BaseURL         string
 	ClientID        string
 	S3Target        string
+	PublicKey       string
 	PollingInterval int
 	LoginResult     *Result
 	UserInfo        *UserInfo
@@ -131,10 +133,11 @@ func GetAuthInfo(baseURL string) (*AuthInfo, error) {
 // creates a .sda-cli-session file and updates its values
 func (login *DeviceLogin) UpdateConfigFile() error {
 
-	_, err := os.Create(".sda-cli-session")
+	out, err := os.Create(".sda-cli-session")
 	if err != nil {
 		return err
 	}
+
 	cfg, err := ini.Load(".sda-cli-session")
 	if err != nil {
 		return err
@@ -153,6 +156,7 @@ func (login *DeviceLogin) UpdateConfigFile() error {
 	if err != nil {
 		return err
 	}
+	defer out.Close()
 
 	return nil
 }
@@ -188,7 +192,7 @@ func NewDeviceLogin(args []string) (DeviceLogin, error) {
 		return DeviceLogin{}, errors.New("failed to get auth Info")
 	}
 
-	return DeviceLogin{BaseURL: info.OidcURI, ClientID: info.ClientID, PollingInterval: 2, S3Target: info.InboxURI}, nil
+	return DeviceLogin{BaseURL: info.OidcURI, ClientID: info.ClientID, PollingInterval: 2, S3Target: info.InboxURI, PublicKey: info.PublicKey}, nil
 }
 
 // open opens the specified URL in the default browser of the user.
@@ -251,7 +255,7 @@ func (login *DeviceLogin) Login() error {
 	return err
 }
 
-// S3Config() returns an
+// S3Config() returns a new `S3Config` with the values from the `DeviceLogin`
 func (login *DeviceLogin) GetS3Config() (*S3Config, error) {
 	if login.LoginResult.AccessToken == "" {
 
@@ -264,6 +268,7 @@ func (login *DeviceLogin) GetS3Config() (*S3Config, error) {
 		AccessToken:          login.LoginResult.AccessToken,
 		HostBucket:           login.S3Target,
 		HostBase:             login.S3Target,
+		PublicKey:            login.PublicKey,
 		MultipartChunkSizeMb: 512,
 		GuessMimeType:        false,
 		Encoding:             "UTF-8",

@@ -305,3 +305,75 @@ func (suite *HelperTests) TestTokenExpiration() {
 	assert.NoError(suite.T(), err)
 	assert.False(suite.T(), expiring)
 }
+
+func (suite *HelperTests) TestPubKeyEmptyField() {
+	var confFile = `
+access_token = someToken
+host_base = someHostBase
+encoding = UTF-8
+host_bucket = someHostBase
+multipart_chunk_size_mb = 50
+secret_key = someUser
+access_key = someUser
+use_https = True
+check_ssl_certificate = False
+check_ssl_hostname = False
+socket_timeout = 30
+human_readable_sizes = True
+guess_mime_type = True
+encrypt = False
+`
+	configPath, err := os.Create(".sda-cli-session")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer os.Remove(configPath.Name())
+
+	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
+	if err != nil {
+		log.Printf("failed to write temp config file, %v", err)
+	}
+
+	_, err = GetPublicKey()
+	assert.EqualError(suite.T(), err, "public key not found in the configuration")
+}
+
+func (suite *HelperTests) TestGetPublicKey() {
+
+	var confFile = `
+access_token = someToken
+host_base = someHostBase
+encoding = UTF-8
+host_bucket = someHostBase
+multipart_chunk_size_mb = 50
+secret_key = someUser
+access_key = someUser
+use_https = True
+check_ssl_certificate = False
+check_ssl_hostname = False
+socket_timeout = 30
+human_readable_sizes = True
+guess_mime_type = True
+encrypt = False
+public_key = 27be42445fd9e39c9be39e6b36a55e61e3801fc845f63781a813d3fe9977e17a
+`
+	configPath, err := os.Create(".sda-cli-session")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer os.Remove(configPath.Name())
+
+	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
+	if err != nil {
+		log.Printf("failed to write temp config file, %v", err)
+	}
+
+	_, err = GetPublicKey()
+	assert.NoError(suite.T(), err)
+
+	if assert.FileExists(suite.T(), "key-from-oidc.pub.pem") {
+		os.Remove("key-from-oidc.pub.pem")
+	}
+}

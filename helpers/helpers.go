@@ -19,6 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/golang-jwt/jwt"
 	"github.com/manifoldco/promptui"
+	"github.com/neicnordic/crypt4gh/keys"
 	log "github.com/sirupsen/logrus"
 	"github.com/vbauerster/mpb/v8"
 	"golang.org/x/exp/slices"
@@ -227,6 +228,7 @@ type Config struct {
 	UseHTTPS             bool   `ini:"use_https"`
 	SocketTimeout        int    `ini:"socket_timeout"`
 	HumanReadableSizes   bool   `ini:"human_readable_sizes"`
+	PublicKey            string `ini:"public_key"`
 }
 
 // LoadConfigFile loads ini configuration file to the Config struct
@@ -286,6 +288,57 @@ func GetAuth(path string) (*Config, error) {
 	}
 
 	return nil, errors.New("failed to read the configuration file")
+}
+
+func GetPublicKey() (string, error) {
+	// Check if the ".sda-cli-session" file exists
+	if !FileExists(".sda-cli-session") {
+		return "", errors.New("configuration file (.sda-cli-session) not found")
+	}
+
+	if FileExists(".sda-cli-session") {
+		file, err := os.Open(".sda-cli-session")
+		if err != nil {
+			fmt.Println("could not read file:", file)
+		}
+	}
+
+	// Load the configuration file
+	config, err := LoadConfigFile(".sda-cli-session")
+	if err != nil {
+		return "", fmt.Errorf("failed to load configuration file: %w", err)
+	}
+
+	// Check if the PublicKey field is present in the config
+	if config.PublicKey == "" {
+		return "", errors.New("public key not found in the configuration")
+	}
+
+	// Create a fixed-size array to hold the public key data
+	var publicKeyData [32]byte
+	b := []byte(config.PublicKey)
+	copy(publicKeyData[:], b)
+
+	// Open or create a file named "key-from-oidc.pub.pem" in write-only mode with file permissions 0600
+	pubFile, err := os.OpenFile(filepath.Clean("key-from-oidc.pub.pem"), os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		return "", fmt.Errorf("failed to open or create the public key file: %w", err)
+	}
+	defer func() {
+		// Close the file and log any error that may occur
+		if cerr := pubFile.Close(); cerr != nil {
+			log.Errorf("Error closing file: %s\n", cerr)
+		}
+	}()
+
+	// Write the publicKeyData array to the "key-from-oidc.pub.pem" file in Crypt4GHX25519 public key format
+	err = keys.WriteCrypt4GHX25519PublicKey(pubFile, publicKeyData)
+	if err != nil {
+		return "", fmt.Errorf("failed to write the public key data: %w", err)
+	}
+
+	// If everything is successful, return the name of the generated public key file
+	return "key-from-oidc.pub.pem", nil
 }
 
 // CheckTokenExpiration is used to determine whether the token is expiring in less than a day

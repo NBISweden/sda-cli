@@ -75,9 +75,14 @@ func Encrypt(args []string) error {
 		return err
 	}
 
-	// Exit if public key is not provided
+	// no key provided, check for one in the session file
 	if len(publicKeyFileList) == 0 {
-		return fmt.Errorf("public key not provided")
+
+		sesKey, err := helpers.GetPublicKey()
+		if err != nil {
+			return fmt.Errorf("public key not provided or %v", err)
+		}
+		publicKeyFileList = append(publicKeyFileList, sesKey)
 	}
 
 	// Each filename is first read into a helper struct (sliced for combatibility with checkFiles)
