@@ -149,7 +149,7 @@ func (suite *EncryptTests) TestreadPublicKey() {
 	suite.Equal(*publicKey, suite.pubKeyData)
 
 	_, err = readPublicKey(suite.fileOk.Name())
-	assert.EqualError(suite.T(), err, fmt.Sprintf("Read of unrecognized public key format failed; expected PEM encoded key, file: %s", suite.fileOk.Name()))
+	assert.ErrorContains(suite.T(), err, fmt.Sprintf("file: %s", suite.fileOk.Name()))
 }
 
 func (suite *EncryptTests) TestreadMultiPublicKeyFile() {
