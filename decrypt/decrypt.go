@@ -138,15 +138,10 @@ func readPrivateKey(filename, password string) (key *[32]byte, err error) {
 		return nil, err
 	}
 
-	// This function panics if the key is malformed, so we handle that as well
-	// as errors
-	defer func() {
-		if recover() != nil {
-			err = fmt.Errorf("malformed key file: %s", filename)
-		}
-	}()
-
 	privateKey, err := keys.ReadPrivateKey(file, []byte(password))
+	if err != nil {
+		return nil, fmt.Errorf(err.Error()+", file: %s", filename)
+	}
 
 	return &privateKey, err
 }

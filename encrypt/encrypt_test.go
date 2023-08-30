@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"runtime"
-	"strings"
 	"testing"
 
 	"github.com/NBISweden/sda-cli/helpers"
@@ -145,20 +144,12 @@ func (suite *EncryptTests) TestreadPublicKey() {
 		log.Fatal(err)
 	}
 	defer file.Close()
-	publicKey, err := readPublicKey(file)
-	assert.NoError(suite.T(), err)
-	suite.Equal(publicKey, suite.pubKeyData)
-
-	malformedKey := "-----BEGIN CRYPT4GH PUBLIC KEY-----\nvery bad\n-----END CRYPT4GH PUBLIC KEY-----"
-	badFile := strings.NewReader(malformedKey)
-	_, err = readPublicKey(badFile)
-	assert.EqualError(suite.T(), err, "malformed key file")
-}
-
-func (suite *EncryptTests) TestreadPublicKeyFile() {
-	publicKey, err := readPublicKeyFile(suite.publicKey.Name())
+	publicKey, err := readPublicKey(file.Name())
 	assert.NoError(suite.T(), err)
 	suite.Equal(*publicKey, suite.pubKeyData)
+
+	_, err = readPublicKey(suite.fileOk.Name())
+	assert.EqualError(suite.T(), err, fmt.Sprintf("Read of unrecognized public key format failed; expected PEM encoded key, file: %s", suite.fileOk.Name()))
 }
 
 func (suite *EncryptTests) TestreadMultiPublicKeyFile() {

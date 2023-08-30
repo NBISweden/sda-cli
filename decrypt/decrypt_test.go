@@ -73,7 +73,7 @@ func (suite *DecryptTests) TestreadPrivateKey() {
 
 	// Test reading something that isn't a key
 	_, err = readPrivateKey(suite.testFile.Name(), "")
-	assert.EqualError(suite.T(), err, fmt.Sprintf("malformed key file: %s", suite.testFile.Name()))
+	assert.EqualError(suite.T(), err, fmt.Sprintf("Read of unrecognized private key format failed; expected PEM encoded key, file: %s", suite.testFile.Name()))
 
 	// Test reading a real key
 	_, err = readPrivateKey(fmt.Sprintf("%s.sec.pem", testKeyFile), "")
