@@ -159,6 +159,9 @@ func (suite *EncryptTests) TestreadMultiPublicKeyFile() {
 	b := *publicKey
 	suite.Equal(b[0], suite.pubKeyData)
 	suite.Equal(b[1], suite.pubKeyData)
+
+	_, err = readMultiPublicKeyFile(suite.fileOk.Name(), specs)
+	assert.EqualError(suite.T(), err, fmt.Sprintf("no public keys found in file: %s", suite.fileOk.Name()))
 }
 
 func (suite *EncryptTests) TestcheckKeyFile() {

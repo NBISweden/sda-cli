@@ -365,6 +365,10 @@ func readMultiPublicKeyFile(filename string, k keySpecs) (key *[][32]byte, err e
 		list = append(list, publicKey)
 	}
 
+	if len(list) == 0 {
+		return nil, fmt.Errorf("no public keys found in file: %s", filename)
+	}
+
 	return &list, err
 }
 
