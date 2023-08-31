@@ -138,17 +138,17 @@ func (suite *EncryptTests) TestcheckFiles() {
 
 }
 
-func (suite *EncryptTests) TestreadPublicKey() {
+func (suite *EncryptTests) TestreadPublicKeyFile() {
 	file, err := os.Open(suite.publicKey.Name())
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer file.Close()
-	publicKey, err := readPublicKey(file.Name())
+	publicKey, err := readPublicKeyFile(file.Name())
 	assert.NoError(suite.T(), err)
 	suite.Equal(*publicKey, suite.pubKeyData)
 
-	_, err = readPublicKey(suite.fileOk.Name())
+	_, err = readPublicKeyFile(suite.fileOk.Name())
 	assert.ErrorContains(suite.T(), err, fmt.Sprintf("file: %s", suite.fileOk.Name()))
 }
 

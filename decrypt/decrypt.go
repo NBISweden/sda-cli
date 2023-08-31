@@ -72,7 +72,7 @@ func Decrypt(args []string) error {
 	var privateKey *[32]byte
 
 	// try reading private key without password
-	privateKey, err = readPrivateKey(*privateKeyFile, "")
+	privateKey, err = readPrivateKeyFile(*privateKeyFile, "")
 	if err != nil {
 
 		// if there was an error, try again with the password
@@ -82,7 +82,7 @@ func Decrypt(args []string) error {
 		}
 
 		// Loading private key file
-		privateKey, err = readPrivateKey(*privateKeyFile, password)
+		privateKey, err = readPrivateKeyFile(*privateKeyFile, password)
 		if err != nil {
 			return err
 		}
@@ -125,7 +125,7 @@ func getPassword(envVar string) (string, error) {
 }
 
 // Reads a private key file from a file using the crypt4gh keys module
-func readPrivateKey(filename, password string) (key *[32]byte, err error) {
+func readPrivateKeyFile(filename, password string) (key *[32]byte, err error) {
 
 	// Check that the file exists
 	if !helpers.FileExists(filename) {

@@ -326,7 +326,7 @@ func calculateHashes(fileSet helpers.EncryptionFileSet) (*hashSet, error) {
 }
 
 // Reads a public key from a file using the crypt4gh keys module
-func readPublicKey(filename string) (key *[32]byte, err error) {
+func readPublicKeyFile(filename string) (key *[32]byte, err error) {
 	log.Info("Reading Public key file")
 	file, err := os.Open(filepath.Clean(filename))
 	if err != nil {
@@ -490,7 +490,7 @@ func createPubKeyList(publicKeyFileList []string, c4ghKeySpecs keySpecs) ([][32]
 			continue
 		}
 
-		publicKey, err := readPublicKey(pubkey)
+		publicKey, err := readPublicKeyFile(pubkey)
 		if err != nil {
 			return nil, err
 		}

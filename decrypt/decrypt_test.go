@@ -56,7 +56,7 @@ func (suite *DecryptTests) TearDownTest() {
 	os.Remove(suite.tempDir)
 }
 
-func (suite *DecryptTests) TestreadPrivateKey() {
+func (suite *DecryptTests) TestreadPrivateKeyFile() {
 
 	testKeyFile := filepath.Join(suite.tempDir, "testkey")
 
@@ -68,15 +68,15 @@ func (suite *DecryptTests) TestreadPrivateKey() {
 	}
 
 	// Test reading a non-existent key
-	_, err = readPrivateKey(testKeyFile, "")
+	_, err = readPrivateKeyFile(testKeyFile, "")
 	assert.EqualError(suite.T(), err, fmt.Sprintf("private key file %s doesn't exist", testKeyFile))
 
 	// Test reading something that isn't a key
-	_, err = readPrivateKey(suite.testFile.Name(), "")
+	_, err = readPrivateKeyFile(suite.testFile.Name(), "")
 	assert.ErrorContains(suite.T(), err, fmt.Sprintf("file: %s", suite.testFile.Name()))
 
 	// Test reading a real key
-	_, err = readPrivateKey(fmt.Sprintf("%s.sec.pem", testKeyFile), "")
+	_, err = readPrivateKeyFile(fmt.Sprintf("%s.sec.pem", testKeyFile), "")
 	assert.NoError(suite.T(), err)
 }
 
@@ -110,7 +110,7 @@ func (suite *DecryptTests) Testdecrypt() {
 		log.Errorf("couldn't generate testing key pair: %s", err)
 	}
 	// and read the private key
-	privateKey, err := readPrivateKey(fmt.Sprintf("%s.sec.pem", testKeyFile), "")
+	privateKey, err := readPrivateKeyFile(fmt.Sprintf("%s.sec.pem", testKeyFile), "")
 	if err != nil {
 		log.Errorf("couldn't read test key: %s", err)
 	}
