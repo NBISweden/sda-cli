@@ -102,7 +102,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		// The region for the backend is always the specified one
 		// and not present in the configuration from auth - hardcoded
 		Region:           aws.String("us-west-2"),
-		Credentials:      credentials.NewStaticCredentials(config.AccessKey, config.AccessKey, config.AccessToken),
+		Credentials:      credentials.NewStaticCredentials(config.AccessKey, config.SecretKey, config.AccessToken),
 		Endpoint:         aws.String(config.HostBase),
 		DisableSSL:       aws.Bool(!config.UseHTTPS),
 		S3ForcePathStyle: aws.Bool(true),
