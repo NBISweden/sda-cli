@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"runtime"
-	"strings"
 	"testing"
 
 	"github.com/NBISweden/sda-cli/helpers"
@@ -139,26 +138,18 @@ func (suite *EncryptTests) TestcheckFiles() {
 
 }
 
-func (suite *EncryptTests) TestreadPublicKey() {
+func (suite *EncryptTests) TestreadPublicKeyFile() {
 	file, err := os.Open(suite.publicKey.Name())
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer file.Close()
-	publicKey, err := readPublicKey(file)
-	assert.NoError(suite.T(), err)
-	suite.Equal(publicKey, suite.pubKeyData)
-
-	malformedKey := "-----BEGIN CRYPT4GH PUBLIC KEY-----\nvery bad\n-----END CRYPT4GH PUBLIC KEY-----"
-	badFile := strings.NewReader(malformedKey)
-	_, err = readPublicKey(badFile)
-	assert.EqualError(suite.T(), err, "malformed key file")
-}
-
-func (suite *EncryptTests) TestreadPublicKeyFile() {
-	publicKey, err := readPublicKeyFile(suite.publicKey.Name())
+	publicKey, err := readPublicKeyFile(file.Name())
 	assert.NoError(suite.T(), err)
 	suite.Equal(*publicKey, suite.pubKeyData)
+
+	_, err = readPublicKeyFile(suite.fileOk.Name())
+	assert.ErrorContains(suite.T(), err, fmt.Sprintf("file: %s", suite.fileOk.Name()))
 }
 
 func (suite *EncryptTests) TestreadMultiPublicKeyFile() {
@@ -168,6 +159,9 @@ func (suite *EncryptTests) TestreadMultiPublicKeyFile() {
 	b := *publicKey
 	suite.Equal(b[0], suite.pubKeyData)
 	suite.Equal(b[1], suite.pubKeyData)
+
+	_, err = readMultiPublicKeyFile(suite.fileOk.Name(), specs)
+	assert.EqualError(suite.T(), err, fmt.Sprintf("no public keys found in file: %s", suite.fileOk.Name()))
 }
 
 func (suite *EncryptTests) TestcheckKeyFile() {
