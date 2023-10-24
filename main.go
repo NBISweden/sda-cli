@@ -74,9 +74,11 @@ func main() {
 		err = version.Version(Version)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s", command)
+		os.Exit(1)
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
 	}
 }
 
