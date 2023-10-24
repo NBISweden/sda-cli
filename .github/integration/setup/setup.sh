@@ -23,7 +23,7 @@ echo "access_token=$output" >> s3cmd.conf
 latest_tag=$(curl -s https://api.github.com/repos/neicnordic/sensitive-data-archive/tags | jq -r '.[0].name')
 
 # check which compose syntax to use (useful for running locally)
-if ( command -v docker-compose >/dev/null 2>&1 )
+if command -v docker-compose >/dev/null 2>&1
 then
     TAG=$latest_tag docker-compose up -d
 else
