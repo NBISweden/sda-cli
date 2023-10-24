@@ -19,12 +19,15 @@ fi
 output=$(python sign_jwt.py)
 echo "access_token=$output" >> s3cmd.conf
 
+# get latest image tag for s3inbox
+latest_tag=$(curl -s https://api.github.com/repos/neicnordic/sensitive-data-archive/tags | jq -r '.[0].name')
+
 # check which compose syntax to use (useful for running locally)
 if ( command -v docker-compose >/dev/null 2>&1 )
 then
-    docker-compose up -d
+    TAG=$latest_tag docker-compose up -d
 else
-    docker compose up -d
+    TAG=$latest_tag docker compose up -d
 fi
 
 RETRY_TIMES=0

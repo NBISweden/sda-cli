@@ -48,7 +48,7 @@ services:
       timeout: 20s
       retries: 3
   s3_proxy:
-    image: ghcr.io/neicnordic/sensitive-data-archive:v0.0.130
+    image: "ghcr.io/neicnordic/sensitive-data-archive:${TAG}"
     command: [ sda-s3inbox ]
     container_name: proxy
     depends_on:
