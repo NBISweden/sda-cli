@@ -28,6 +28,9 @@ function check_uploaded_file() {
     fi
 }
 
+# inferred from access_key in testing/s3cmd.conf
+user=test_dummy.org
+
 # Create random file
 dd if=/dev/urandom of=data_file count=1 bs=1M
 
@@ -47,11 +50,11 @@ check_encypted_file $files
 
 # Upload a specific file and check it
 ./sda-cli upload -config testing/s3cmd.conf data_file.c4gh
-check_uploaded_file test/dummy/data_file.c4gh data_file.c4gh
+check_uploaded_file "test/$user/data_file.c4gh" data_file.c4gh
 
-output=$(./sda-cli list -config testing/s3cmd.conf | grep -q "data_file.c4gh")
 
-if $output ; then
+if ./sda-cli list -config testing/s3cmd.conf | grep -q 'data_file.c4gh'
+then
     echo "Listed file from s3 backend"
 else
     echo "Failed to list file to s3 backend"
@@ -74,7 +77,7 @@ for k in data_file.c4gh data_file1.c4gh
 do
     # Upload and check file
     ./sda-cli upload -config testing/s3cmd.conf --force-overwrite "data_files_enc/$k"
-    check_uploaded_file test/dummy/$k $k
+    check_uploaded_file "test/$user/$k" "$k"
 done
 
 # Test recursive folder upload
@@ -92,7 +95,7 @@ cp data_files_enc/data_file.c4gh data_files_enc/dir1/dir2/data_file2.c4gh
 # Check that files were uploaded with the local path prefix `data_files_enc` stripped from the target path
 for k in dir1/data_file.c4gh dir1/dir2/data_file.c4gh dir1/dir2/data_file2.c4gh data_file3.c4gh
 do
-    check_uploaded_file test/dummy/$k $k
+    check_uploaded_file "test/$user/$k" "$k"
 done
 
 # Test upload to a different path
@@ -108,7 +111,7 @@ uploadDir="testfolder"
 # target path and into the specified upload folder
 for k in dir1/data_file.c4gh dir1/dir2/data_file.c4gh dir1/dir2/data_file2.c4gh data_file3.c4gh
 do
-    check_uploaded_file test/dummy/$uploadDir"/"$k $k
+    check_uploaded_file "test/$user/$uploadDir/$k" "$k"
 done
 
 # Upload all contents of a folder recursively to a specified upload folder
@@ -120,7 +123,7 @@ uploadDir="testfolder2"
 # target path and into the specified upload folder
 for k in data_file.c4gh dir2/data_file.c4gh dir2/data_file2.c4gh
 do
-    check_uploaded_file test/dummy/$uploadDir"/"$k $k
+    check_uploaded_file "test/$user/$uploadDir/$k" "$k"
 done
 
 # Encrypt and upload
@@ -135,11 +138,11 @@ check_encypted_file "data_files_unenc/data_file.c4gh" "data_files_unenc/dir1/dat
 
 for k in data_files_unenc/data_file.c4gh data_files_unenc/dir1/data_file1.c4gh
 do
-    check_uploaded_file test/dummy/$uploadDir"/"$k $k
+    check_uploaded_file "test/$user/$uploadDir/$k" "$k"
 done
 
-out_ls=$(s3cmd -c testing/directS3 ls -r s3://test/dummy/testEncryptUpload/data_files_unenc/)
-if ( ! echo "$out_ls" | grep -v -q "c4gh" ); then
+if ! s3cmd -c testing/directS3 ls -r s3://test/"$user"/testEncryptUpload/data_files_unenc/ | grep -v -q 'c4gh'
+then
     echo "No unencrypted files were uploaded during encrypt+upload"
 else
     echo "Unencrypted files were uploaded during encrypt+upload"
@@ -287,7 +290,7 @@ fi
 # Try downloading from private bucket
 printf "%s" "Attempting to download from S3 bucket with ACL=private..."
 errorMessage="reason: request failed with \`403 Forbidden\`, details: {Code:AllAccessDisabled"
-if ./sda-cli download -outdir downloads http://localhost:9000/minio/test/dummy/data_file1.c4gh 2>&1 | grep -q "$errorMessage"; then
+if ./sda-cli download -outdir downloads http://localhost:9000/minio/test/"$user"/data_file1.c4gh 2>&1 | grep -q "$errorMessage"; then
     echo "bad download request handled properly"
 else
     echo "Failed to handle bad download request"

@@ -48,7 +48,8 @@ services:
       timeout: 20s
       retries: 3
   s3_proxy:
-    image: ghcr.io/neicnordic/sda-s3proxy:latest
+    image: "ghcr.io/neicnordic/sensitive-data-archive:${TAG}"
+    command: [ sda-s3inbox ]
     container_name: proxy
     depends_on:
       mq_server:
@@ -60,12 +61,13 @@ services:
     restart: always
     environment:
       - LOG_LEVEL=info
-      - AWS_URL=http://s3:9000
-      - AWS_ACCESSKEY=ElixirID
-      - AWS_SECRETKEY=987654321
-      - AWS_BUCKET=test
-      - AWS_REGION=us-east-1
-      - AWS_READYPATH=/minio/health/ready
+      - INBOX_URL=http://s3
+      - INBOX_PORT=9000
+      - INBOX_ACCESSKEY=ElixirID
+      - INBOX_SECRETKEY=987654321
+      - INBOX_BUCKET=test
+      - INBOX_REGION=us-east-1
+      - INBOX_READYPATH=/minio/health/ready
       - DB_HOST=db
       - DB_PORT=5432
       - DB_USER=lega_in
