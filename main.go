@@ -11,6 +11,7 @@ import (
 	"github.com/NBISweden/sda-cli/download"
 	"github.com/NBISweden/sda-cli/encrypt"
 	"github.com/NBISweden/sda-cli/helpers"
+	"github.com/NBISweden/sda-cli/htsget"
 	"github.com/NBISweden/sda-cli/list"
 	"github.com/NBISweden/sda-cli/login"
 	"github.com/NBISweden/sda-cli/upload"
@@ -41,6 +42,7 @@ var Commands = map[string]commandInfo{
 	"upload":      {upload.Args, upload.Usage, upload.ArgHelp},
 	"datasetsize": {datasetsize.Args, datasetsize.Usage, datasetsize.ArgHelp},
 	"list":        {list.Args, list.Usage, list.ArgHelp},
+	"htsget":      {htsget.Args, htsget.Usage, htsget.ArgHelp},
 	"login":       {login.Args, login.Usage, login.ArgHelp},
 	"version":     {version.Args, version.Usage, version.ArgHelp},
 }
@@ -68,6 +70,8 @@ func main() {
 		err = datasetsize.DatasetSize(args)
 	case "list":
 		err = list.List(args)
+	case "htsget":
+		err = htsget.Htsget(args)
 	case "login":
 		err = login.NewLogin(args)
 	case "version":
