@@ -56,6 +56,7 @@ type S3Config struct {
 	SocketTimeout        int    `ini:"socket_timeout"`
 	HumanReadableSizes   bool   `ini:"human_readable_sizes"`
 	PublicKey            string `ini:"public_key"`
+    HTSGetHost           string `ini:"htsget_host"`
 }
 
 type OIDCWellKnown struct {
@@ -277,6 +278,7 @@ func (login *DeviceLogin) GetS3Config() (*S3Config, error) {
 		UseHTTPS:             true,
 		SocketTimeout:        30,
 		HumanReadableSizes:   true,
+        HTSGetHost:           "",
 	}, nil
 }
 
