@@ -1,18 +1,15 @@
 package htsget
 
 import (
-	"bufio"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/NBISweden/sda-cli/helpers"
-	log "github.com/sirupsen/logrus"
 )
 
 // Help text and command line flags.
@@ -41,119 +38,25 @@ var ArgHelp = `
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
 var Args = flag.NewFlagSet("htsget", flag.ExitOnError)
-var datasetID = Args.String("datasetID", "", "Dataset ID for the file to download")
-var fileName = Args.String("fileName", "", "The name of the file to download")
+var DatasetID = Args.String("datasetID", "", "Dataset ID for the file to download")
+var FileName = Args.String("fileName", "", "The name of the file to download")
+var configPath = Args.String("config", "",
+	"S3 config file to use for uploading.")
 
-// Gets the file name for a URL, using regex
-func createFilePathFromURL(file string, baseDir string) (fileName string, err error) {
-	// Create the file path according to the way files are stored in S3
-	// The folder structure comes after the UID described in the regex
-	re := regexp.MustCompile(`(?i)[0-9a-z]{8}-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{12}/(.*)`)
-	match := re.FindStringSubmatch(file)
-	if match == nil || len(match) < 1 {
-		return fileName, fmt.Errorf("failed to parse url for downloading file")
-	}
-	if baseDir != "" && !strings.HasSuffix(baseDir, "/") {
-		baseDir += "/"
-	}
-	fileName = filepath.Join(baseDir, match[1])
-
-	var filePath string
-	if strings.Contains(fileName, string(os.PathSeparator)) {
-		filePath = filepath.Dir(fileName)
-		err = os.MkdirAll(filePath, os.ModePerm)
-		if err != nil {
-			return fileName, err
-		}
-	}
-
-	return fileName, nil
-}
-
-// Downloads a file from the url to the filePath location
-func downloadFile(url string, filePath string) error {
-
-	// Get the file from the provided url
-	resp, err := http.Get(url)
-	if err != nil {
-		return fmt.Errorf("failed to download file, reason: %v", err)
-	}
-	defer resp.Body.Close()
-
-	// Check reponse status and report S3 error response
-	if resp.StatusCode >= 400 {
-		errorDetails, err := helpers.ParseS3ErrorResponse(resp.Body)
-		if err != nil {
-			log.Error(err.Error())
-		}
-
-		return fmt.Errorf("request failed with `%s`, details: %v", resp.Status, errorDetails)
-	}
-
-	// Create the file in the current location
-	out, err := os.Create(filePath)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	// Write the body to file
-	_, err = io.Copy(out, resp.Body)
-	defer out.Close()
-
-	return err
-
-}
-
-// GetURLsFile reads the urls_list.txt file and returns the urls of the files in a list
-func GetURLsFile(urlsFilePath string) (urlsList []string, err error) {
-
-	urlsFile, err := os.Open(filepath.Clean(urlsFilePath))
-	if err != nil {
-		return nil, err
-	}
-	defer urlsFile.Close()
-
-	scanner := bufio.NewScanner(urlsFile)
-	for scanner.Scan() {
-		urlsList = append(urlsList, scanner.Text())
-	}
-	if len(urlsList) == 0 {
-		return urlsList, fmt.Errorf("failed to get list of files, empty file")
-	}
-
-	return urlsList, scanner.Err()
-}
-
-// GetURLsListFile is returning the path to the urls_list.txt by handling the URL
-// or path provided by the user. In case of a URL, the file is downloaded in the
-// current path
-func GetURLsListFile(currentPath string, fileLocation string) (urlsFilePath string, err error) {
-	switch {
-	// Case where the user passes the url to the s3 folder where the data exists
-	// Download the urls_list.txt file first and then the data files
-	// e.g. https://some/url/to/folder/
-	case strings.HasSuffix(fileLocation, "/") && regexp.MustCompile(`https?://`).MatchString(fileLocation):
-		urlsFilePath = currentPath + "/urls_list.txt"
-		err = downloadFile(fileLocation+"urls_list.txt", urlsFilePath)
-		if err != nil {
-			return "", err
-		}
-	// Case where the user passes the url directly to urls_list.txt
-	// e.g. https://some/url/to/urls_list.txt
-	case regexp.MustCompile(`https?://`).MatchString(fileLocation):
-		urlsFilePath = currentPath + "/urls_list.txt"
-		err = downloadFile(fileLocation, urlsFilePath)
-		if err != nil {
-			return "", err
-		}
-	// Case where the user passes a file containg the urls to download
-	// e.g. /some/folder/to/file.txt
-	default:
-		urlsFilePath = fileLocation
-	}
-
-	return urlsFilePath, nil
+type htsgetResponse struct {
+	Htsget struct {
+		Format string `json:"format"`
+		Urls   []struct {
+			URL     string `json:"url"`
+			Headers struct {
+				Range          string `json:"Range"`
+				UserAgent      string `json:"user-agent"`
+				Host           string `json:"host"`
+				AcceptEncoding string `json:"accept-encoding"`
+				Authorization  string `json:"authorization"`
+			} `json:"headers,omitempty"`
+		} `json:"urls"`
+	} `json:"htsget"`
 }
 
 // Htsget function downloads the files included in the urls_list.txt file.
@@ -168,7 +71,7 @@ func Htsget(args []string) error {
 
 	// Args() returns the non-flag arguments, which we assume are filenames.
 	arguments := Args.Args()
-	if len(arguments) == 0 {
+	if len(arguments) != 2 {
 		return fmt.Errorf("failed to find location of files, no argument passed")
 	}
 
@@ -177,18 +80,27 @@ func Htsget(args []string) error {
 	// if err != nil {
 	// 	return fmt.Errorf("failed to get current path, reason: %v", err)
 	// }
+	datasetID := arguments[0]
+	fileName := arguments[1]
 
-	url := "http://localhost:8088/reads/EGAD74900000101/NA12878"
+	config, err := helpers.GetAuth(*configPath)
+	if err != nil {
+		return err
+	}
+	// TODO: Add cases for different type of files
+	// i.e. bam files require the /reads/, replace for vcf
+	url := config.HTSGetHost + "/reads/" + datasetID + "/" + fileName
+
 	method := "GET"
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, nil)
-
 	if err != nil {
 		fmt.Println(err)
 		return fmt.Errorf("failed to make request, reason: %v", err)
 	}
-	req.Header.Add("Authorization", "Bearer eyJqa3UiOiJodHRwczovL29pZGM6ODA4MC9qd2siLCJraWQiOiJFQzEiLCJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJyZXF1ZXN0ZXJAZGVtby5vcmciLCJhdWQiOlsiYXVkMSIsImF1ZDIiXSwiYXpwIjoiYXpwIiwic2NvcGUiOiJvcGVuaWQgZ2E0Z2hfcGFzc3BvcnRfdjEiLCJpc3MiOiJodHRwczovL29pZGM6ODA4MC8iLCJleHAiOjk5OTk5OTk5OTksImlhdCI6MTU2MTYyMTkxMywianRpIjoiNmFkN2FhNDItM2U5Yy00ODMzLWJkMTYtNzY1Y2I4MGMyMTAyIn0.yj8Qr-AqD_NxfsNcZRSZxnDAe9Vx3oMxRi8zJyeXk9GPTfBRnPb1AH-660NFrCw5xa3mhZe1agNtQtU8xtilgQ")
+
+	req.Header.Add("Authorization", "Bearer "+config.AccessToken)
 
 	res, err := client.Do(req)
 	if err != nil {
@@ -203,6 +115,68 @@ func Htsget(args []string) error {
 		return fmt.Errorf("failed to read response, reason: %v", err)
 	}
 	fmt.Println(string(body))
+
+	var htsgetURLs htsgetResponse
+	err = json.Unmarshal(body, &htsgetURLs)
+	if err != nil {
+		return fmt.Errorf("error unmarshaling response, reason: %v", err)
+	}
+
+	fmt.Println(htsgetURLs.Htsget.Urls[0].URL)
+	err = downloadFiles(htsgetURLs, config)
+	if err != nil {
+		return fmt.Errorf("error downloading the files, reason: %v", err)
+	}
+	return nil
+
+}
+
+func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error) {
+
+	for index, _ := range htsgeURLs.Htsget.Urls {
+		url := htsgeURLs.Htsget.Urls[index].URL
+		if strings.Contains(url, "data:;") {
+			continue
+		}
+		method := "GET"
+
+		client := &http.Client{}
+		req, err := http.NewRequest(method, url, nil)
+		if err != nil {
+			fmt.Println(err)
+			return fmt.Errorf("failed to make request, reason: %v", err)
+		}
+
+		req.Header.Add("Authorization", "Bearer "+config.AccessToken)
+
+		var currentPath string
+		currentPath, err = os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get current path, reason: %v", err)
+		}
+
+		res, err := client.Do(req)
+		if err != nil {
+			fmt.Println(err)
+			return fmt.Errorf("failed to do the request, reason: %v", err)
+		}
+		defer res.Body.Close()
+
+		// Create the file in the current location
+		// Get the filename from the URL
+		out, err := os.Create(currentPath + url[strings.LastIndex(url, "/"):])
+		if err != nil {
+			return err
+		}
+		defer out.Close()
+
+		// Write the body to file
+		_, err = io.Copy(out, res.Body)
+		if err != nil {
+			fmt.Printf("error copying the file, %v", err)
+			return err
+		}
+	}
 
 	return nil
 
