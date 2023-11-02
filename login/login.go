@@ -34,7 +34,7 @@ var ArgHelp = `
     [login-target]
         The login target can be one of the following: 
 			https://login.bp.nbis.se/
-			https://login.test.fega.nbis.se/
+			https://login.fega.nbis.se/
 			https://login.gdi.nbis.se/`
 
 // Args is a flagset that needs to be exported so that it can be written to the
