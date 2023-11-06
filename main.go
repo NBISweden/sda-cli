@@ -82,11 +82,12 @@ func main() {
 	}
 }
 
-// Parses the command line arguments into a command, and keep the rest of the
-// arguments for the subcommand
+// Parses the command line arguments into a command, and keep the rest
+// of the arguments for the subcommand.
 func ParseArgs() (string, []string) {
 
-	// Print usage if no arguments are provided
+	// Print usage if no arguments are provided.
+	// Terminate with non-zero exit status.
 	if len(os.Args) < 2 {
 		Help("help")
 		os.Exit(1)
@@ -101,11 +102,14 @@ func ParseArgs() (string, []string) {
 		return "version", os.Args
 	}
 
-	// Extract `command` from arg 1, then remove it from the flag list.
+	// Extract the command from the 1st argument, then remove it
+	// from list of arguments.
 	command := os.Args[1]
 	os.Args = append(os.Args[:1], os.Args[2:]...)
 
-	// If `command` is help-like, we print the help text and exit
+	// If the command is "help-like", we print the help text and
+	// exit.  Let the Help function whether to exit with status zero
+	// or one depending on whether the subcommand is valid or not.
 	switch command {
 	case "-h", "help", "-help", "--help":
 		var subcommand string
@@ -122,14 +126,15 @@ func ParseArgs() (string, []string) {
 		}
 	}
 
-	// list command can have no arguments since it can use the config from login
-	// so we immediately return in that case
+	// The "list" command can have no arguments since it can use the
+	// config from login so we immediately return in that case.
 	if command == "list" {
 		return command, os.Args
 	}
 
-	// If no arguments are provided to the subcommand, it's not gonna be valid,
-	// so we print the subcommand help
+	// If no arguments are provided to the subcommand, it's not
+	// going to be valid.  Print the subcommand help and exit with a
+	// non-zero exit status.
 	if len(os.Args) == 1 {
 		Help(command)
 		os.Exit(1)
