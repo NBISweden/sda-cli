@@ -93,7 +93,8 @@ func ParseArgs() (string, []string) {
 		os.Exit(1)
 	}
 
-	if os.Args[1] == "version" || os.Args[1] == "-v" || os.Args[1] == "--version" {
+	switch os.Args[1] {
+	case "version", "-v", "-version", "--version":
 		if len(os.Args) != 2 {
 			Help("version")
 			os.Exit(1)
@@ -111,7 +112,7 @@ func ParseArgs() (string, []string) {
 	// exit.  Let the Help function whether to exit with status zero
 	// or one depending on whether the subcommand is valid or not.
 	switch command {
-	case "-h", "help", "-help", "--help":
+	case "help", "-h", "-help", "--help":
 		var subcommand string
 		if len(os.Args) > 1 {
 			subcommand = os.Args[1]
