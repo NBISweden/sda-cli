@@ -88,14 +88,14 @@ func ParseArgs() (string, []string) {
 	// Print usage if no arguments are provided.
 	// Terminate with non-zero exit status.
 	if len(os.Args) < 2 {
-		Help("help")
+		_ = Help("help")
 		os.Exit(1)
 	}
 
 	switch os.Args[1] {
 	case "version", "-v", "-version", "--version":
 		if len(os.Args) != 2 {
-			Help("version")
+			_ = Help("version")
 			os.Exit(1)
 		}
 
@@ -137,7 +137,7 @@ func ParseArgs() (string, []string) {
 	// going to be valid.  Print the subcommand help and exit with a
 	// non-zero exit status.
 	if len(os.Args) == 1 {
-		Help(command)
+		_ = Help(command)
 		os.Exit(1)
 	}
 
