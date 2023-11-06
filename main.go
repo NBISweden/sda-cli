@@ -85,7 +85,6 @@ func main() {
 // Parses the command line arguments into a command, and keep the rest
 // of the arguments for the subcommand.
 func ParseArgs() (string, []string) {
-
 	// Print usage if no arguments are provided.
 	// Terminate with non-zero exit status.
 	if len(os.Args) < 2 {
@@ -114,6 +113,7 @@ func ParseArgs() (string, []string) {
 	switch command {
 	case "help", "-h", "-help", "--help":
 		var subcommand string
+
 		if len(os.Args) > 1 {
 			subcommand = os.Args[1]
 		} else {
@@ -148,19 +148,17 @@ func ParseArgs() (string, []string) {
 // depending on the command argument.  Returns an error if the command
 // is not recognized.
 func Help(command string) error {
-
 	info, isLegal := Commands[command]
 	if !isLegal {
 		if command != "help" {
 			fmt.Fprintf(os.Stderr, "Unknown command: %s\n", command)
 		}
+
 		// print main help
 		fmt.Fprintf(os.Stderr, Usage, os.Args[0])
 		fmt.Fprintln(os.Stderr, "The tool can help with these actions:")
 		for _, info := range Commands {
-
 			subcommandUsage := helpers.FormatSubcommandUsage(info.usage)
-
 			fmt.Fprint(os.Stderr, subcommandUsage)
 		}
 		fmt.Fprintf(os.Stderr,
