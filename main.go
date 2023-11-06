@@ -89,11 +89,13 @@ func ParseArgs() (string, []string) {
 	// Print usage if no arguments are provided
 	if len(os.Args) < 2 {
 		Help("help")
+		os.Exit(1)
 	}
 
 	if os.Args[1] == "version" || os.Args[1] == "-v" || os.Args[1] == "--version" {
 		if len(os.Args) != 2 {
 			Help("version")
+			os.Exit(1)
 		}
 
 		return "version", os.Args
@@ -112,7 +114,12 @@ func ParseArgs() (string, []string) {
 		} else {
 			subcommand = "help"
 		}
-		Help(subcommand)
+
+		if Help(subcommand) == nil {
+			os.Exit(0)
+		} else {
+			os.Exit(1)
+		}
 	}
 
 	// list command can have no arguments since it can use the config from login
@@ -125,23 +132,19 @@ func ParseArgs() (string, []string) {
 	// so we print the subcommand help
 	if len(os.Args) == 1 {
 		Help(command)
+		os.Exit(1)
 	}
 
 	return command, os.Args
 }
 
-// Prints the main usage string, and the global help or command help depending
-// on the `command` arg.
-func Help(command string) {
+// Prints the main usage string, and the global help or command help
+// depending on the command argument.  Returns an error if the command
+// is not recognized.
+func Help(command string) error {
 
 	info, isLegal := Commands[command]
-	if isLegal {
-		// print subcommand help
-		fmt.Fprintf(os.Stderr, info.usage+"\n", os.Args[0])
-		fmt.Fprintln(os.Stderr, "Command line arguments:")
-		info.args.PrintDefaults()
-		fmt.Fprintln(os.Stderr, info.argHelp)
-	} else {
+	if !isLegal {
 		if command != "help" {
 			fmt.Fprintf(os.Stderr, "Unknown command: %s\n", command)
 		}
@@ -157,7 +160,15 @@ func Help(command string) {
 		fmt.Fprintf(os.Stderr,
 			"Use '%s help <command>' to get help with subcommand flags.\n",
 			os.Args[0])
+
+		return fmt.Errorf("Unknown command: %s", command)
 	}
 
-	os.Exit(1)
+	// print subcommand help
+	fmt.Fprintf(os.Stderr, info.usage+"\n", os.Args[0])
+	fmt.Fprintln(os.Stderr, "Command line arguments:")
+	info.args.PrintDefaults()
+	fmt.Fprintln(os.Stderr, info.argHelp)
+
+	return nil
 }
