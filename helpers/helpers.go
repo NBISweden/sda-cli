@@ -292,7 +292,8 @@ func GetAuth(path string) (*Config, error) {
 	return nil, errors.New("failed to read the configuration file")
 }
 
-func GetPublicKey() (string, error) {
+// reads the .sda-cli-session file, creates the public key file and returns the name of the file
+func GetPublicKeyFromSession() (string, error) {
 	// Check if the ".sda-cli-session" file exists
 	if !FileExists(".sda-cli-session") {
 		return "", errors.New("configuration file (.sda-cli-session) not found")
@@ -316,13 +317,25 @@ func GetPublicKey() (string, error) {
 		return "", errors.New("public key not found in the configuration")
 	}
 
+	pubFile, err := CreatePubFile(config.PublicKey, "key-from-oidc.pub.pem")
+	if err != nil {
+		return "", fmt.Errorf("failed to create public key file: %w", err)
+	}
+
+	return pubFile, nil
+
+}
+
+// Create public key file
+func CreatePubFile(publicKey string, filename string) (string, error) {
+
 	// Create a fixed-size array to hold the public key data
 	var publicKeyData [32]byte
-	b := []byte(config.PublicKey)
+	b := []byte(publicKey)
 	copy(publicKeyData[:], b)
 
 	// Open or create a file named "key-from-oidc.pub.pem" in write-only mode with file permissions 0600
-	pubFile, err := os.OpenFile(filepath.Clean("key-from-oidc.pub.pem"), os.O_WRONLY|os.O_CREATE, 0600)
+	pubFile, err := os.OpenFile(filepath.Clean(filename), os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return "", fmt.Errorf("failed to open or create the public key file: %w", err)
 	}
@@ -340,7 +353,7 @@ func GetPublicKey() (string, error) {
 	}
 
 	// If everything is successful, return the name of the generated public key file
-	return "key-from-oidc.pub.pem", nil
+	return filename, nil
 }
 
 // CheckTokenExpiration is used to determine whether the token is expiring in less than a day

@@ -15,7 +15,7 @@ import (
 	"strings"
 
 	"github.com/NBISweden/sda-cli/helpers"
-
+	"github.com/NBISweden/sda-cli/login"
 	"github.com/neicnordic/crypt4gh/keys"
 	"github.com/neicnordic/crypt4gh/streaming"
 	log "github.com/sirupsen/logrus"
@@ -26,7 +26,12 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help encrypt` command
 var Usage = `
-USAGE: %s encrypt -key <public-key-file> (-outdir <dir>) (-continue=true) [file(s)]
+USAGE: %s encrypt -key <public-key-file> (-target <target>) (-outdir <dir>) (-continue=true) [file(s)]
+
+The target can be one of the following:
+	bp.nbis.se
+	fega.nbis.se
+	gdc.nbis.se
 
 encrypt:
     Encrypts files according to the crypt4gh standard used in the
@@ -54,6 +59,8 @@ var outDir = Args.String("outdir", "",
 
 var continueEncrypt = Args.Bool("continue", false, "Do not exit on file errors but skip and continue.")
 
+var target = Args.String("target", "", "Client target for public key.")
+
 var publicKeyFileList []string
 
 func init() {
@@ -75,14 +82,36 @@ func Encrypt(args []string) error {
 		return err
 	}
 
-	// no key provided, check for one in the session file
+	var sesKey string
 	if len(publicKeyFileList) == 0 {
-
-		sesKey, err := helpers.GetPublicKey()
+		// check for public key in .sda-cli-session file from login
+		sesKey, err = helpers.GetPublicKeyFromSession()
 		if err != nil {
-			return fmt.Errorf("public key not provided or %v", err)
+			log.Println("could not read key from previous login,", err)
 		}
+	}
+	// key from session file found
+	if len(publicKeyFileList) == 0 && sesKey != "" {
 		publicKeyFileList = append(publicKeyFileList, sesKey)
+	}
+	if len(publicKeyFileList) == 0 && sesKey == "" && *target != "" {
+		// fetch info endpoint values
+		info, err := login.GetAuthInfo(*target)
+		if err != nil {
+			return err
+		}
+		// create pub file
+		pubFile, err := helpers.CreatePubFile(info.PublicKey, "crypt4gh_key.pub")
+		if err != nil {
+			return err
+		}
+		log.Println("fetching public key")
+		// no key provided, no key in session file, target provided
+		publicKeyFileList = append(publicKeyFileList, pubFile)
+	}
+	// no key provided, no key in session file, no target provided
+	if len(publicKeyFileList) == 0 && sesKey == "" && *target == "" {
+		return errors.New("no public key could be obtained")
 	}
 
 	// Each filename is first read into a helper struct (sliced for combatibility with checkFiles)

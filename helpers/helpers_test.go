@@ -361,7 +361,7 @@ encrypt = False
 		log.Printf("failed to write temp config file, %v", err)
 	}
 
-	_, err = GetPublicKey()
+	_, err = GetPublicKeyFromSession()
 	assert.EqualError(suite.T(), err, "public key not found in the configuration")
 }
 
@@ -396,7 +396,7 @@ public_key = 27be42445fd9e39c9be39e6b36a55e61e3801fc845f63781a813d3fe9977e17a
 		log.Printf("failed to write temp config file, %v", err)
 	}
 
-	_, err = GetPublicKey()
+	_, err = GetPublicKeyFromSession()
 	assert.NoError(suite.T(), err)
 
 	if assert.FileExists(suite.T(), "key-from-oidc.pub.pem") {
