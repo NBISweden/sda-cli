@@ -82,82 +82,97 @@ func main() {
 	}
 }
 
-// Parses the command line arguments into a command, and keep the rest of the
-// arguments for the subcommand
+// Parses the command line arguments into a command, and keep the rest
+// of the arguments for the subcommand.
 func ParseArgs() (string, []string) {
-
-	// Print usage if no arguments are provided
+	// Print usage if no arguments are provided.
+	// Terminate with non-zero exit status.
 	if len(os.Args) < 2 {
-		Help("help")
+		_ = Help("help")
+		os.Exit(1)
 	}
 
-	if os.Args[1] == "version" || os.Args[1] == "-v" || os.Args[1] == "--version" {
+	switch os.Args[1] {
+	case "version", "-v", "-version", "--version":
 		if len(os.Args) != 2 {
-			Help("version")
+			_ = Help("version")
+			os.Exit(1)
 		}
 
 		return "version", os.Args
 	}
 
-	// Extract `command` from arg 1, then remove it from the flag list.
+	// Extract the command from the 1st argument, then remove it
+	// from list of arguments.
 	command := os.Args[1]
 	os.Args = append(os.Args[:1], os.Args[2:]...)
 
-	// If `command` is help-like, we print the help text and exit
+	// If the command is "help-like", we print the help text and
+	// exit.  Let the Help function whether to exit with status zero
+	// or one depending on whether the subcommand is valid or not.
 	switch command {
-	case "-h", "help", "-help", "--help":
+	case "help", "-h", "-help", "--help":
 		var subcommand string
+
 		if len(os.Args) > 1 {
 			subcommand = os.Args[1]
 		} else {
 			subcommand = "help"
 		}
-		Help(subcommand)
+
+		if Help(subcommand) == nil {
+			os.Exit(0)
+		} else {
+			os.Exit(1)
+		}
 	}
 
-	// list command can have no arguments since it can use the config from login
-	// so we immediately return in that case
+	// The "list" command can have no arguments since it can use the
+	// config from login so we immediately return in that case.
 	if command == "list" {
 		return command, os.Args
 	}
 
-	// If no arguments are provided to the subcommand, it's not gonna be valid,
-	// so we print the subcommand help
+	// If no arguments are provided to the subcommand, it's not
+	// going to be valid.  Print the subcommand help and exit with a
+	// non-zero exit status.
 	if len(os.Args) == 1 {
-		Help(command)
+		_ = Help(command)
+		os.Exit(1)
 	}
 
 	return command, os.Args
 }
 
-// Prints the main usage string, and the global help or command help depending
-// on the `command` arg.
-func Help(command string) {
-
+// Prints the main usage string, and the global help or command help
+// depending on the command argument.  Returns an error if the command
+// is not recognized.
+func Help(command string) error {
 	info, isLegal := Commands[command]
-	if isLegal {
-		// print subcommand help
-		fmt.Fprintf(os.Stderr, info.usage+"\n", os.Args[0])
-		fmt.Fprintln(os.Stderr, "Command line arguments:")
-		info.args.PrintDefaults()
-		fmt.Fprintln(os.Stderr, info.argHelp)
-	} else {
+	if !isLegal {
 		if command != "help" {
 			fmt.Fprintf(os.Stderr, "Unknown command: %s\n", command)
 		}
+
 		// print main help
 		fmt.Fprintf(os.Stderr, Usage, os.Args[0])
 		fmt.Fprintln(os.Stderr, "The tool can help with these actions:")
 		for _, info := range Commands {
-
 			subcommandUsage := helpers.FormatSubcommandUsage(info.usage)
-
 			fmt.Fprint(os.Stderr, subcommandUsage)
 		}
 		fmt.Fprintf(os.Stderr,
 			"Use '%s help <command>' to get help with subcommand flags.\n",
 			os.Args[0])
+
+		return fmt.Errorf("Unknown command: %s", command)
 	}
 
-	os.Exit(1)
+	// print subcommand help
+	fmt.Fprintf(os.Stderr, info.usage+"\n", os.Args[0])
+	fmt.Fprintln(os.Stderr, "Command line arguments:")
+	info.args.PrintDefaults()
+	fmt.Fprintln(os.Stderr, info.argHelp)
+
+	return nil
 }
