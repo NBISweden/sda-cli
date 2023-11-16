@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/NBISweden/sda-cli/encrypt"
@@ -69,6 +70,15 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 	// check also here in case sth went wrong with input files
 	if len(files) == 0 {
 		return errors.New("no files to upload")
+	}
+
+	// Loop through the list of file paths and check if their names are valid
+	for _, filename := range outFiles {
+		re := regexp.MustCompile(`[\\:\*\?"<>\|\x00-\x1F\x7F]`)
+		dissallowedChars := re.FindAllString(filename, -1)
+		if dissallowedChars != nil {
+			return fmt.Errorf("filepath %v contains disallowed characters: %+v", filename, strings.Join(dissallowedChars, ", "))
+		}
 	}
 
 	// Loop through the list of files and check if they are encrypted
