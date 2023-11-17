@@ -299,11 +299,9 @@ func GetPublicKeyFromSession() (string, error) {
 		return "", errors.New("configuration file (.sda-cli-session) not found")
 	}
 
-	if FileExists(".sda-cli-session") {
-		file, err := os.Open(".sda-cli-session")
-		if err != nil {
-			fmt.Println("could not read file:", file)
-		}
+	_, err := os.Open(".sda-cli-session")
+	if err != nil {
+		return "", err
 	}
 
 	// Load the configuration file
@@ -319,7 +317,7 @@ func GetPublicKeyFromSession() (string, error) {
 
 	pubFile, err := CreatePubFile(config.PublicKey, "key-from-oidc.pub.pem")
 	if err != nil {
-		return "", fmt.Errorf("failed to create public key file: %w", err)
+		return "", err
 	}
 
 	return pubFile, nil
@@ -328,13 +326,12 @@ func GetPublicKeyFromSession() (string, error) {
 
 // Create public key file
 func CreatePubFile(publicKey string, filename string) (string, error) {
-
 	// Create a fixed-size array to hold the public key data
 	var publicKeyData [32]byte
 	b := []byte(publicKey)
 	copy(publicKeyData[:], b)
 
-	// Open or create a file named "key-from-oidc.pub.pem" in write-only mode with file permissions 0600
+	// Open or create a file in write-only mode with file permissions 0600
 	pubFile, err := os.OpenFile(filepath.Clean(filename), os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return "", fmt.Errorf("failed to open or create the public key file: %w", err)
@@ -345,7 +342,6 @@ func CreatePubFile(publicKey string, filename string) (string, error) {
 			log.Errorf("Error closing file: %s\n", cerr)
 		}
 	}()
-
 	// Write the publicKeyData array to the "key-from-oidc.pub.pem" file in Crypt4GHX25519 public key format
 	err = keys.WriteCrypt4GHX25519PublicKey(pubFile, publicKeyData)
 	if err != nil {

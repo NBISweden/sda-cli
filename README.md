@@ -217,7 +217,7 @@ You can login to download the configuration file needed for some of the the tool
 ```bash
 ./sda-cli login <login_target>
 ```
-where `login_target` is the URL can be the login endpoint for Big Picture (https://login.bp.nbis.se/), Federated EGA (https://login.fega.nbis.se/) or Genomic Data Infrastructure (https://login.gdi.nbis.se/)
+where `login_target` is the URL to the `sda-auth` service from the [sensitive-data-archive](https://github.com/neicnordic/sensitive-data-archive/) project.
 
 This will open a link for the user where they can go and log in.
 After the login is complete, a configuration file will be created in the tool's directory with the name of `.sda-cli-session`

@@ -210,7 +210,7 @@ func (suite *EncryptTests) TestEncryptFunction() {
 	// pub key not given
 	os.Args = []string{"encrypt", suite.fileOk.Name()}
 	err := Encrypt(os.Args)
-	assert.EqualError(suite.T(), err, "no public key could be obtained")
+	assert.EqualError(suite.T(), err, "configuration file (.sda-cli-session) not found")
 
 	// no such pub key file
 	msg := "open somekey: no such file or directory"

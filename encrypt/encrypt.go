@@ -28,11 +28,6 @@ import (
 var Usage = `
 USAGE: %s encrypt -key <public-key-file> (-target <target>) (-outdir <dir>) (-continue=true) [file(s)]
 
-The target can be one of the following:
-	bp.nbis.se
-	fega.nbis.se
-	gdc.nbis.se
-
 encrypt:
     Encrypts files according to the crypt4gh standard used in the
     Sensitive Data Archive (SDA).  Each given file will be encrypted
@@ -82,36 +77,36 @@ func Encrypt(args []string) error {
 		return err
 	}
 
-	var sesKey string
-	if len(publicKeyFileList) == 0 {
-		// check for public key in .sda-cli-session file from login
-		sesKey, err = helpers.GetPublicKeyFromSession()
-		if err != nil {
-			log.Println("could not read key from previous login,", err)
-		}
+	if publicKeyFileList != nil && *target != "" {
+		return errors.New("only one of -key or -target can be used")
 	}
-	// key from session file found
-	if len(publicKeyFileList) == 0 && sesKey != "" {
-		publicKeyFileList = append(publicKeyFileList, sesKey)
-	}
-	if len(publicKeyFileList) == 0 && sesKey == "" && *target != "" {
+
+	if *target != "" {
 		// fetch info endpoint values
+		log.Println("fetching public key")
 		info, err := login.GetAuthInfo(*target)
 		if err != nil {
 			return err
 		}
 		// create pub file
-		pubFile, err := helpers.CreatePubFile(info.PublicKey, "crypt4gh_key.pub")
+		pubKeyFile, err := helpers.CreatePubFile(info.PublicKey, "crypt4gh_key.pub")
 		if err != nil {
 			return err
 		}
-		log.Println("fetching public key")
 		// no key provided, no key in session file, target provided
-		publicKeyFileList = append(publicKeyFileList, pubFile)
+		publicKeyFileList = append(publicKeyFileList, pubKeyFile)
 	}
 	// no key provided, no key in session file, no target provided
-	if len(publicKeyFileList) == 0 && sesKey == "" && *target == "" {
-		return errors.New("no public key could be obtained")
+	if publicKeyFileList == nil && *target == "" {
+		// check for public key in .sda-cli-session file from login
+		pubKey, err := helpers.GetPublicKeyFromSession()
+		if err != nil {
+			return err
+		}
+		// key from session file found
+		if len(publicKeyFileList) == 0 && pubKey != "" {
+			publicKeyFileList = append(publicKeyFileList, pubKey)
+		}
 	}
 
 	// Each filename is first read into a helper struct (sliced for combatibility with checkFiles)
