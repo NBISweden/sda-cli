@@ -377,3 +377,15 @@ public_key = 27be42445fd9e39c9be39e6b36a55e61e3801fc845f63781a813d3fe9977e17a
 		os.Remove("key-from-oidc.pub.pem")
 	}
 }
+
+func (suite *HelperTests) TestInvalidCharacters() {
+	// Test that file paths with invalid characters trigger errors
+	for _, badc := range "\x00\x7F\x1A:*?\\" {
+		badchar := string(badc)
+		testfilepath := "test" + badchar + "file"
+
+		err := CheckValidChars(testfilepath)
+		assert.Error(suite.T(), err)
+		assert.Equal(suite.T(), fmt.Sprintf("filepath %v contains disallowed characters: %+v", testfilepath, badchar), err.Error())
+	}
+}
