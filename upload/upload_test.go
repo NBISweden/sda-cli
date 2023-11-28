@@ -427,7 +427,7 @@ func (suite *TestSuite) TestRecursiveToDifferentTarget() {
 func (suite *TestSuite) TestUploadInvalidCharacters() {
 	// Filenames with :\?* can not be created on windows
 	if runtime.GOOS == "windows" {
-		return
+		suite.T().Skip("Skipping. Cannot create filenames with invalid characters on windows")
 	}
 
 	// Create a fake s3 backend
