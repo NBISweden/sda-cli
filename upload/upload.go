@@ -261,14 +261,19 @@ func Upload(args []string) error {
 		return fmt.Errorf("failed parsing arguments, reason: %v", err)
 	}
 
-	// Check that specified target directory is valid, i.e. not a filepath or a flag
-	info, err := os.Stat(*targetDir)
-
 	// Dereference the pointer to a string
 	var targetDirString string
 	if targetDir != nil {
 		targetDirString = *targetDir
 	}
+
+	err = helpers.CheckValidChars(filepath.ToSlash(targetDirString))
+	if err != nil {
+		return err
+	}
+
+	// Check that specified target directory is valid, i.e. not a filepath or a flag
+	info, err := os.Stat(*targetDir)
 
 	if (!os.IsNotExist(err) && !info.IsDir()) || (targetDirString != "" && targetDirString[0:1] == "-") {
 		return errors.New(*targetDir + " is not a valid target directory")

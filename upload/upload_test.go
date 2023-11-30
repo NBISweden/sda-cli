@@ -425,10 +425,6 @@ func (suite *TestSuite) TestRecursiveToDifferentTarget() {
 }
 
 func (suite *TestSuite) TestUploadInvalidCharacters() {
-	// Filenames with :\?* can not be created on windows
-	if runtime.GOOS == "windows" {
-		suite.T().Skip("Skipping. Cannot create filenames with invalid characters on windows")
-	}
 
 	// Create a fake s3 backend
 	backend := s3mem.New()
@@ -471,6 +467,39 @@ func (suite *TestSuite) TestUploadInvalidCharacters() {
 		log.Panic(err)
 	}
 	defer os.RemoveAll(dir)
+
+	// Create a test file
+	testfilepath := "testfile"
+	var testfile *os.File
+	testfile, err = os.Create(filepath.Join(dir, testfilepath))
+	if err != nil {
+		log.Panic(err)
+	}
+	err = os.WriteFile(testfile.Name(), []byte("content"), 0600)
+	if err != nil {
+		log.Panic(err)
+	}
+	defer os.Remove(testfile.Name())
+
+	// Check that target dir names with invalid characters will not be accepted
+	badchars := ":*?"
+	// backlash is only allowed on windows
+	if runtime.GOOS != "windows" {
+		badchars += "\\"
+	}
+	for _, badc := range badchars {
+		badchar := string(badc)
+		targetDir := "test" + badchar + "dir"
+		os.Args = []string{"upload", "--force-unencrypted", "-config", configPath.Name(), "-targetDir", targetDir, "-r", testfile.Name()}
+		err = Upload(os.Args)
+		assert.Error(suite.T(), err)
+		assert.Equal(suite.T(), fmt.Sprintf("filepath %v contains disallowed characters: %+v", targetDir, badchar), err.Error())
+	}
+
+	// Filenames with :\?* can not be created on windows, skip the following tests
+	if runtime.GOOS == "windows" {
+		suite.T().Skip("Skipping. Cannot create filenames with invalid characters on windows")
+	}
 
 	// Test that no files with invalid characters can be uploaded
 	for _, badc := range "\\:*?" {
