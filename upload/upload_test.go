@@ -493,7 +493,7 @@ func (suite *TestSuite) TestUploadInvalidCharacters() {
 		os.Args = []string{"upload", "--force-unencrypted", "-config", configPath.Name(), "-targetDir", targetDir, "-r", testfile.Name()}
 		err = Upload(os.Args)
 		assert.Error(suite.T(), err)
-		assert.Equal(suite.T(), fmt.Sprintf("filepath %v contains disallowed characters: %+v", targetDir, badchar), err.Error())
+		assert.Equal(suite.T(), targetDir+" is not a valid target directory", err.Error())
 	}
 
 	// Filenames with :\?* can not be created on windows, skip the following tests

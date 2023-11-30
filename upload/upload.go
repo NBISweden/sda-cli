@@ -269,7 +269,7 @@ func Upload(args []string) error {
 
 	err = helpers.CheckValidChars(filepath.ToSlash(targetDirString))
 	if err != nil {
-		return err
+		return errors.New(*targetDir + " is not a valid target directory")
 	}
 
 	// Check that specified target directory is valid, i.e. not a filepath or a flag
