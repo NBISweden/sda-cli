@@ -462,7 +462,7 @@ func (suite *TestSuite) TestUploadInvalidCharacters() {
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		log.Printf("failed to write temp config file, %v", err)
+		log.Panic(err)
 	}
 
 	// Create temp dir with file
@@ -483,7 +483,7 @@ func (suite *TestSuite) TestUploadInvalidCharacters() {
 		}
 		err = os.WriteFile(testfile.Name(), []byte("content"), 0600)
 		if err != nil {
-			log.Printf("failed to write temp file, %v", err)
+			log.Panic(err)
 		}
 		defer os.Remove(testfile.Name())
 
