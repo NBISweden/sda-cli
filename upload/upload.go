@@ -71,6 +71,14 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		return errors.New("no files to upload")
 	}
 
+	// Loop through the list of file paths and check if their names are valid
+	for _, filename := range outFiles {
+		err := helpers.CheckValidChars(filename)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Loop through the list of files and check if they are encrypted
 	// If we run into an unencrypted file and the flag force-unencrypted is not set, we stop the upload
 	for _, filename := range files {
@@ -225,7 +233,7 @@ func createFilePaths(dirPath string) ([]string, []string, error) {
 			// Remove possible trailing "/" so that "path" and "path/" behave the same
 			dirPath = strings.TrimSuffix(dirPath, string(os.PathSeparator))
 			pathToTrim := strings.TrimSuffix(dirPath, filepath.Base(dirPath))
-			outPath := formatUploadFilePath(strings.TrimPrefix(path, pathToTrim))
+			outPath := filepath.ToSlash(strings.TrimPrefix(path, pathToTrim))
 			outFiles = append(outFiles, outPath)
 		}
 
@@ -237,20 +245,6 @@ func createFilePaths(dirPath string) ([]string, []string, error) {
 	}
 
 	return files, outFiles, nil
-}
-
-// formatUploadFilePath ensures that path separators are "/", and that special
-// characters are replaced with safe characters.
-func formatUploadFilePath(filePath string) string {
-
-	outPath := filepath.ToSlash(filePath)
-
-	for _, char := range []string{":", ";"} {
-		outPath = strings.ReplaceAll(outPath, char, "_")
-	}
-	log.Debugf("Converted filepath %v to %v", filePath, outPath)
-
-	return outPath
 }
 
 // Upload function uploads files to the s3 bucket. Input can be files or
@@ -267,14 +261,19 @@ func Upload(args []string) error {
 		return fmt.Errorf("failed parsing arguments, reason: %v", err)
 	}
 
-	// Check that specified target directory is valid, i.e. not a filepath or a flag
-	info, err := os.Stat(*targetDir)
-
 	// Dereference the pointer to a string
 	var targetDirString string
 	if targetDir != nil {
 		targetDirString = *targetDir
 	}
+
+	err = helpers.CheckValidChars(filepath.ToSlash(targetDirString))
+	if err != nil {
+		return errors.New(*targetDir + " is not a valid target directory")
+	}
+
+	// Check that specified target directory is valid, i.e. not a filepath or a flag
+	info, err := os.Stat(*targetDir)
 
 	if (!os.IsNotExist(err) && !info.IsDir()) || (targetDirString != "" && targetDirString[0:1] == "-") {
 		return errors.New(*targetDir + " is not a valid target directory")
@@ -328,7 +327,7 @@ func Upload(args []string) error {
 			outFiles = append(outFiles, upFilePaths...)
 		} else {
 			files = append(files, filePath)
-			outFiles = append(outFiles, formatUploadFilePath(filepath.Base(filePath)))
+			outFiles = append(outFiles, filepath.ToSlash(filepath.Base(filePath)))
 		}
 	}
 

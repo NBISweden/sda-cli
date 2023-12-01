@@ -135,21 +135,6 @@ func (suite *TestSuite) TestcreateFilePaths() {
 	assert.ErrorContains(suite.T(), err, msg)
 }
 
-func (suite *TestSuite) TestFormatUploadFilePath() {
-
-	unixPath := "a/b/c.c4gh"
-	testPath := filepath.Join("a", "b", "c.c4gh")
-	uploadPath := formatUploadFilePath(testPath)
-
-	assert.Equal(suite.T(), unixPath, uploadPath)
-
-	weirdPath := "a/b:/c;.c4gh"
-	goodPath := "a/b_/c_.c4gh"
-	formattedPath := formatUploadFilePath(weirdPath)
-
-	assert.Equal(suite.T(), goodPath, formattedPath)
-}
-
 func (suite *TestSuite) TestFunctionality() {
 
 	// Create a fake s3 backend
@@ -437,4 +422,104 @@ func (suite *TestSuite) TestRecursiveToDifferentTarget() {
 	assert.Equal(suite.T(), filepath.ToSlash(filepath.Join(targetPath, filepath.Base(dir), filepath.Base(testfile.Name()))), aws.StringValue(result.Contents[0].Key))
 
 	log.SetOutput(os.Stdout)
+}
+
+func (suite *TestSuite) TestUploadInvalidCharacters() {
+
+	// Create a fake s3 backend
+	backend := s3mem.New()
+	faker := gofakes3.New(backend)
+	ts := httptest.NewServer(faker.Server())
+	defer ts.Close()
+
+	// Create conf file for sda-cli
+	var confFile = fmt.Sprintf(`
+	access_token = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNzA3NDgzOTQ0IiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwiZXhwIjoxNzA3NDgzOTQ0fQ.D7hrpd3ROXp53NnXa0PL9js2Oi1KqpKpkVMic1B23X84ksX9kbbtn4Ad4BkhO8Tm35a5hBu95CGgw5b06sd3LQ"
+	host_base = %[1]s
+	encoding = UTF-8
+	host_bucket = %[1]s
+	multipart_chunk_size_mb = 50
+	secret_key = dummy
+	access_key = dummy
+	use_https = False
+	check_ssl_certificate = False
+	check_ssl_hostname = False
+	socket_timeout = 30
+	human_readable_sizes = True
+	guess_mime_type = True
+	encrypt = False
+	`, strings.TrimPrefix(ts.URL, "http://"))
+
+	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd.conf")
+	if err != nil {
+		log.Panic(err)
+	}
+	defer os.Remove(configPath.Name())
+
+	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	// Create temp dir with file
+	dir, err := os.MkdirTemp(os.TempDir(), "test")
+	if err != nil {
+		log.Panic(err)
+	}
+	defer os.RemoveAll(dir)
+
+	// Create a test file
+	testfilepath := "testfile"
+	var testfile *os.File
+	testfile, err = os.Create(filepath.Join(dir, testfilepath))
+	if err != nil {
+		log.Panic(err)
+	}
+	err = os.WriteFile(testfile.Name(), []byte("content"), 0600)
+	if err != nil {
+		log.Panic(err)
+	}
+	defer os.Remove(testfile.Name())
+
+	// Check that target dir names with invalid characters will not be accepted
+	badchars := ":*?"
+	// backlash is only allowed on windows
+	if runtime.GOOS != "windows" {
+		badchars += "\\"
+	}
+	for _, badc := range badchars {
+		badchar := string(badc)
+		targetDir := "test" + badchar + "dir"
+		os.Args = []string{"upload", "--force-unencrypted", "-config", configPath.Name(), "-targetDir", targetDir, "-r", testfile.Name()}
+		err = Upload(os.Args)
+		assert.Error(suite.T(), err)
+		assert.Equal(suite.T(), targetDir+" is not a valid target directory", err.Error())
+	}
+
+	// Filenames with :\?* can not be created on windows, skip the following tests
+	if runtime.GOOS == "windows" {
+		suite.T().Skip("Skipping. Cannot create filenames with invalid characters on windows")
+	}
+
+	// Test that no files with invalid characters can be uploaded
+	for _, badc := range "\\:*?" {
+		badchar := string(badc)
+		testfilepath := "test" + badchar + "file"
+		var testfile *os.File
+		testfile, err := os.Create(filepath.Join(dir, testfilepath))
+		if err != nil {
+			log.Panic(err)
+		}
+		err = os.WriteFile(testfile.Name(), []byte("content"), 0600)
+		if err != nil {
+			log.Panic(err)
+		}
+		defer os.Remove(testfile.Name())
+
+		os.Args = []string{"upload", "--force-unencrypted", "-config", configPath.Name(), "-r", testfile.Name()}
+		err = Upload(os.Args)
+		assert.Error(suite.T(), err)
+		assert.Equal(suite.T(), fmt.Sprintf("filepath %v contains disallowed characters: %+v", testfilepath, badchar), err.Error())
+	}
+
 }
