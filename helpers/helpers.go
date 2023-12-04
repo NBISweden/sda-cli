@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -357,13 +358,27 @@ func CheckTokenExpiration(accessToken string) (bool, error) {
 		if claims["exp"] == nil {
 			return false, fmt.Errorf("could not parse token, reason: no expiration date")
 		}
+
+		// Parse the expiration date from token, handle cases where
+		//  the date format is nonstandard, e.g. test tokens are used
 		switch iat := claims["exp"].(type) {
 		case float64:
 			expiration = time.Unix(int64(iat), 0)
 		case json.Number:
 			tmp, _ := iat.Int64()
 			expiration = time.Unix(tmp, 0)
+		case string:
+			i, err := strconv.ParseInt(iat, 10, 64)
+			if err != nil {
+				return false, fmt.Errorf("could not parse token, reason: %s", err)
+			}
+			expiration = time.Unix(int64(i), 0)
 		}
+
+		if expiration.Compare(time.Now()) == -1 {
+			return false, fmt.Errorf("the provided access token has expired, please renew it")
+		}
+
 	} else {
 		return false, fmt.Errorf("broken token (claims are empty): %v\nerror: %s", claims, err)
 	}
