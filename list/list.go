@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 
-	"os"
 	"strings"
 
 	"github.com/NBISweden/sda-cli/helpers"
@@ -60,14 +59,11 @@ func List(args []string) error {
 		return fmt.Errorf("failed to load config file, reason: %v", err)
 	}
 
-	expiring, err := helpers.CheckTokenExpiration(config.AccessToken)
+	err = helpers.CheckTokenExpiration(config.AccessToken)
 	if err != nil {
 		return err
 	}
-	if expiring {
-		fmt.Fprintln(os.Stderr, "The provided token expires in less than 24 hours")
-		fmt.Fprintln(os.Stderr, "Consider renewing the token.")
-	}
+
 	result, err := helpers.ListFiles(*config, prefix)
 	if err != nil {
 		return err

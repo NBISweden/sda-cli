@@ -285,13 +285,9 @@ func Upload(args []string) error {
 		return err
 	}
 
-	expiring, err := helpers.CheckTokenExpiration(config.AccessToken)
+	err = helpers.CheckTokenExpiration(config.AccessToken)
 	if err != nil {
 		return err
-	}
-	if expiring {
-		fmt.Fprintln(os.Stderr, "The provided token expires in less than 24 hours")
-		fmt.Fprintln(os.Stderr, "Consider renewing the token.")
 	}
 
 	// Check that input file/folder list is not empty

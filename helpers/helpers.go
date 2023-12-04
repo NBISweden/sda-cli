@@ -344,48 +344,54 @@ func GetPublicKey() (string, error) {
 }
 
 // CheckTokenExpiration is used to determine whether the token is expiring in less than a day
-func CheckTokenExpiration(accessToken string) (bool, error) {
+func CheckTokenExpiration(accessToken string) error {
 
 	// Parse jwt token with unverifies, since we don't need to check the signatures here
 	token, _, err := new(jwt.Parser).ParseUnverified(accessToken, jwt.MapClaims{})
 	if err != nil {
-		return false, fmt.Errorf("could not parse token, reason: %s", err)
+		return fmt.Errorf("could not parse token, reason: %s", err)
 	}
 
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return fmt.Errorf("broken token (claims are empty): %v\nerror: %s", claims, err)
+	}
+
+	// Check if the token has exp claim
+	if claims["exp"] == nil {
+		return fmt.Errorf("could not parse token, reason: no expiration date")
+	}
+
+	// Parse the expiration date from token, handle cases where
+	//  the date format is nonstandard, e.g. test tokens are used
 	var expiration time.Time
-	if claims, ok := token.Claims.(jwt.MapClaims); ok {
-		// Check if the token has exp claim
-		if claims["exp"] == nil {
-			return false, fmt.Errorf("could not parse token, reason: no expiration date")
+	switch iat := claims["exp"].(type) {
+	case float64:
+		expiration = time.Unix(int64(iat), 0)
+	case json.Number:
+		tmp, _ := iat.Int64()
+		expiration = time.Unix(tmp, 0)
+	case string:
+		i, err := strconv.ParseInt(iat, 10, 64)
+		if err != nil {
+			return fmt.Errorf("could not parse token, reason: %s", err)
 		}
-
-		// Parse the expiration date from token, handle cases where
-		//  the date format is nonstandard, e.g. test tokens are used
-		switch iat := claims["exp"].(type) {
-		case float64:
-			expiration = time.Unix(int64(iat), 0)
-		case json.Number:
-			tmp, _ := iat.Int64()
-			expiration = time.Unix(tmp, 0)
-		case string:
-			i, err := strconv.ParseInt(iat, 10, 64)
-			if err != nil {
-				return false, fmt.Errorf("could not parse token, reason: %s", err)
-			}
-			expiration = time.Unix(int64(i), 0)
-		}
-
-		if expiration.Compare(time.Now()) == -1 {
-			return false, fmt.Errorf("the provided access token has expired, please renew it")
-		}
-
-	} else {
-		return false, fmt.Errorf("broken token (claims are empty): %v\nerror: %s", claims, err)
+		expiration = time.Unix(int64(i), 0)
+	default:
+		return fmt.Errorf("could not parse token, reason: unknown expiration date format")
 	}
 
-	tomorrow := time.Now().AddDate(0, 0, 1)
+	switch untilExp := time.Until(expiration); {
+	case untilExp < 0:
+		return fmt.Errorf("the provided access token has expired, please renew it")
+	case untilExp > 0 && untilExp < 24*time.Hour:
+		fmt.Fprintln(os.Stderr, "The provided access token expires in", time.Until(expiration).Truncate(time.Second))
+		fmt.Fprintln(os.Stderr, "Consider renewing the token.")
+	default:
+		fmt.Fprintln(os.Stderr, "The provided access token expires in", time.Until(expiration).Truncate(time.Second))
+	}
 
-	return tomorrow.After(expiration), nil
+	return nil
 }
 
 func ListFiles(config Config, prefix string) (result *s3.ListObjectsV2Output, err error) {
