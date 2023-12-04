@@ -138,7 +138,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		}
 		fileExists, err := helpers.ListFiles(*config, listPrefix)
 		if err != nil {
-			log.Error("Couldn't get the file list ", err)
+			return fmt.Errorf("listing uploaded files: %s", err.Error())
 		}
 		if len(fileExists.Contents) > 0 {
 			if aws.StringValue(fileExists.Contents[0].Key) == filepath.Clean(config.AccessKey+"/"+targetDir+"/"+outFiles[k]) {
