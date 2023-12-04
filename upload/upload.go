@@ -166,7 +166,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 			SignMap: map[int64]struct{}{},
 			Bar: p.AddBar(fileInfo.Size(),
 				mpb.PrependDecorators(
-					decor.Name(file, decor.WC{W: len(file) + 1, C: decor.DidentRight}),
+					decor.Name(file, decor.WC{W: len(file) + 1, C: decor.DindentRight}),
 					decor.Name("uploading", decor.WCSyncSpaceR),
 					decor.Counters(decor.SizeB1024(0), "% .1f / % .1f"),
 				),
