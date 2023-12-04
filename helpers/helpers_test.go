@@ -1,13 +1,17 @@
 package helpers
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"fmt"
 	"log"
 	"os"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/golang-jwt/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -16,6 +20,34 @@ type HelperTests struct {
 	suite.Suite
 	tempDir  string
 	testFile *os.File
+}
+
+// generate jwts for testing the expDate
+func generateDummyToken(expDate int64) string {
+	// Generate a new private key
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		log.Fatalf("Failed to generate private key: %s", err)
+	}
+
+	// Create the Claims
+	claims := &jwt.StandardClaims{
+		Issuer: "test",
+	}
+	if expDate != 0 {
+		claims = &jwt.StandardClaims{
+			ExpiresAt: expDate,
+			Issuer:    "test",
+		}
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	ss, err := token.SignedString(privateKey)
+	if err != nil {
+		log.Fatalf("Failed to sign token: %s", err)
+	}
+
+	return ss
 }
 
 func TestHelpersTestSuite(t *testing.T) {
@@ -285,25 +317,19 @@ encrypt = False
 
 func (suite *HelperTests) TestTokenExpiration() {
 	// Token without exp claim
-	// #nosec G101
-	token := "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNzA3NDgzOTQ0IiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.7r3JJptaxQpuN0I6JwEdfIchf7OOXu--OMFprfMtwzXl2UpmjGVeGy0LWhuzG4LljA2uAp5SPrWzz_U5YKcjuw"
-	expiring, err := CheckTokenExpiration(token)
+	token := generateDummyToken(0)
+	err := CheckTokenExpiration(token)
 	assert.EqualError(suite.T(), err, "could not parse token, reason: no expiration date")
-	assert.False(suite.T(), expiring)
 
 	// Token with expired date
-	// #nosec G101
-	token = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNzA3NDgzOTQ0IiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwiZXhwIjoxNTE2MjM5MDIyfQ.bjYdbKzzR7jbZpLgm_bCqOr_wuaO8KSCEdVJpKEh1pdJ-7klsHdOwCQoBxbmdVPIVHE0jfEEzc9IvtztTeejmg"
-	expiring, err = CheckTokenExpiration(token)
-	assert.NoError(suite.T(), err)
-	assert.True(suite.T(), expiring)
+	token = generateDummyToken(time.Now().Unix())
+	err = CheckTokenExpiration(token)
+	assert.EqualError(suite.T(), err, "the provided access token has expired, please renew it")
 
 	// Token with valid expiration
-	// #nosec G101
-	token = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNzA3NDgzOTQ0IiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwiZXhwIjoxNzA3NDgzOTQ0fQ.D7hrpd3ROXp53NnXa0PL9js2Oi1KqpKpkVMic1B23X84ksX9kbbtn4Ad4BkhO8Tm35a5hBu95CGgw5b06sd3LQ"
-	expiring, err = CheckTokenExpiration(token)
+	token = generateDummyToken(time.Now().Add(time.Hour * 72).Unix())
+	err = CheckTokenExpiration(token)
 	assert.NoError(suite.T(), err)
-	assert.False(suite.T(), expiring)
 }
 
 func (suite *HelperTests) TestPubKeyEmptyField() {
