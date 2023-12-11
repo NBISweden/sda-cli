@@ -100,7 +100,7 @@ func (suite *DecryptTests) TestcheckFiles() {
 	assert.EqualError(suite.T(), err, "cannot read input file does-not-exist")
 }
 
-func (suite *DecryptTests) Testdecrypt() {
+func (suite *DecryptTests) TestDecryptFile() {
 	testKeyFile := filepath.Join(suite.tempDir, "testkey")
 	encryptedFile := fmt.Sprintf("%s.c4gh", suite.testFile.Name())
 	decryptedFile := filepath.Join(suite.tempDir, "decrypted_file")
@@ -135,20 +135,20 @@ func (suite *DecryptTests) Testdecrypt() {
 	}
 
 	// Test decrypting a non-existent file
-	err = decrypt(filepath.Join(suite.tempDir, "non-existent"), "output_file", *privateKey)
+	err = decryptFile(filepath.Join(suite.tempDir, "non-existent"), "output_file", *privateKey)
 	assert.EqualError(suite.T(), err, fmt.Sprintf("infile %s does not exist or could not be read", filepath.Join(suite.tempDir, "non-existent")))
 
 	// Test decrypting where the output file exists
-	err = decrypt(encryptedFile, suite.testFile.Name(), *privateKey)
+	err = decryptFile(encryptedFile, suite.testFile.Name(), *privateKey)
 	assert.EqualError(suite.T(), err, fmt.Sprintf("outfile %s already exists", suite.testFile.Name()))
 
 	// Test decryption with malformed key
 	fakeKey := [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	err = decrypt(encryptedFile, decryptedFile, fakeKey)
+	err = decryptFile(encryptedFile, decryptedFile, fakeKey)
 	assert.EqualError(suite.T(), err, "could not create cryp4gh reader: could not find matching public key header, decryption failed")
 
 	// Test decrypting with the real key
-	err = decrypt(encryptedFile, decryptedFile, *privateKey)
+	err = decryptFile(encryptedFile, decryptedFile, *privateKey)
 	assert.NoError(suite.T(), err)
 
 	// Check content of the decrypted file

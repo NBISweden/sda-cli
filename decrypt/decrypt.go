@@ -94,7 +94,7 @@ func Decrypt(args []string) error {
 	for i, file := range files {
 		log.Infof("Decrypting file %v/%v: %s", i+1, numFiles, file.Encrypted)
 
-		err = decrypt(file.Encrypted, file.Unencrypted, *privateKey)
+		err = decryptFile(file.Encrypted, file.Unencrypted, *privateKey)
 		if err != nil {
 			return err
 		}
@@ -161,7 +161,7 @@ func checkFiles(files []helpers.EncryptionFileSet) error {
 
 // decrypts the data in `filename` with the given `privateKey`, writing the
 // resulting data to `outfile`.
-func decrypt(filename, outfileName string, privateKey [32]byte) error {
+func decryptFile(filename, outfileName string, privateKey [32]byte) error {
 	// check that the infile exists, and the the outfile doesn't exist
 	if !helpers.FileIsReadable(filename) {
 		return fmt.Errorf("infile %s does not exist or could not be read", filename)
