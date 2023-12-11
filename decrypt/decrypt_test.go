@@ -69,6 +69,10 @@ func (suite *DecryptTests) TestreadPrivateKeyFile() {
 	_, err = readPrivateKeyFile(suite.testFile.Name(), "")
 	assert.ErrorContains(suite.T(), err, fmt.Sprintf("file: %s", suite.testFile.Name()))
 
+	// Test reading a public key
+	_, err = readPrivateKeyFile(fmt.Sprintf("%s.pub.pem", testKeyFile), "")
+	assert.ErrorContains(suite.T(), err, "private key format not supported")
+	
 	// Test reading a real key
 	_, err = readPrivateKeyFile(fmt.Sprintf("%s.sec.pem", testKeyFile), "")
 	assert.NoError(suite.T(), err)
