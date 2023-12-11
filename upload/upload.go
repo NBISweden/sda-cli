@@ -129,23 +129,26 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 			return err
 		}
 
-		if *forceOverwrite {
-			fmt.Println("force-overwrite flag provided, continuing...")
+		// Check if files exists in S3
+		var listPrefix string
+		if targetDir != "" {
+			listPrefix = targetDir + "/" + outFiles[k]
 		} else {
-			// Check if files exists in S3
-			listPrefix := outFiles[k]
-			if targetDir != "" {
-				listPrefix = targetDir + "/" + outFiles[k]
-			}
-
-			fileExists, err := helpers.ListFiles(*config, listPrefix)
-			if err != nil {
-				return fmt.Errorf("listing uploaded files: %s", err.Error())
-			}
-			if len(fileExists.Contents) > 0 && aws.StringValue(fileExists.Contents[0].Key) == filepath.Clean(config.AccessKey+"/"+targetDir+"/"+outFiles[k]) {
+			listPrefix = outFiles[k]
+		}
+		fileExists, err := helpers.ListFiles(*config, listPrefix)
+		if err != nil {
+			return fmt.Errorf("listing uploaded files: %s", err.Error())
+		}
+		if len(fileExists.Contents) > 0 {
+			if aws.StringValue(fileExists.Contents[0].Key) == filepath.Clean(config.AccessKey+"/"+targetDir+"/"+outFiles[k]) {
 				fmt.Printf("File %s is already uploaded!\n", filepath.Base(filename))
+				if !*forceOverwrite {
+					fmt.Println("Quitting...")
 
-				return errors.New("file already uploaded")
+					return errors.New("file already uploaded")
+				}
+				fmt.Println("force-overwrite flag provided, continuing...")
 			}
 		}
 
