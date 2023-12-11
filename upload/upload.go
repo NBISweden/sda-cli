@@ -138,7 +138,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		}
 		fileExists, err := helpers.ListFiles(*config, listPrefix)
 		if err != nil {
-			log.Error("Couldn't get the file list ", err)
+			return fmt.Errorf("listing uploaded files: %s", err.Error())
 		}
 		if len(fileExists.Contents) > 0 {
 			if aws.StringValue(fileExists.Contents[0].Key) == filepath.Clean(config.AccessKey+"/"+targetDir+"/"+outFiles[k]) {
@@ -285,13 +285,9 @@ func Upload(args []string) error {
 		return err
 	}
 
-	expiring, err := helpers.CheckTokenExpiration(config.AccessToken)
+	err = helpers.CheckTokenExpiration(config.AccessToken)
 	if err != nil {
 		return err
-	}
-	if expiring {
-		fmt.Fprintln(os.Stderr, "The provided token expires in less than 24 hours")
-		fmt.Fprintln(os.Stderr, "Consider renewing the token.")
 	}
 
 	// Check that input file/folder list is not empty
