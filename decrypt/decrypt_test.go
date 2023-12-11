@@ -126,11 +126,9 @@ func (suite *DecryptTests) Testdecrypt() {
 	if err != nil {
 		log.Error("could not change into test directory")
 	}
-	encryptArgs := []string{"sda-cli", "-key", fmt.Sprintf("%s.pub.pem", testKeyFile), suite.testFile.Name()}
+	encryptArgs := []string{"encrypt", "-key", fmt.Sprintf("%s.pub.pem", testKeyFile), suite.testFile.Name()}
 	err = encrypt.Encrypt(encryptArgs)
-	if err != nil {
-		log.Errorf("couldn't encrypt file for decryption test: %s", err)
-	}
+	assert.NoError(suite.T(), err, "encrypting file for testing failed")
 	err = os.Chdir(cwd)
 	if err != nil {
 		log.Error("could not return from test directory")
@@ -155,12 +153,8 @@ func (suite *DecryptTests) Testdecrypt() {
 
 	// Check content of the decrypted file
 	inFile, err := os.Open(decryptedFile)
-	if err != nil {
-		log.Errorf("Couldn't open decrypted file %s for content checking", decryptedFile)
-	}
+	assert.NoError(suite.T(), err, "unable to open decrypted file")
 	fileData, err := io.ReadAll(inFile)
-	if err != nil {
-		log.Error("Couldn't read decrypted filedata for content checking")
-	}
+	assert.NoError(suite.T(), err, "unable to read decrypted file")
 	assert.Equal(suite.T(), fileData, suite.fileContent)
 }
