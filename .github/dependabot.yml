@@ -6,7 +6,7 @@ updates:
       interval: weekly
     open-pull-requests-limit: 10
     reviewers:
-      - "NBISweden/giant-sloth"
+      - "nbisweden/sda-developers"
   - package-ecosystem: docker
     directory: ./
     schedule:
@@ -17,4 +17,4 @@ updates:
       interval: weekly
     open-pull-requests-limit: 10
     reviewers:
-      - "NBISweden/giant-sloth"
+      - "nbisweden/sda-developers"
