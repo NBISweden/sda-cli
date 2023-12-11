@@ -66,9 +66,8 @@ func Decrypt(args []string) error {
 		return errors.New("a private key is required to decrypt data")
 	}
 
-	var privateKey *[32]byte
 	// try reading private key without password
-	privateKey, err = readPrivateKeyFile(*privateKeyFile, "")
+	privateKey, err := readPrivateKeyFile(*privateKeyFile, "")
 	if err != nil {
 		// if there was an error, try again with the password
 		password, err := getPassword("C4GH_PASSWORD")
