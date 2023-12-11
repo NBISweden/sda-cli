@@ -27,9 +27,7 @@ func TestDecryptTestSuite(t *testing.T) {
 }
 
 func (suite *DecryptTests) SetupTest() {
-
 	var err error
-
 	// Create a temporary directory for our files
 	suite.tempDir, err = os.MkdirTemp(os.TempDir(), "sda-cli-test-")
 	if err != nil {
@@ -44,7 +42,6 @@ func (suite *DecryptTests) SetupTest() {
 
 	// ... create some content ...
 	suite.fileContent = []byte("This is some fine content right here.")
-
 	// ... and write the known content to it
 	err = os.WriteFile(suite.testFile.Name(), suite.fileContent, 0600)
 	if err != nil {
@@ -57,11 +54,8 @@ func (suite *DecryptTests) TearDownTest() {
 }
 
 func (suite *DecryptTests) TestreadPrivateKeyFile() {
-
 	testKeyFile := filepath.Join(suite.tempDir, "testkey")
-
 	// generate key files
-
 	err := createKey.GenerateKeyPair(testKeyFile, "")
 	if err != nil {
 		log.Errorf("couldn't generate testing key pair: %s", err)
@@ -99,7 +93,6 @@ func (suite *DecryptTests) TestcheckFiles() {
 }
 
 func (suite *DecryptTests) Testdecrypt() {
-
 	testKeyFile := filepath.Join(suite.tempDir, "testkey")
 	encryptedFile := fmt.Sprintf("%s.c4gh", suite.testFile.Name())
 	decryptedFile := filepath.Join(suite.tempDir, "decrypted_file")
