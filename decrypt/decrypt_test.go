@@ -162,6 +162,7 @@ func (suite *DecryptTests) TestDecrypt() {
 	assert.NoError(suite.T(), os.Chdir(cwd))
 	assert.NoError(suite.T(), os.Remove(suite.testFile.Name()))
 
+	os.Setenv("C4GH_PASSWORD", "")
 	os.Args = []string{"decrypt", "-key", fmt.Sprintf("%s.sec.pem", testKeyFile), fmt.Sprintf("%s.c4gh", suite.testFile.Name())}
 	err = Decrypt(os.Args)
 	assert.NoError(suite.T(), err, "decrypt failed unexpectedly")
