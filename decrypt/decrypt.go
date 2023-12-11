@@ -45,7 +45,6 @@ var privateKeyFile = Args.String("key", "",
 // Decrypt takes a set of arguments, parses them, and attempts to decrypt the
 // given data files with the given private key file..
 func Decrypt(args []string) error {
-
 	// Call ParseArgs to take care of all the flag parsing
 	err := helpers.ParseArgs(args, Args)
 	if err != nil {
@@ -57,10 +56,8 @@ func Decrypt(args []string) error {
 	// All filenames are read into a struct together with their output filenames
 	files := []helpers.EncryptionFileSet{}
 	for _, filename := range Args.Args() {
-
 		// Set directory for the output file
 		unencryptedFilename := strings.TrimSuffix(filename, ".c4gh")
-
 		files = append(files, helpers.EncryptionFileSet{Encrypted: filename, Unencrypted: unencryptedFilename})
 	}
 
@@ -70,11 +67,9 @@ func Decrypt(args []string) error {
 	}
 
 	var privateKey *[32]byte
-
 	// try reading private key without password
 	privateKey, err = readPrivateKeyFile(*privateKeyFile, "")
 	if err != nil {
-
 		// if there was an error, try again with the password
 		password, err := getPassword("C4GH_PASSWORD")
 		if err != nil {
@@ -126,7 +121,6 @@ func getPassword(envVar string) (string, error) {
 
 // Reads a private key file from a file using the crypt4gh keys module
 func readPrivateKeyFile(filename, password string) (key *[32]byte, err error) {
-
 	// Check that the file exists
 	if !helpers.FileExists(filename) {
 		return nil, fmt.Errorf("private key file %s doesn't exist", filename)
@@ -168,7 +162,6 @@ func checkFiles(files []helpers.EncryptionFileSet) error {
 // decrypts the data in `filename` with the given `privateKey`, writing the
 // resulting data to `outfile`.
 func decrypt(filename, outfileName string, privateKey [32]byte) error {
-
 	// check that the infile exists, and the the outfile doesn't exist
 	if !helpers.FileIsReadable(filename) {
 		return fmt.Errorf("infile %s does not exist or could not be read", filename)
