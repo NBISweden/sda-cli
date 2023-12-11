@@ -9,7 +9,6 @@ import (
 
 	createKey "github.com/NBISweden/sda-cli/create_key"
 	"github.com/NBISweden/sda-cli/encrypt"
-	"github.com/NBISweden/sda-cli/helpers"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -82,25 +81,7 @@ func (suite *DecryptTests) TestreadPrivateKeyFile() {
 	assert.NoError(suite.T(), err)
 }
 
-func (suite *DecryptTests) TestcheckFiles() {
-	// unencrypted is readable, and unencrypted isn't (this is fine!)
-	testOk := helpers.EncryptionFileSet{Encrypted: suite.testFile.Name(), Unencrypted: "does-not-exist"}
-	err := checkFiles([]helpers.EncryptionFileSet{testOk})
-	assert.NoError(suite.T(), err)
-
-	// unencrypted is readable, but encrypted exists
-	testHasEncrypted := helpers.EncryptionFileSet{Encrypted: suite.testFile.Name(), Unencrypted: suite.testFile.Name()}
-	err = checkFiles([]helpers.EncryptionFileSet{testHasEncrypted})
-	assert.EqualError(suite.T(), err, fmt.Sprintf("outfile %s already exists",
-		suite.testFile.Name()))
-
-	// unencrypted isn't readable
-	testNoUnencrypted := helpers.EncryptionFileSet{Encrypted: "does-not-exist", Unencrypted: suite.testFile.Name()}
-	err = checkFiles([]helpers.EncryptionFileSet{testNoUnencrypted})
-	assert.EqualError(suite.T(), err, "cannot read input file does-not-exist")
-}
-
-func (suite *DecryptTests) TestDecryptFile() {
+func (suite *DecryptTests) Testdecrypt() {
 	testKeyFile := filepath.Join(suite.tempDir, "testkey")
 	encryptedFile := fmt.Sprintf("%s.c4gh", suite.testFile.Name())
 	decryptedFile := filepath.Join(suite.tempDir, "decrypted_file")

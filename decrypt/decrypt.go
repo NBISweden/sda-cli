@@ -84,9 +84,16 @@ func Decrypt(args []string) error {
 	}
 
 	// Check that all the encrypted files exist, and all the unencrypted don't
-	err = checkFiles(files)
-	if err != nil {
-		return err
+	for _, file := range files {
+		// check that the input file exists and is readable
+		if !helpers.FileIsReadable(file.Encrypted) {
+			return fmt.Errorf("cannot read input file %s", file.Encrypted)
+		}
+
+		// check that the output file doesn't exist
+		if helpers.FileExists(file.Unencrypted) {
+			return fmt.Errorf("outfile %s already exists", file.Unencrypted)
+		}
 	}
 
 	// decrypt the input files
@@ -138,25 +145,6 @@ func readPrivateKeyFile(filename, password string) (key *[32]byte, err error) {
 	}
 
 	return &privateKey, err
-}
-
-// Checks that all the encrypted files exists, and are readable, and that the
-// unencrypted files do not exist
-func checkFiles(files []helpers.EncryptionFileSet) error {
-	log.Info("Checking files")
-	for _, file := range files {
-		// check that the input file exists and is readable
-		if !helpers.FileIsReadable(file.Encrypted) {
-			return fmt.Errorf("cannot read input file %s", file.Encrypted)
-		}
-
-		// check that the output file doesn't exist
-		if helpers.FileExists(file.Unencrypted) {
-			return fmt.Errorf("outfile %s already exists", file.Unencrypted)
-		}
-	}
-
-	return nil
 }
 
 // decrypts the data in `filename` with the given `privateKey`, writing the
