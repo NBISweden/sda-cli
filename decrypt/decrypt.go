@@ -176,11 +176,7 @@ func decrypt(filename, outfileName string, privateKey [32]byte) error {
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := inFile.Close(); err != nil {
-			log.Errorf("error closing file: %s\n", err)
-		}
-	}()
+	defer inFile.Close()
 
 	// Create crypt4gh reader
 	crypt4GHReader, err := streaming.NewCrypt4GHReader(inFile, privateKey, nil)
