@@ -158,3 +158,37 @@ func (suite *DecryptTests) Testdecrypt() {
 	assert.NoError(suite.T(), err, "unable to read decrypted file")
 	assert.Equal(suite.T(), fileData, suite.fileContent)
 }
+
+func (suite *DecryptTests) TestDecrypt() {
+	testKeyFile := filepath.Join(suite.tempDir, "testkey")
+	err := createKey.GenerateKeyPair(testKeyFile, "")
+	if err != nil {
+		log.Errorf("couldn't generate testing key pair: %s", err)
+	}
+
+	// Encrypt a file using the encrypt module. change to the test directory to
+	// make sure that the checksum files end up there.
+	cwd, err := os.Getwd()
+	if err != nil {
+		log.Error("could not get working directory")
+	}
+	err = os.Chdir(suite.tempDir)
+	if err != nil {
+		log.Error("could not change into test directory")
+	}
+	encryptArgs := []string{"encrypt", "-key", fmt.Sprintf("%s.pub.pem", testKeyFile), suite.testFile.Name()}
+	assert.NoError(suite.T(), encrypt.Encrypt(encryptArgs), "encrypting file for testing failed")
+	assert.NoError(suite.T(), os.Chdir(cwd))
+	assert.NoError(suite.T(), os.Remove(suite.testFile.Name()))
+
+	os.Args = []string{"decrypt", "-key", fmt.Sprintf("%s.sec.pem", testKeyFile), fmt.Sprintf("%s.c4gh", suite.testFile.Name())}
+	err = Decrypt(os.Args)
+	assert.NoError(suite.T(), err, "decrypt failed unexpectedly")
+
+	// Check content of the decrypted file
+	inFile, err := os.Open(suite.testFile.Name())
+	assert.NoError(suite.T(), err, "unable to open decrypted file")
+	fileData, err := io.ReadAll(inFile)
+	assert.NoError(suite.T(), err, "unable to read decrypted file")
+	assert.Equal(suite.T(), string(suite.fileContent), string(fileData))
+}
