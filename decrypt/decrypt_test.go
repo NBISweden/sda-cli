@@ -56,7 +56,7 @@ func (suite *DecryptTests) TearDownTest() {
 func (suite *DecryptTests) TestreadPrivateKeyFile() {
 	testKeyFile := filepath.Join(suite.tempDir, "testkey")
 	// generate key files
-	err := createKey.GenerateKeyPair(testKeyFile, "")
+	err := createKey.GenerateKeyPair(testKeyFile, "test")
 	if err != nil {
 		log.Errorf("couldn't generate testing key pair: %s", err)
 	}
@@ -72,9 +72,13 @@ func (suite *DecryptTests) TestreadPrivateKeyFile() {
 	// Test reading a public key
 	_, err = readPrivateKeyFile(fmt.Sprintf("%s.pub.pem", testKeyFile), "")
 	assert.ErrorContains(suite.T(), err, "private key format not supported")
-	
+
+	// Test reading a real key with wrong passphrase
+	_, err = readPrivateKeyFile(fmt.Sprintf("%s.sec.pem", testKeyFile), "wrong")
+	assert.ErrorContains(suite.T(), err, "chacha20poly1305: message authentication failed")
+
 	// Test reading a real key
-	_, err = readPrivateKeyFile(fmt.Sprintf("%s.sec.pem", testKeyFile), "")
+	_, err = readPrivateKeyFile(fmt.Sprintf("%s.sec.pem", testKeyFile), "test")
 	assert.NoError(suite.T(), err)
 }
 
