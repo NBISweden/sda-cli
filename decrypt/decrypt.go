@@ -66,20 +66,18 @@ func Decrypt(args []string) error {
 		return errors.New("a private key is required to decrypt data")
 	}
 
-	// try reading private key without password
-	privateKey, err := readPrivateKeyFile(*privateKeyFile, "")
-	if err != nil {
-		// if there was an error, try again with the password
-		password, err := getPassword("C4GH_PASSWORD")
+	password, available := os.LookupEnv("C4GH_PASSWORD")
+	if !available {
+		password, err = helpers.PromptPassword("Enter password to unlock private key")
 		if err != nil {
 			return err
 		}
+	}
 
-		// Loading private key file
-		privateKey, err = readPrivateKeyFile(*privateKeyFile, password)
-		if err != nil {
-			return err
-		}
+	// Loading private key file
+	privateKey, err := readPrivateKeyFile(*privateKeyFile, password)
+	if err != nil {
+		return err
 	}
 
 	// Check that all the encrypted files exist, and all the unencrypted don't
@@ -107,22 +105,6 @@ func Decrypt(args []string) error {
 	}
 
 	return nil
-}
-
-// getPassword will check if the `envVar` environment variable is set, and
-// return its value if present. Otherwise, the password will be read from a user
-// prompt.
-func getPassword(envVar string) (string, error) {
-	// check if there is a password available in the `envVar` env variable
-	password, available := os.LookupEnv(envVar)
-	if available {
-		return password, nil
-	}
-
-	// otherwise, read the password from a user prompt
-	password, err := helpers.PromptPassword("Enter password to unlock private key")
-
-	return password, err
 }
 
 // Reads a private key file from a file using the crypt4gh keys module
