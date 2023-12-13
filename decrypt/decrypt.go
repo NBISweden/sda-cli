@@ -19,7 +19,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help decrypt` command
 var Usage = `
-USAGE: %s decrypt -key <private-key-file> [file(s)]
+USAGE: %s decrypt -key <private-key-file> (--force-overwrite) [file(s)]
 
 decrypt:
     Decrypts files from the Sensitive Data Archive (SDA) with the
@@ -38,8 +38,8 @@ var ArgHelp = `
 // main program help
 var Args = flag.NewFlagSet("decrypt", flag.ExitOnError)
 
-var privateKeyFile = Args.String("key", "",
-	"Private key to use for decrypting files.")
+var privateKeyFile = Args.String("key", "", "Private key to use for decrypting files.")
+var forceOverwrite = Args.Bool("force-overwrite", false, "Force overwrite existing files.")
 
 // Decrypt takes a set of arguments, parses them, and attempts to decrypt the
 // given data files with the given private key file..
@@ -87,7 +87,7 @@ func Decrypt(args []string) error {
 		}
 
 		// check that the output file doesn't exist
-		if helpers.FileExists(file.Unencrypted) {
+		if helpers.FileExists(file.Unencrypted) && !*forceOverwrite {
 			return fmt.Errorf("outfile %s already exists", file.Unencrypted)
 		}
 	}
@@ -128,15 +128,6 @@ func readPrivateKeyFile(filename, password string) (key *[32]byte, err error) {
 // decrypts the data in `filename` with the given `privateKey`, writing the
 // resulting data to `outfile`.
 func decryptFile(filename, outfileName string, privateKey [32]byte) error {
-	// check that the infile exists, and the the outfile doesn't exist
-	if !helpers.FileIsReadable(filename) {
-		return fmt.Errorf("infile %s does not exist or could not be read", filename)
-	}
-
-	if helpers.FileExists(outfileName) {
-		return fmt.Errorf("outfile %s already exists", outfileName)
-	}
-
 	// open input file for reading
 	inFile, err := os.Open(filepath.Clean(filename))
 	if err != nil {

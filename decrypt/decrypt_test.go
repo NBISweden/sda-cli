@@ -98,11 +98,7 @@ func (suite *DecryptTests) Testdecrypt() {
 
 	// Test decrypting a non-existent file
 	err = decryptFile(filepath.Join(suite.tempDir, "non-existent"), "output_file", *privateKey)
-	assert.EqualError(suite.T(), err, fmt.Sprintf("infile %s does not exist or could not be read", filepath.Join(suite.tempDir, "non-existent")))
-
-	// Test decrypting where the output file exists
-	err = decryptFile(encryptedFile, suite.testFile.Name(), *privateKey)
-	assert.EqualError(suite.T(), err, fmt.Sprintf("outfile %s already exists", suite.testFile.Name()))
+	assert.ErrorContains(suite.T(), err, "no such file or directory")
 
 	// Test decryption with malformed key
 	fakeKey := [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
@@ -148,4 +144,9 @@ func (suite *DecryptTests) TestDecrypt() {
 	fileData, err := io.ReadAll(inFile)
 	assert.NoError(suite.T(), err, "unable to read decrypted file")
 	assert.Equal(suite.T(), string(suite.fileContent), string(fileData))
+
+	os.Args = []string{"decrypt", "-key", fmt.Sprintf("%s.sec.pem", testKeyFile), "--force-overwrite", fmt.Sprintf("%s.c4gh", suite.testFile.Name())}
+	err = Decrypt(os.Args)
+	assert.NoError(suite.T(), err, "decrypt failed unexpectedly")
+	os.Args = nil
 }
