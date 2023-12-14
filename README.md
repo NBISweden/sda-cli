@@ -19,6 +19,8 @@ To get help on the usage of the tool, please use the following command
 
 The main functionalities implemented in this tool are explained in the following sections.
 
+If any command seems a bit puzzling, you can find guidance on how to interpret it right [here](https://ftpdocs.broadcom.com/cadocs/0/CA%20ARCserve%20%20Backup%2015-ENU/Bookshelf_Files/HTML/CMD_Ref/command_line_syntax_characters.htm) and [here](https://medium.com/@jaewei.j.w/how-to-read-man-page-synopsis-3408e7fd0e42).
+
 ## Encrypt
 
 The files stored in the SDA/BP archive are encrypted using the [crypt4gh standard](https://www.ga4gh.org/news/crypt4gh-a-secure-method-for-sharing-human-genetic-data/). The following sections explain how to encrypt and upload files to the archive.
