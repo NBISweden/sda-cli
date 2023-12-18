@@ -168,7 +168,7 @@ else
 fi
 
 # Decrypt file
-./sda-cli decrypt -key sda_key.sec.pem downloads/data_file.c4gh
+C4GH_PASSWORD="" ./sda-cli decrypt -key sda_key.sec.pem downloads/data_file.c4gh
 
 if [ -f downloads/data_file ]; then
     echo "Decrypted data file"
@@ -204,7 +204,7 @@ check_encypted_file "data_file_keys.c4gh"
 for key in sda_key sda_key2
 do
     rm data_file_keys
-    ./sda-cli decrypt -key $key.sec.pem data_file_keys.c4gh
+    C4GH_PASSWORD="" ./sda-cli decrypt -key $key.sec.pem data_file_keys.c4gh
     if [ -f data_file_keys ]; then
         echo "Decrypted data file"
     else
@@ -222,7 +222,7 @@ check_encypted_file "data_file_keys.c4gh"
 for key in sda_key1 sda_key2
 do
     rm data_file_keys
-    ./sda-cli decrypt -key $key.sec.pem data_file_keys.c4gh
+    C4GH_PASSWORD="" ./sda-cli decrypt -key $key.sec.pem data_file_keys.c4gh
     if [ -f data_file_keys ]; then
         echo "Decrypted data file"
     else
@@ -240,7 +240,7 @@ check_encypted_file "data_file_keys.c4gh"
 for key in sda_key sda_key1 sda_key2
 do
     rm data_file_keys
-    ./sda-cli decrypt -key $key.sec.pem data_file_keys.c4gh
+    C4GH_PASSWORD="" ./sda-cli decrypt -key $key.sec.pem data_file_keys.c4gh
     if [ -f data_file_keys ]; then
         echo "Decrypted data file"
     else
