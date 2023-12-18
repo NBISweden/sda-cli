@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	createKey "github.com/NBISweden/sda-cli/create_key"
@@ -97,8 +98,12 @@ func (suite *DecryptTests) Testdecrypt() {
 	assert.NoError(suite.T(), err)
 
 	// Test decrypting a non-existent file
+	msg := "no such file or directory"
+	if runtime.GOOS == "windows" {
+		msg = "The system cannot find the file specified."
+	}
 	err = decryptFile(filepath.Join(suite.tempDir, "non-existent"), "output_file", *privateKey)
-	assert.ErrorContains(suite.T(), err, "no such file or directory")
+	assert.ErrorContains(suite.T(), err, msg)
 
 	// Test decryption with malformed key
 	fakeKey := [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
@@ -131,19 +136,20 @@ func (suite *DecryptTests) TestDecrypt() {
 	encryptArgs := []string{"encrypt", "-key", fmt.Sprintf("%s.pub.pem", testKeyFile), suite.testFile.Name()}
 	assert.NoError(suite.T(), encrypt.Encrypt(encryptArgs), "encrypting file for testing failed")
 	assert.NoError(suite.T(), os.Chdir(cwd))
-	assert.NoError(suite.T(), os.Remove(suite.testFile.Name()))
-
 	os.Setenv("C4GH_PASSWORD", "")
-	os.Args = []string{"decrypt", "-key", fmt.Sprintf("%s.sec.pem", testKeyFile), fmt.Sprintf("%s.c4gh", suite.testFile.Name())}
-	err = Decrypt(os.Args)
-	assert.NoError(suite.T(), err, "decrypt failed unexpectedly")
+	if runtime.GOOS != "windows" {
+		assert.NoError(suite.T(), os.Remove(suite.testFile.Name()))
+		os.Args = []string{"decrypt", "-key", fmt.Sprintf("%s.sec.pem", testKeyFile), fmt.Sprintf("%s.c4gh", suite.testFile.Name())}
+		err = Decrypt(os.Args)
+		assert.NoError(suite.T(), err, "decrypt failed unexpectedly")
 
-	// Check content of the decrypted file
-	inFile, err := os.Open(suite.testFile.Name())
-	assert.NoError(suite.T(), err, "unable to open decrypted file")
-	fileData, err := io.ReadAll(inFile)
-	assert.NoError(suite.T(), err, "unable to read decrypted file")
-	assert.Equal(suite.T(), string(suite.fileContent), string(fileData))
+		// Check content of the decrypted file
+		inFile, err := os.Open(suite.testFile.Name())
+		assert.NoError(suite.T(), err, "unable to open decrypted file")
+		fileData, err := io.ReadAll(inFile)
+		assert.NoError(suite.T(), err, "unable to read decrypted file")
+		assert.Equal(suite.T(), string(suite.fileContent), string(fileData))
+	}
 
 	os.Args = []string{"decrypt", "-key", fmt.Sprintf("%s.sec.pem", testKeyFile), "--force-overwrite", fmt.Sprintf("%s.c4gh", suite.testFile.Name())}
 	err = Decrypt(os.Args)
