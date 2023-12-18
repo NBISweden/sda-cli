@@ -12,7 +12,6 @@ import (
 	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/neicnordic/crypt4gh/keys"
 	"github.com/neicnordic/crypt4gh/streaming"
-	log "github.com/sirupsen/logrus"
 )
 
 // Help text and command line flags.
@@ -96,8 +95,7 @@ func Decrypt(args []string) error {
 	// decrypt the input files
 	numFiles := len(files)
 	for i, file := range files {
-		log.Infof("Decrypting file %v/%v: %s", i+1, numFiles, file.Encrypted)
-
+		fmt.Printf("Decrypting file %v/%v: %s\n", i+1, numFiles, file.Encrypted)
 		err = decryptFile(file.Encrypted, file.Unencrypted, *privateKey)
 		if err != nil {
 			return err
@@ -114,7 +112,6 @@ func readPrivateKeyFile(filename, password string) (key *[32]byte, err error) {
 		return nil, fmt.Errorf("private key file %s doesn't exist", filename)
 	}
 
-	log.Info("Reading Private key file")
 	file, err := os.Open(filepath.Clean(filename))
 	if err != nil {
 		return nil, err

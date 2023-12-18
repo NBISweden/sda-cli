@@ -9,7 +9,6 @@ import (
 
 	createKey "github.com/NBISweden/sda-cli/create_key"
 	"github.com/NBISweden/sda-cli/encrypt"
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -29,23 +28,17 @@ func (suite *DecryptTests) SetupTest() {
 	var err error
 	// Create a temporary directory for our files
 	suite.tempDir, err = os.MkdirTemp(os.TempDir(), "sda-cli-test-")
-	if err != nil {
-		log.Error("Couldn't create temporary test directory", err)
-	}
+	assert.NoError(suite.T(), err)
 
 	// create a test file...
 	suite.testFile, err = os.CreateTemp(suite.tempDir, "testfile-")
-	if err != nil {
-		log.Error("cannot create temporary public key file", err)
-	}
+	assert.NoError(suite.T(), err)
 
 	// ... create some content ...
 	suite.fileContent = []byte("This is some fine content right here.")
 	// ... and write the known content to it
 	err = os.WriteFile(suite.testFile.Name(), suite.fileContent, 0600)
-	if err != nil {
-		log.Errorf("failed to write to testfile: %s", err)
-	}
+	assert.NoError(suite.T(), err)
 }
 
 func (suite *DecryptTests) TearDownTest() {
@@ -56,9 +49,7 @@ func (suite *DecryptTests) TestreadPrivateKeyFile() {
 	testKeyFile := filepath.Join(suite.tempDir, "testkey")
 	// generate key files
 	err := createKey.GenerateKeyPair(testKeyFile, "test")
-	if err != nil {
-		log.Errorf("couldn't generate testing key pair: %s", err)
-	}
+	assert.NoError(suite.T(), err)
 
 	// Test reading a non-existent key
 	_, err = readPrivateKeyFile(testKeyFile, "")
@@ -88,32 +79,22 @@ func (suite *DecryptTests) Testdecrypt() {
 
 	// generate key files
 	err := createKey.GenerateKeyPair(testKeyFile, "")
-	if err != nil {
-		log.Errorf("couldn't generate testing key pair: %s", err)
-	}
+	assert.NoError(suite.T(), err)
 	// and read the private key
 	privateKey, err := readPrivateKeyFile(fmt.Sprintf("%s.sec.pem", testKeyFile), "")
-	if err != nil {
-		log.Errorf("couldn't read test key: %s", err)
-	}
+	assert.NoError(suite.T(), err)
 
 	// Encrypt a file using the encrypt module. change to the test directory to
 	// make sure that the checksum files end up there.
 	cwd, err := os.Getwd()
-	if err != nil {
-		log.Error("could not get working directory")
-	}
+	assert.NoError(suite.T(), err)
 	err = os.Chdir(suite.tempDir)
-	if err != nil {
-		log.Error("could not change into test directory")
-	}
+	assert.NoError(suite.T(), err)
 	encryptArgs := []string{"encrypt", "-key", fmt.Sprintf("%s.pub.pem", testKeyFile), suite.testFile.Name()}
 	err = encrypt.Encrypt(encryptArgs)
 	assert.NoError(suite.T(), err, "encrypting file for testing failed")
 	err = os.Chdir(cwd)
-	if err != nil {
-		log.Error("could not return from test directory")
-	}
+	assert.NoError(suite.T(), err)
 
 	// Test decrypting a non-existent file
 	err = decryptFile(filepath.Join(suite.tempDir, "non-existent"), "output_file", *privateKey)
@@ -143,20 +124,14 @@ func (suite *DecryptTests) Testdecrypt() {
 func (suite *DecryptTests) TestDecrypt() {
 	testKeyFile := filepath.Join(suite.tempDir, "testkey")
 	err := createKey.GenerateKeyPair(testKeyFile, "")
-	if err != nil {
-		log.Errorf("couldn't generate testing key pair: %s", err)
-	}
+	assert.NoError(suite.T(), err)
 
 	// Encrypt a file using the encrypt module. change to the test directory to
 	// make sure that the checksum files end up there.
 	cwd, err := os.Getwd()
-	if err != nil {
-		log.Error("could not get working directory")
-	}
+	assert.NoError(suite.T(), err)
 	err = os.Chdir(suite.tempDir)
-	if err != nil {
-		log.Error("could not change into test directory")
-	}
+	assert.NoError(suite.T(), err)
 	encryptArgs := []string{"encrypt", "-key", fmt.Sprintf("%s.pub.pem", testKeyFile), suite.testFile.Name()}
 	assert.NoError(suite.T(), encrypt.Encrypt(encryptArgs), "encrypting file for testing failed")
 	assert.NoError(suite.T(), os.Chdir(cwd))
