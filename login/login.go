@@ -32,10 +32,7 @@ login:
 // the module help
 var ArgHelp = `
     [login-target]
-        The login target can be one of the following: 
-			https://login.bp.nbis.se/
-			https://login.test.fega.nbis.se/
-			https://login.gdi.nbis.se/`
+        The login target is the base URL of the service.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
@@ -168,7 +165,7 @@ func NewLogin(args []string) error {
 	}
 	err = deviceLogin.Login()
 	if err != nil {
-		return fmt.Errorf("Login failed")
+		return err
 	}
 	fmt.Printf("Logged in as %v\n", deviceLogin.UserInfo.Name)
 

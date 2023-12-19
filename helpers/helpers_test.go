@@ -361,11 +361,11 @@ encrypt = False
 		log.Printf("failed to write temp config file, %v", err)
 	}
 
-	_, err = GetPublicKey()
+	_, err = GetPublicKeyFromSession()
 	assert.EqualError(suite.T(), err, "public key not found in the configuration")
 }
 
-func (suite *HelperTests) TestGetPublicKey() {
+func (suite *HelperTests) TestGetPublicKeyFromSession() {
 
 	var confFile = `
 access_token = someToken
@@ -396,7 +396,7 @@ public_key = 27be42445fd9e39c9be39e6b36a55e61e3801fc845f63781a813d3fe9977e17a
 		log.Printf("failed to write temp config file, %v", err)
 	}
 
-	_, err = GetPublicKey()
+	_, err = GetPublicKeyFromSession()
 	assert.NoError(suite.T(), err)
 
 	if assert.FileExists(suite.T(), "key-from-oidc.pub.pem") {
@@ -414,4 +414,19 @@ func (suite *HelperTests) TestInvalidCharacters() {
 		assert.Error(suite.T(), err)
 		assert.Equal(suite.T(), fmt.Sprintf("filepath %v contains disallowed characters: %+v", testfilepath, badchar), err.Error())
 	}
+}
+
+func (suite *HelperTests) TestCreatePubFile() {
+	var pubKeyContent = `339eb2a458fec5e23aa8b57cfcb35f10e7389025816e44d4234f814ed2aeed3f`
+	var expectedPubKey = `-----BEGIN CRYPT4GH PUBLIC KEY-----
+MzM5ZWIyYTQ1OGZlYzVlMjNhYThiNTdjZmNiMzVmMTA=
+-----END CRYPT4GH PUBLIC KEY-----
+`
+	_, err := CreatePubFile(pubKeyContent, os.TempDir()+"/test_public_file.pub.pem")
+	assert.NoError(suite.T(), err)
+
+	pubFile, _ := os.ReadFile(os.TempDir() + "/test_public_file.pub.pem")
+	s := string(pubFile)
+	assert.Equal(suite.T(), expectedPubKey, s)
+	defer os.Remove(os.TempDir() + "/test_public_file.pub.pem")
 }

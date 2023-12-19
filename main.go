@@ -122,9 +122,9 @@ func ParseArgs() (string, []string) {
 
 		if Help(subcommand) == nil {
 			os.Exit(0)
-		} else {
-			os.Exit(1)
 		}
+		os.Exit(1)
+
 	}
 
 	// The "list" command can have no arguments since it can use the

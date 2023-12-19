@@ -15,7 +15,7 @@ import (
 	"strings"
 
 	"github.com/NBISweden/sda-cli/helpers"
-
+	"github.com/NBISweden/sda-cli/login"
 	"github.com/neicnordic/crypt4gh/keys"
 	"github.com/neicnordic/crypt4gh/streaming"
 	log "github.com/sirupsen/logrus"
@@ -26,7 +26,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help encrypt` command
 var Usage = `
-USAGE: %s encrypt -key <public-key-file> (-outdir <dir>) (-continue=true) [file(s)]
+USAGE: %s encrypt -key <public-key-file> (-target <target>) (-outdir <dir>) (-continue=true) [file(s)]
 
 encrypt:
     Encrypts files according to the crypt4gh standard used in the
@@ -54,6 +54,8 @@ var outDir = Args.String("outdir", "",
 
 var continueEncrypt = Args.Bool("continue", false, "Do not exit on file errors but skip and continue.")
 
+var target = Args.String("target", "", "Client target for public key.")
+
 var publicKeyFileList []string
 
 func init() {
@@ -75,14 +77,36 @@ func Encrypt(args []string) error {
 		return err
 	}
 
-	// no key provided, check for one in the session file
-	if len(publicKeyFileList) == 0 {
+	if publicKeyFileList != nil && *target != "" {
+		return errors.New("only one of -key or -target can be used")
+	}
 
-		sesKey, err := helpers.GetPublicKey()
+	if *target != "" {
+		// fetch info endpoint values
+		log.Println("fetching public key")
+		info, err := login.GetAuthInfo(*target)
 		if err != nil {
-			return fmt.Errorf("public key not provided or %v", err)
+			return err
 		}
-		publicKeyFileList = append(publicKeyFileList, sesKey)
+		// create pub file
+		pubKeyFile, err := helpers.CreatePubFile(info.PublicKey, "crypt4gh_key.pub")
+		if err != nil {
+			return err
+		}
+		// no key provided, no key in session file, target provided
+		publicKeyFileList = append(publicKeyFileList, pubKeyFile)
+	}
+	// no key provided, no key in session file, no target provided
+	if publicKeyFileList == nil && *target == "" {
+		// check for public key in .sda-cli-session file from login
+		pubKey, err := helpers.GetPublicKeyFromSession()
+		if err != nil {
+			return err
+		}
+		// key from session file found
+		if len(publicKeyFileList) == 0 && pubKey != "" {
+			publicKeyFileList = append(publicKeyFileList, pubKey)
+		}
 	}
 
 	// Each filename is first read into a helper struct (sliced for combatibility with checkFiles)
