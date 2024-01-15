@@ -52,8 +52,8 @@ github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UV
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=
 github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
-github.com/vbauerster/mpb/v8 v8.7.1 h1:bQoSMMTFAg/gjsLrBYmO8gbRcZt7aDq6WI2IMa9BTqM=
-github.com/vbauerster/mpb/v8 v8.7.1/go.mod h1:fWgXcAu4W+0cBSUh4ZlaKJyC2KtgU27ZSTaiIk0QNsQ=
+github.com/vbauerster/mpb/v8 v8.7.2 h1:SMJtxhNho1MV3OuFgS1DAzhANN1Ejc5Ct+0iSaIkB14=
+github.com/vbauerster/mpb/v8 v8.7.2/go.mod h1:ZFnrjzspgDHoxYLGvxIruiNk73GNTPG4YHgVNpR10VY=
 go.etcd.io/bbolt v1.3.5/go.mod h1:G5EMThwa9y8QZGBClrRx5EY+Yw9kAhnjy3bSjsnlVTQ=
 golang.org/x/crypto v0.17.0 h1:r8bRNjWL3GshPW3gkd+RpvzWrZAwPS49OmTGZ/uhM4k=
 golang.org/x/crypto v0.17.0/go.mod h1:gCAAfMLgwOJRpTjQ2zCCt2OcSfYMTeZVSRtQlPC7Nq4=
