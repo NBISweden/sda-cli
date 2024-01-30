@@ -30,33 +30,31 @@ services:
       /usr/bin/mc mb s3/download;
       /usr/bin/mc policy set public s3/download;
       "
-  mq_server:
-    container_name: mq
-    image: ghcr.io/neicnordic/sda-mq:v1.4.1
+  rabbitmq:
+    image: ghcr.io/neicnordic/sensitive-data-archive:${TAG}-rabbitmq
+    container_name: rabbitmq
     environment:
-     - MQ_USER=test
-     - MQ_PASSWORD_HASH=C5ufXbYlww6ZBcEqDUB04YdUptO81s+ozI3Ll5GCHTnv8NAm
-     - MQ_VHOST=test
-     - MQ_VERIFY=verify_none
-     - NOTLS=true
+     - RABBITMQ_DEFAULT_PASS=test
+     - RABBITMQ_DEFAULT_USER=test
+     - MQ_VHOST=sda
     ports:
       - "15672:15672"
-      - "5671:5671"
+      - "5672:5672"
     healthcheck:
-      test: [ "CMD-SHELL", "rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_local_alarms || exit 1" ]
+      test: ["CMD", "bash", "-c", "rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_local_alarms"]
       interval: 5s
-      timeout: 20s
-      retries: 3
+      timeout: 120s
+      retries: 10
   s3_proxy:
     image: "ghcr.io/neicnordic/sensitive-data-archive:${TAG}"
     command: [ sda-s3inbox ]
     container_name: proxy
     depends_on:
-      mq_server:
+      rabbitmq:
         condition: service_healthy
       s3_backend:
         condition: service_healthy
-      database:
+      postgres:
         condition: service_healthy
     restart: always
     environment:
@@ -68,17 +66,17 @@ services:
       - INBOX_BUCKET=test
       - INBOX_REGION=us-east-1
       - INBOX_READYPATH=/minio/health/ready
-      - DB_HOST=db
+      - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_USER=lega_in
-      - DB_PASSWORD=lega_in
-      - DB_DATABASE=lega
+      - DB_USER=postgres
+      - DB_PASSWORD=rootpasswd
+      - DB_DATABASE=sda
       - DB_SSLMODE=disable
-      - BROKER_HOST=mq
+      - BROKER_HOST=rabbitmq
       - BROKER_USER=test
       - BROKER_PASSWORD=test
       - BROKER_PORT=5672
-      - BROKER_VHOST=/test
+      - BROKER_VHOST=sda
       - BROKER_EXCHANGE=sda
       - BROKER_ROUTINGKEY=inbox
       - BROKER_SSL=False
@@ -89,18 +87,20 @@ services:
     ports:
       - "8000:8000"
       - "8001:8001"
-  database:
-    container_name: db
-    image: neicnordic/sda-db:v2.0.2
+  postgres:
+    container_name: postgres
     environment:
-      - DB_LEGA_IN_PASSWORD=lega_in
-      - DB_LEGA_OUT_PASSWORD=lega_out
-      - PGVOLUME=/var/lib/postgresql
-      - NOTLS=true
-    volumes:
-      - psqldata:/var/lib/postgresql
+      - POSTGRES_PASSWORD=rootpasswd
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 2s
+      retries: 6
+    image: ghcr.io/neicnordic/sensitive-data-archive:${TAG}-postgres
     ports:
-      - 2345:5432
+      - "5432:5432"
+    volumes:
+      - dbdata:/var/lib/postgresql/data
 volumes:
   data:
-  psqldata:
+  dbdata:
