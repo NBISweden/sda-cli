@@ -24,6 +24,7 @@ import (
 
 type TestSuite struct {
 	suite.Suite
+	accessToken string
 }
 
 func TestConfigTestSuite(t *testing.T) {
@@ -31,7 +32,7 @@ func TestConfigTestSuite(t *testing.T) {
 }
 
 func (suite *TestSuite) SetupTest() {
-
+	suite.accessToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtleXN0b3JlLUNIQU5HRS1NRSJ9.eyJqdGkiOiJWTWpfNjhhcEMxR2FJbXRZdFExQ0ciLCJzdWIiOiJkdW1teSIsImlzcyI6Imh0dHA6Ly9vaWRjOjkwOTAiLCJpYXQiOjE3MDc3NjMyODksImV4cCI6MTg2NTU0NzkxOSwic2NvcGUiOiJvcGVuaWQgZ2E0Z2hfcGFzc3BvcnRfdjEgcHJvZmlsZSBlbWFpbCIsImF1ZCI6IlhDNTZFTDExeHgifQ.ZFfIAOGeM2I5cvqr1qJV74qU65appYjpNJVWevGHjGA5Xk_qoRMFJXmG6AiQnYdMKnJ58sYGNjWgs2_RGyw5NyM3-pgP7EKHdWU4PrDOU84Kosg4IPMSFxbBRAEjR5X04YX_CLYW2MFk_OyM9TIln522_JBVT_jA5WTTHSmBRHntVArYYHvQdF-oFRiqL8JXWlsUBh3tqQ33sZdqd9g64YhTk9a5lEC42gn5Hg9Hm_qvkl5orzEqIg7x9z5706IBE4Zypco5ohrAKsEbA8EKbEBb0jigGgCslQNde2owUyKIkvZYmxHA78X5xpymMp9K--PgbkyMS9GtA-YwOHPs-w"
 }
 
 func (suite *TestSuite) TestNoConfig() {
@@ -60,7 +61,7 @@ func (suite *TestSuite) TestFunctionality() {
 
 	// Configure S3 client
 	s3Config := &aws.Config{
-		Credentials:      credentials.NewStaticCredentials("dummy", "dummy", "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNzA3NDgzOTQ0IiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwiZXhwIjoxNzA3NDgzOTQ0fQ.D7hrpd3ROXp53NnXa0PL9js2Oi1KqpKpkVMic1B23X84ksX9kbbtn4Ad4BkhO8Tm35a5hBu95CGgw5b06sd3LQ"),
+		Credentials:      credentials.NewStaticCredentials("dummy", "dummy", suite.accessToken),
 		Endpoint:         aws.String(ts.URL),
 		Region:           aws.String("eu-central-1"),
 		DisableSSL:       aws.Bool(true),
@@ -83,10 +84,10 @@ func (suite *TestSuite) TestFunctionality() {
 
 	// Create conf file for sda-cli
 	var confFile = fmt.Sprintf(`
-	access_token = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNzA3NDgzOTQ0IiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwiZXhwIjoxNzA3NDgzOTQ0fQ.D7hrpd3ROXp53NnXa0PL9js2Oi1KqpKpkVMic1B23X84ksX9kbbtn4Ad4BkhO8Tm35a5hBu95CGgw5b06sd3LQ"
-	host_base = %[1]s
+	access_token = %[1]s
+	host_base = %[2]s
 	encoding = UTF-8
-	host_bucket = %[1]s
+	host_bucket = %[2]s
 	multipart_chunk_size_mb = 50
 	secret_key = dummy
 	access_key = dummy
@@ -97,7 +98,7 @@ func (suite *TestSuite) TestFunctionality() {
 	human_readable_sizes = True
 	guess_mime_type = True
 	encrypt = False
-	`, strings.TrimPrefix(ts.URL, "http://"))
+	`, suite.accessToken, strings.TrimPrefix(ts.URL, "http://"))
 
 	// Create config file
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd.conf")
