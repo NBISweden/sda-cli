@@ -33,8 +33,8 @@ github.com/manifoldco/promptui v0.9.0 h1:3V4HzJk1TtXW1MTZMP7mdlwbBpIinw3HztaIlYt
 github.com/manifoldco/promptui v0.9.0/go.mod h1:ka04sppxSGFAtxX0qhlYQjISsg9mR4GWtQEhdbn6Pgg=
 github.com/mattn/go-runewidth v0.0.15 h1:UNAjwbU9l54TA3KzvqLGxwWjHmMgBUVhBiTjelZgg3U=
 github.com/mattn/go-runewidth v0.0.15/go.mod h1:Jdepj2loyihRzMpdS35Xk/zdY8IAYHsh153qUoGf23w=
-github.com/neicnordic/crypt4gh v1.8.10 h1:oAmmV84OVpmHP2APn5inv8v3Ep2iIofKVUdfS9xXu3E=
-github.com/neicnordic/crypt4gh v1.8.10/go.mod h1:9jve3/N4BQTdiO6cnWqwg/4xQic6dQzPSPZqfAu9GBo=
+github.com/neicnordic/crypt4gh v1.8.11 h1:OS3AQJfQ2MiEzrD5kqVf2B872qpksEOYYyAVx0g0MuQ=
+github.com/neicnordic/crypt4gh v1.8.11/go.mod h1:6GKPoKbTMXhtEnRlY0LMR+LQ+a3XMBQ5iiz/O8nzFAM=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
