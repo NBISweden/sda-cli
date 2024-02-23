@@ -1,6 +1,10 @@
 package login
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -97,6 +101,7 @@ type DeviceLogin struct {
 	UserInfo        *UserInfo
 	wellKnown       *OIDCWellKnown
 	deviceLogin     *DeviceLoginResponse
+	CodeVerifier    string
 }
 
 type AuthInfo struct {
@@ -338,8 +343,17 @@ func (login *DeviceLogin) getWellKnown() (*OIDCWellKnown, error) {
 // and sets the login.deviceLogin
 func (login *DeviceLogin) startDeviceLogin() (*DeviceLoginResponse, error) {
 
+	var (
+		err           error
+		codeChallenge string
+	)
+	login.CodeVerifier, codeChallenge, err = generatePKCE(128)
+	if err != nil {
+		return nil, fmt.Errorf("could not create pkce: %v", err)
+	}
+
 	loginBody := fmt.Sprintf("response_type=device_code&client_id=%v"+
-		"&scope=openid ga4gh_passport_v1 profile email", login.ClientID)
+		"&scope=openid ga4gh_passport_v1 profile email&code_challenge_method=S256&code_challenge=%v", login.ClientID, codeChallenge)
 
 	req, err := http.NewRequest("POST",
 		login.wellKnown.DeviceAuthorizationEndpoint, strings.NewReader(loginBody))
@@ -377,7 +391,7 @@ func (login *DeviceLogin) startDeviceLogin() (*DeviceLoginResponse, error) {
 func (login *DeviceLogin) waitForLogin() (*Result, error) {
 
 	body := fmt.Sprintf("grant_type=urn:ietf:params:oauth:grant-type:device_code"+
-		"&client_id=%v&device_code=%v", login.ClientID, login.deviceLogin.DeviceCode)
+		"&client_id=%v&device_code=%v&code_verifier=%v", login.ClientID, login.deviceLogin.DeviceCode, login.CodeVerifier)
 
 	expirationTime := time.Now().Unix() + int64(login.deviceLogin.ExpiresIn)
 
@@ -419,4 +433,25 @@ func (login *DeviceLogin) waitForLogin() (*Result, error) {
 	}
 
 	return nil, errors.New("login timed out")
+}
+
+func generatePKCE(count int) (string, string, error) {
+
+	// generate code verifier
+	buf := make([]byte, count)
+	_, err := io.ReadFull(rand.Reader, buf)
+	if err != nil {
+		return "", "", err
+	}
+	verifier := hex.EncodeToString(buf)
+
+	// generate code challenge
+	sha2 := sha256.New()
+	_, err = io.WriteString(sha2, verifier)
+	if err != nil {
+		return "", "", err
+	}
+	challenge := base64.RawURLEncoding.EncodeToString(sha2.Sum(nil))
+
+	return verifier, challenge, nil
 }
