@@ -353,16 +353,17 @@ func (login *DeviceLogin) startDeviceLogin() (*DeviceLoginResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
-		err = fmt.Errorf("status code: %v", resp.StatusCode)
-
-		return nil, fmt.Errorf("request failed: %v", err)
-	}
 
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+		err = fmt.Errorf("status code: %v", resp.StatusCode)
+
+		return nil, fmt.Errorf("request failed: %v", err)
 	}
 
 	var loginResponse *DeviceLoginResponse
