@@ -161,7 +161,7 @@ func (login *DeviceLogin) UpdateConfigFile() error {
 func NewLogin(args []string) error {
 	deviceLogin, err := NewDeviceLogin(args)
 	if err != nil {
-		return fmt.Errorf("failed to contact authentication service")
+		return err
 	}
 	err = deviceLogin.Login()
 	if err != nil {
@@ -179,14 +179,14 @@ func NewDeviceLogin(args []string) (DeviceLogin, error) {
 	var url string
 	err := Args.Parse(args[1:])
 	if err != nil {
-		return DeviceLogin{}, errors.New("failed parsing arguments")
+		return DeviceLogin{}, err
 	}
 	if len(Args.Args()) == 1 {
 		url = Args.Args()[0]
 	}
 	info, err := GetAuthInfo(url)
 	if err != nil {
-		return DeviceLogin{}, errors.New("failed to get auth Info")
+		return DeviceLogin{}, err
 	}
 
 	return DeviceLogin{BaseURL: info.OidcURI, ClientID: info.ClientID, PollingInterval: 2, S3Target: info.InboxURI, PublicKey: info.PublicKey}, nil
@@ -218,7 +218,7 @@ func (login *DeviceLogin) Login() error {
 	var err error
 	login.wellKnown, err = login.getWellKnown()
 	if err != nil {
-		return fmt.Errorf("failed to fetch .well-known configuration: %v", err)
+		return err
 	}
 
 	login.deviceLogin, err = login.startDeviceLogin()
