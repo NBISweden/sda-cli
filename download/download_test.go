@@ -101,7 +101,7 @@ func (suite *TestSuite) TestCorrectlyFormatterUrls() {
 
 // Test that the get request doesn't return an error when the server returns 200
 func (suite *TestSuite) TestDownloadFile() {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer ts.Close()
@@ -121,7 +121,7 @@ func (suite *TestSuite) TestdownloadFileErrorStatusCode() {
 	file := "somefile.c4gh"
 
 	// Case when the user tried to download from a private bucket
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		_, _ = io.WriteString(w, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>A352764B-2KB4-4738-B6B5-BA55D25FB469</Key><BucketName>download</BucketName><Resource>/download/A352764B-2KB4-4738-B6B5-BA55D25FB469</Resource><RequestId>1728F10EAA85663B</RequestId><HostId>73e4c710-46e8-4846-b70b-86ee905a3ab0</HostId></Error>")
 	}))
@@ -131,7 +131,7 @@ func (suite *TestSuite) TestdownloadFileErrorStatusCode() {
 	assert.EqualError(suite.T(), err, "request failed with `404 Not Found`, details: {Code:NoSuchKey Message:The specified key does not exist. Resource:/download/A352764B-2KB4-4738-B6B5-BA55D25FB469}")
 
 	// Case when the user tried to download from a private bucket
-	ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = io.WriteString(w, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>AllAccessDisabled</Code><Message>All access to this bucket has been disabled.</Message><Resource>/minio/test/dummy/data_file1.c4gh</Resource><RequestId></RequestId><HostId>73e4c710-46e8-4846-b70b-86ee905a3ab0</HostId></Error>")
 	}))
@@ -202,7 +202,7 @@ http://url/to/file2.c4gh
 http://url/to/file3.c4gh
 `
 
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, err := w.Write([]byte(urlsList))
 		assert.NoError(suite.T(), err)
 	}))
