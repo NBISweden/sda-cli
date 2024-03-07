@@ -235,7 +235,7 @@ You can get the current version of the sda-cli by running:
 This section contains the information required to install, modify and run the `sda-cli` tool.
 
 ## Requirements
-The `sda-cli` is written in golang. In order to be able to modify, build and run the tool, golang (>= 1.20) needs to be installed. The instructions for installing `go` can be found [here](https://go.dev/doc/install).
+The `sda-cli` is written in golang. In order to be able to modify, build and run the tool, golang (>= 1.21) needs to be installed. The instructions for installing `go` can be found [here](https://go.dev/doc/install).
 
 ## Build tool
 To build the `sda-cli` tool run the following command from the root folder of the repository
