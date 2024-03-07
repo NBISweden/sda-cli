@@ -113,7 +113,7 @@ type AuthInfo struct {
 
 // requests the /info endpoint to fetch the parameters needed for login
 func GetAuthInfo(baseURL string) (*AuthInfo, error) {
-	url := baseURL + "/info"
+	url := strings.TrimSuffix(baseURL, "/") + "/info"
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -181,15 +181,15 @@ func NewLogin(args []string) error {
 // `clientID` set.
 func NewDeviceLogin(args []string) (DeviceLogin, error) {
 
-	var url string
+	var loginURL string
 	err := Args.Parse(args[1:])
 	if err != nil {
 		return DeviceLogin{}, fmt.Errorf("failed parsing arguments: %v", err)
 	}
 	if len(Args.Args()) == 1 {
-		url = Args.Args()[0]
+		loginURL = Args.Args()[0]
 	}
-	info, err := GetAuthInfo(url)
+	info, err := GetAuthInfo(loginURL)
 	if err != nil {
 		return DeviceLogin{}, fmt.Errorf("failed to get auth Info: %v", err)
 	}
