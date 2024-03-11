@@ -101,6 +101,62 @@ services:
       - "5432:5432"
     volumes:
       - dbdata:/var/lib/postgresql/data
+  ## mock oidc server is configured only for device flow,
+  ## the client_id corresponds to the sda-cli client, not sda-auth
+  oidc:
+    profiles: ["login"]
+    container_name: oidc
+    build:
+      context: ./oidc
+      dockerfile: Dockerfile
+    image: mock-oidc-user-server
+    environment:
+      - PORT=9090
+      - HOST=localhost
+      - CLIENT_ID=sda-cli
+      - CLIENT_REDIRECT_URI=http://localhost:8080/elixir/login
+    ports:
+      - 9090:9090
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090/.well-known/openid-configuration"]
+      interval: 5s
+      timeout: 10s
+      retries: 4
+  keygen:
+    profiles: ["login"]
+    image: golang:alpine3.16
+    container_name: keygen
+    command:
+      - "/bin/sh"
+      - "-c"
+      - if [ ! -f "/out/c4gh.sec.pem" ]; then wget -qO- "https://github.com/neicnordic/crypt4gh/releases/latest/download/crypt4gh_linux_x86_64.tar.gz" | tar zxf -;
+        ./crypt4gh generate -n /shared/c4gh -p privatekeypass; fi;
+    volumes:
+      - shared:/shared
+  ## auth is here only for providing the /info endpoint, no other functionality will work with current configuration
+  auth:
+    profiles: ["login"]
+    container_name: auth
+    image: "ghcr.io/neicnordic/sensitive-data-archive:${TAG}-auth"
+    depends_on:
+      oidc:
+        condition: service_healthy
+      keygen:
+          condition: service_completed_successfully
+    environment:
+      - ELIXIR_ID=sda-cli
+      - ELIXIR_PROVIDER=http://${DOCKERHOST:-localhost}:9090
+      - ELIXIR_SECRET=wHPVQaYXmdDHg  #not used but required so that auth starts
+      - S3INBOX=s3.example.com
+      - PUBLICFILE=/shared/c4gh.pub.pem
+      - RESIGNJWT=false
+    extra_hosts:
+      - ${DOCKERHOST:-localhost}:host-gateway
+    volumes:
+      - shared:/shared
+    ports:
+      - 8080:8080
 volumes:
   data:
   dbdata:
+  shared:

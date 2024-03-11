@@ -1,6 +1,10 @@
 package login
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -97,6 +101,7 @@ type DeviceLogin struct {
 	UserInfo        *UserInfo
 	wellKnown       *OIDCWellKnown
 	deviceLogin     *DeviceLoginResponse
+	CodeVerifier    string
 }
 
 type AuthInfo struct {
@@ -108,7 +113,7 @@ type AuthInfo struct {
 
 // requests the /info endpoint to fetch the parameters needed for login
 func GetAuthInfo(baseURL string) (*AuthInfo, error) {
-	url := baseURL + "/info"
+	url := strings.TrimSuffix(baseURL, "/") + "/info"
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -161,7 +166,7 @@ func (login *DeviceLogin) UpdateConfigFile() error {
 func NewLogin(args []string) error {
 	deviceLogin, err := NewDeviceLogin(args)
 	if err != nil {
-		return fmt.Errorf("failed to contact authentication service")
+		return fmt.Errorf("failed to contact authentication service: %v", err)
 	}
 	err = deviceLogin.Login()
 	if err != nil {
@@ -176,17 +181,17 @@ func NewLogin(args []string) error {
 // `clientID` set.
 func NewDeviceLogin(args []string) (DeviceLogin, error) {
 
-	var url string
+	var loginURL string
 	err := Args.Parse(args[1:])
 	if err != nil {
-		return DeviceLogin{}, errors.New("failed parsing arguments")
+		return DeviceLogin{}, fmt.Errorf("failed parsing arguments: %v", err)
 	}
 	if len(Args.Args()) == 1 {
-		url = Args.Args()[0]
+		loginURL = Args.Args()[0]
 	}
-	info, err := GetAuthInfo(url)
+	info, err := GetAuthInfo(loginURL)
 	if err != nil {
-		return DeviceLogin{}, errors.New("failed to get auth Info")
+		return DeviceLogin{}, fmt.Errorf("failed to get auth Info: %v", err)
 	}
 
 	return DeviceLogin{BaseURL: info.OidcURI, ClientID: info.ClientID, PollingInterval: 2, S3Target: info.InboxURI, PublicKey: info.PublicKey}, nil
@@ -338,8 +343,17 @@ func (login *DeviceLogin) getWellKnown() (*OIDCWellKnown, error) {
 // and sets the login.deviceLogin
 func (login *DeviceLogin) startDeviceLogin() (*DeviceLoginResponse, error) {
 
+	var (
+		err           error
+		codeChallenge string
+	)
+	login.CodeVerifier, codeChallenge, err = generatePKCE(128)
+	if err != nil {
+		return nil, fmt.Errorf("could not create pkce: %v", err)
+	}
+
 	loginBody := fmt.Sprintf("response_type=device_code&client_id=%v"+
-		"&scope=openid ga4gh_passport_v1 profile email", login.ClientID)
+		"&scope=openid ga4gh_passport_v1 profile email&code_challenge_method=S256&code_challenge=%v", login.ClientID, codeChallenge)
 
 	req, err := http.NewRequest("POST",
 		login.wellKnown.DeviceAuthorizationEndpoint, strings.NewReader(loginBody))
@@ -353,16 +367,17 @@ func (login *DeviceLogin) startDeviceLogin() (*DeviceLoginResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
-		err = fmt.Errorf("status code: %v", resp.StatusCode)
-
-		return nil, fmt.Errorf("request failed: %v", err)
-	}
 
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+		err = fmt.Errorf("status code: %v", resp.StatusCode)
+
+		return nil, fmt.Errorf("request failed: %v", err)
 	}
 
 	var loginResponse *DeviceLoginResponse
@@ -376,7 +391,7 @@ func (login *DeviceLogin) startDeviceLogin() (*DeviceLoginResponse, error) {
 func (login *DeviceLogin) waitForLogin() (*Result, error) {
 
 	body := fmt.Sprintf("grant_type=urn:ietf:params:oauth:grant-type:device_code"+
-		"&client_id=%v&device_code=%v", login.ClientID, login.deviceLogin.DeviceCode)
+		"&client_id=%v&device_code=%v&code_verifier=%v", login.ClientID, login.deviceLogin.DeviceCode, login.CodeVerifier)
 
 	expirationTime := time.Now().Unix() + int64(login.deviceLogin.ExpiresIn)
 
@@ -418,4 +433,25 @@ func (login *DeviceLogin) waitForLogin() (*Result, error) {
 	}
 
 	return nil, errors.New("login timed out")
+}
+
+func generatePKCE(count int) (string, string, error) {
+
+	// generate code verifier
+	buf := make([]byte, count)
+	_, err := io.ReadFull(rand.Reader, buf)
+	if err != nil {
+		return "", "", err
+	}
+	verifier := hex.EncodeToString(buf)
+
+	// generate code challenge
+	sha2 := sha256.New()
+	_, err = io.WriteString(sha2, verifier)
+	if err != nil {
+		return "", "", err
+	}
+	challenge := base64.RawURLEncoding.EncodeToString(sha2.Sum(nil))
+
+	return verifier, challenge, nil
 }

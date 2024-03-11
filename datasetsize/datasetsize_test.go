@@ -48,7 +48,7 @@ func (suite *TestSuite) TestFileDoesNotExist() {
 func (suite *TestSuite) TestGetFileSize() {
 	fileContent := "some text!"
 
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, err := w.Write([]byte(fileContent))
 		assert.NoError(suite.T(), err)
 	}))
