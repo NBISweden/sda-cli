@@ -1,12 +1,15 @@
 package htsget
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/NBISweden/sda-cli/helpers"
@@ -15,25 +18,24 @@ import (
 // Help text and command line flags.
 
 // Usage text that will be displayed as command line help text when using the
-// `help download` command
+// `help htsget` command
 var Usage = `
-USAGE: %s htsget (-outdir <dir>) [url | file]
+USAGE: %s htsget datasetID fileName (-outdir <dir>)
 
-download:
-    Downloads files from the Sensitive Data Archive (SDA).  A list with
-    URLs for files to download must be provided either as a URL directly
-    to a remote url_list.txt file or to its containing directory
-    (ending with "/"). Alternatively, the local path to such a file may
-    be given, instead.  The files will be downloaded in the current
-    directory, if outdir is not defined and their folder structure is
-    preserved.
+htsget:
+    Htsget downloads files from the Sensitive Data Archive (SDA), using the
+	htsget server. A dataset and a filename must be provided in order to 
+	download the file. The files will be downloaded in the current
+    directory, if outdir is not defined.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help
 var ArgHelp = `
-    [urls]
-        All flagless arguments will be used as download URLs.`
+    [datasetID]
+        The dataset where the file exists
+    [fileName]
+        The name of the file to download.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
@@ -71,6 +73,7 @@ func Htsget(args []string) error {
 
 	// Args() returns the non-flag arguments, which we assume are filenames.
 	arguments := Args.Args()
+	fmt.Print(arguments)
 	if len(arguments) != 2 {
 		return fmt.Errorf("failed to find location of files, no argument passed")
 	}
@@ -101,6 +104,7 @@ func Htsget(args []string) error {
 	}
 
 	req.Header.Add("Authorization", "Bearer "+config.AccessToken)
+	req.Header.Add("client-public-key", "LS0tLS1CRUdJTiBDUllQVDRHSCBQVUJMSUMgS0VZLS0tLS0KTG5Hc0JKUXJxTFRjVndYS0UzRC9NN0M1aUFpejVkR21Ha0JvcHlMWVRHMD0KLS0tLS1FTkQgQ1JZUFQ0R0ggUFVCTElDIEtFWS0tLS0tCg==")
 
 	res, err := client.Do(req)
 	if err != nil {
@@ -135,9 +139,36 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 
 	for index, _ := range htsgeURLs.Htsget.Urls {
 		url := htsgeURLs.Htsget.Urls[index].URL
+
+		// Define path to store the outcome
+		var currentPath string
+		currentPath, err = os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get current path, reason: %v", err)
+		}
+
+		out, err := os.OpenFile(currentPath+"/data"+strconv.Itoa(index)+".c4gh", os.O_CREATE|os.O_WRONLY, 0644)
+		//out, err := os.Create(currentPath + "/data")
+		if err != nil {
+			return err
+		}
+		defer out.Close()
+
+		// Case for base64 encoded data
 		if strings.Contains(url, "data:;") {
+			data, err := base64.StdEncoding.DecodeString(strings.SplitAfter(url, "data:;base64,")[1])
+			if err != nil {
+				fmt.Printf("error decoding the url response, %v", err)
+				return err
+			}
+			_, err = io.Copy(out, bytes.NewBuffer(data))
+			if err != nil {
+				fmt.Printf("error copying the file, %v", err)
+				return err
+			}
 			continue
 		}
+
 		method := "GET"
 
 		client := &http.Client{}
@@ -148,11 +179,9 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 		}
 
 		req.Header.Add("Authorization", "Bearer "+config.AccessToken)
-
-		var currentPath string
-		currentPath, err = os.Getwd()
-		if err != nil {
-			return fmt.Errorf("failed to get current path, reason: %v", err)
+		req.Header.Add("client-public-key", "LS0tLS1CRUdJTiBDUllQVDRHSCBQVUJMSUMgS0VZLS0tLS0KTG5Hc0JKUXJxTFRjVndYS0UzRC9NN0M1aUFpejVkR21Ha0JvcHlMWVRHMD0KLS0tLS1FTkQgQ1JZUFQ0R0ggUFVCTElDIEtFWS0tLS0tCg==")
+		if htsgeURLs.Htsget.Urls[index].Headers.Range != "" {
+			req.Header.Add("Range", htsgeURLs.Htsget.Urls[index].Headers.Range)
 		}
 
 		res, err := client.Do(req)
@@ -164,11 +193,11 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 
 		// Create the file in the current location
 		// Get the filename from the URL
-		out, err := os.Create(currentPath + url[strings.LastIndex(url, "/"):])
-		if err != nil {
-			return err
-		}
-		defer out.Close()
+		// out, err := os.Create(currentPath + url[strings.LastIndex(url, "/"):] + "-" + strconv.Itoa(index))
+		// if err != nil {
+		// 	return err
+		// }
+		// defer out.Close()
 
 		// Write the body to file
 		_, err = io.Copy(out, res.Body)
@@ -176,6 +205,7 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 			fmt.Printf("error copying the file, %v", err)
 			return err
 		}
+
 	}
 
 	return nil
