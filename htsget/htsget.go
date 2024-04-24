@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/NBISweden/sda-cli/helpers"
@@ -20,7 +19,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help htsget` command
 var Usage = `
-USAGE: %s htsget datasetID fileName (-outdir <dir>)
+USAGE: %s htsget [-dataset <datasetID>] [-filename <filename>] [-htsgethost <htsget-hostname>] [-key <public-key-file>] (-outdir <dir>)
 
 htsget:
     Htsget downloads files from the Sensitive Data Archive (SDA), using the
@@ -33,15 +32,21 @@ htsget:
 // the module help
 var ArgHelp = `
     [datasetID]
-        The dataset where the file exists
-    [fileName]
-        The name of the file to download.`
+        The ID of the dataset that the file is part of.
+    [filename]
+        The name of the file to download.
+	[htsgethost]
+		The hostname of the htsget server to use.
+	[key]
+		The public key file to use for the htsget request.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
 var Args = flag.NewFlagSet("htsget", flag.ExitOnError)
-var DatasetID = Args.String("datasetID", "", "Dataset ID for the file to download")
-var FileName = Args.String("fileName", "", "The name of the file to download")
+var DatasetID = Args.String("dataset", "", "Dataset ID for the file to download")
+var FileName = Args.String("filename", "", "The name of the file to download")
+var HTSGetHost = Args.String("htsgethost", "", "The htsget host to use")
+var PublicKeyFile = Args.String("key", "", "Public key file to use for htsget request")
 var configPath = Args.String("config", "",
 	"S3 config file to use for uploading.")
 
@@ -71,28 +76,40 @@ func Htsget(args []string) error {
 		return fmt.Errorf("failed parsing arguments, reason: %v", err)
 	}
 
-	// Args() returns the non-flag arguments, which we assume are filenames.
-	arguments := Args.Args()
-	fmt.Print(arguments)
-	if len(arguments) != 2 {
-		return fmt.Errorf("failed to find location of files, no argument passed")
+	var currentPath string
+	currentPath, err = os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current path, reason: %v", err)
 	}
 
-	// var currentPath, urlsFilePath string
-	// currentPath, err = os.Getwd()
-	// if err != nil {
-	// 	return fmt.Errorf("failed to get current path, reason: %v", err)
-	// }
-	datasetID := arguments[0]
-	fileName := arguments[1]
+	fmt.Println("HTSGetHost: ", *HTSGetHost)
+	fmt.Println("PublicKeyFile: ", *PublicKeyFile)
+	fmt.Println("DatasetID: ", *DatasetID)
+	fmt.Println("FileName: ", *FileName)
 
 	config, err := helpers.GetAuth(*configPath)
 	if err != nil {
 		return err
 	}
+
+	// Fix htsget hostname url
+	if config.UseHTTPS {
+		*HTSGetHost = "https://" + *HTSGetHost
+	} else {
+		*HTSGetHost = "http://" + *HTSGetHost
+	}
+
+	//read public key from file
+	publickey, err := os.ReadFile(currentPath + "/" + *PublicKeyFile)
+	if err != nil {
+		fmt.Println(err)
+		return fmt.Errorf("failed to read public key, reason: %v", err)
+	}
+	base64publickey := base64.StdEncoding.EncodeToString(publickey)
+
 	// TODO: Add cases for different type of files
 	// i.e. bam files require the /reads/, replace for vcf
-	url := config.HTSGetHost + "/reads/" + datasetID + "/" + fileName
+	url := *HTSGetHost + "/reads/" + *DatasetID + "/" + *FileName
 
 	method := "GET"
 
@@ -104,7 +121,7 @@ func Htsget(args []string) error {
 	}
 
 	req.Header.Add("Authorization", "Bearer "+config.AccessToken)
-	req.Header.Add("client-public-key", "LS0tLS1CRUdJTiBDUllQVDRHSCBQVUJMSUMgS0VZLS0tLS0KTG5Hc0JKUXJxTFRjVndYS0UzRC9NN0M1aUFpejVkR21Ha0JvcHlMWVRHMD0KLS0tLS1FTkQgQ1JZUFQ0R0ggUFVCTElDIEtFWS0tLS0tCg==")
+	req.Header.Add("client-public-key", base64publickey)
 
 	res, err := client.Do(req)
 	if err != nil {
@@ -118,7 +135,6 @@ func Htsget(args []string) error {
 		fmt.Println(err)
 		return fmt.Errorf("failed to read response, reason: %v", err)
 	}
-	fmt.Println(string(body))
 
 	var htsgetURLs htsgetResponse
 	err = json.Unmarshal(body, &htsgetURLs)
@@ -126,7 +142,7 @@ func Htsget(args []string) error {
 		return fmt.Errorf("error unmarshaling response, reason: %v", err)
 	}
 
-	fmt.Println(htsgetURLs.Htsget.Urls[0].URL)
+	//fmt.Println(htsgetURLs.Htsget.Urls[0].URL)
 	err = downloadFiles(htsgetURLs, config)
 	if err != nil {
 		return fmt.Errorf("error downloading the files, reason: %v", err)
@@ -137,22 +153,29 @@ func Htsget(args []string) error {
 
 func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error) {
 
+	// Create the file in the current location
+	var currentPath string
+	currentPath, err = os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current path, reason: %v", err)
+	}
+
+	//read public key from file
+	publickey, err := os.ReadFile(currentPath + "/" + *PublicKeyFile)
+	if err != nil {
+		fmt.Println(err)
+		return fmt.Errorf("failed to read public key, reason: %v", err)
+	}
+	base64publickey := base64.StdEncoding.EncodeToString(publickey)
+
+	out, err := os.OpenFile(currentPath+"/data.c4gh", os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
 	for index, _ := range htsgeURLs.Htsget.Urls {
 		url := htsgeURLs.Htsget.Urls[index].URL
-
-		// Define path to store the outcome
-		var currentPath string
-		currentPath, err = os.Getwd()
-		if err != nil {
-			return fmt.Errorf("failed to get current path, reason: %v", err)
-		}
-
-		out, err := os.OpenFile(currentPath+"/data"+strconv.Itoa(index)+".c4gh", os.O_CREATE|os.O_WRONLY, 0644)
-		//out, err := os.Create(currentPath + "/data")
-		if err != nil {
-			return err
-		}
-		defer out.Close()
 
 		// Case for base64 encoded data
 		if strings.Contains(url, "data:;") {
@@ -179,28 +202,20 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 		}
 
 		req.Header.Add("Authorization", "Bearer "+config.AccessToken)
-		req.Header.Add("client-public-key", "LS0tLS1CRUdJTiBDUllQVDRHSCBQVUJMSUMgS0VZLS0tLS0KTG5Hc0JKUXJxTFRjVndYS0UzRC9NN0M1aUFpejVkR21Ha0JvcHlMWVRHMD0KLS0tLS1FTkQgQ1JZUFQ0R0ggUFVCTElDIEtFWS0tLS0tCg==")
+		req.Header.Add("client-public-key", base64publickey)
 		if htsgeURLs.Htsget.Urls[index].Headers.Range != "" {
 			req.Header.Add("Range", htsgeURLs.Htsget.Urls[index].Headers.Range)
 		}
 
-		res, err := client.Do(req)
+		resp, err := client.Do(req)
 		if err != nil {
 			fmt.Println(err)
 			return fmt.Errorf("failed to do the request, reason: %v", err)
 		}
-		defer res.Body.Close()
-
-		// Create the file in the current location
-		// Get the filename from the URL
-		// out, err := os.Create(currentPath + url[strings.LastIndex(url, "/"):] + "-" + strconv.Itoa(index))
-		// if err != nil {
-		// 	return err
-		// }
-		// defer out.Close()
+		defer resp.Body.Close()
 
 		// Write the body to file
-		_, err = io.Copy(out, res.Body)
+		_, err = io.Copy(out, resp.Body)
 		if err != nil {
 			fmt.Printf("error copying the file, %v", err)
 			return err

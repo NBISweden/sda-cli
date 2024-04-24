@@ -231,7 +231,6 @@ type Config struct {
 	SocketTimeout        int    `ini:"socket_timeout"`
 	HumanReadableSizes   bool   `ini:"human_readable_sizes"`
 	PublicKey            string `ini:"public_key"`
-	HTSGetHost           string `ini:"htsget_host"`
 }
 
 // LoadConfigFile loads ini configuration file to the Config struct
@@ -266,9 +265,6 @@ func LoadConfigFile(path string) (*Config, error) {
 
 	if config.UseHTTPS {
 		config.HostBase = "https://" + config.HostBase
-		config.HTSGetHost = "https://" + config.HTSGetHost
-	} else {
-		config.HTSGetHost = "http://" + config.HTSGetHost
 	}
 
 	if config.Encoding == "" {
