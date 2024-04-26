@@ -230,6 +230,12 @@ You can get the current version of the sda-cli by running:
 ./sda-cli version
 ```
 
+## Htsget
+
+You can download a (partial) file using the htsget server. The file will be downloaded in the current directory, if outdir is not defined. Filename, htsgethost, and key are required.
+```bash
+htsget -dataset <datasetID> -filename <filename> -reference <reference-number> -htsgethost <htsget-hostname> key <public-key-file> -outdir <dir>
+```
 
 # Developers' section
 This section contains the information required to install, modify and run the `sda-cli` tool.
