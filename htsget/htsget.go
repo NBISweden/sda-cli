@@ -96,7 +96,7 @@ func Htsget(args []string) error {
 		return err
 	}
 
-	//read public key from file
+	// read public key from file
 	publickey, err := os.ReadFile(currentPath + "/" + *publicKeyFile)
 	if err != nil {
 		return fmt.Errorf("failed to read public key, reason: %v", err)
@@ -145,6 +145,7 @@ func Htsget(args []string) error {
 	if err != nil {
 		return fmt.Errorf("error downloading the files, reason: %v", err)
 	}
+
 	return nil
 
 }
@@ -167,10 +168,11 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 	}
 	defer out.Close()
 
-	//read public key from file
+	// read public key from file
 	publickey, err := os.ReadFile(currentPath + "/" + *publicKeyFile)
 	if err != nil {
 		deleteFile(out)
+
 		return fmt.Errorf("failed to read public key, reason: %v", err)
 	}
 	base64publickey := base64.StdEncoding.EncodeToString(publickey)
@@ -183,13 +185,16 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 			data, err := base64.StdEncoding.DecodeString(strings.SplitAfter(url, "data:;base64,")[1])
 			if err != nil {
 				deleteFile(out)
+
 				return fmt.Errorf("error decoding the url response, %v", err)
 			}
 			_, err = io.Copy(out, bytes.NewBuffer(data))
 			if err != nil {
 				deleteFile(out)
+
 				return fmt.Errorf("error copying the file, %v", err)
 			}
+
 			continue
 		}
 
@@ -199,6 +204,7 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 		req, err := http.NewRequest(method, url, nil)
 		if err != nil {
 			deleteFile(out)
+
 			return fmt.Errorf("failed to make request, reason: %v", err)
 		}
 
@@ -211,10 +217,12 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 		res, err := client.Do(req)
 		if err != nil {
 			deleteFile(out)
+
 			return fmt.Errorf("failed to do the request, reason: %v", err)
 		}
 		if res.StatusCode != 200 {
 			deleteFile(out)
+
 			return fmt.Errorf("failed to get the file, status code: %v", res.StatusCode)
 		}
 		defer res.Body.Close()
@@ -223,6 +231,7 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 		_, err = io.Copy(out, res.Body)
 		if err != nil {
 			deleteFile(out)
+
 			return fmt.Errorf("error copying the file, %v", err)
 		}
 

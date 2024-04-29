@@ -10,9 +10,6 @@ import (
 
 type TestSuite struct {
 	suite.Suite
-	tempDir     string
-	fileContent []byte
-	testFile    *os.File
 }
 
 func TestConfigTestSuite(t *testing.T) {
