@@ -18,6 +18,6 @@ jobs:
           go-version: ${{ matrix.go-version }}
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v4.0.0
+        uses: golangci/golangci-lint-action@v5.0.0
         with:
           args: -E bodyclose,gocritic,gofmt,gosec,govet,nestif,nlreturn,revive,rowserrcheck --exclude G401,G501,G107,G307
