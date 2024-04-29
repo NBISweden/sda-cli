@@ -3,7 +3,7 @@ module github.com/NBISweden/sda-cli
 go 1.21
 
 require (
-	github.com/aws/aws-sdk-go v1.51.25
+	github.com/aws/aws-sdk-go v1.51.30
 	github.com/manifoldco/promptui v0.9.0
 	github.com/neicnordic/crypt4gh v1.10.1
 	github.com/sirupsen/logrus v1.9.3
