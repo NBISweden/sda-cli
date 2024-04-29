@@ -157,7 +157,7 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 	if outDir != nil && *outDir != "" {
 		currentPath = *outDir
 	}
-	out, err := os.OpenFile(currentPath+"/data.c4gh", os.O_CREATE|os.O_WRONLY, 0644)
+	out, err := os.OpenFile(currentPath+"/"+*fileName+".c4gh", os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
