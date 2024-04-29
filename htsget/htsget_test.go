@@ -24,5 +24,5 @@ func (suite *TestSuite) TestNoArgument() {
 	os.Args = []string{"htsget"}
 
 	err := Htsget(os.Args)
-	assert.EqualError(suite.T(), err, "missing required arguments, datasetID, filename, htsgethost and key are required")
+	assert.EqualError(suite.T(), err, "missing required arguments, dataset, filename, htsgethost and key are required")
 }

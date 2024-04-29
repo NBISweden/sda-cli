@@ -88,7 +88,7 @@ func Htsget(args []string) error {
 	}
 
 	if *datasetID == "" || *fileName == "" || *htsgetHost == "" || *publicKeyFile == "" {
-		return fmt.Errorf("missing required arguments, datasetID, fileName, htsgetHost and key are required")
+		return fmt.Errorf("missing required arguments, dataset, filename, htsgethost and key are required")
 	}
 
 	config, err := helpers.GetAuth(*configPath)
