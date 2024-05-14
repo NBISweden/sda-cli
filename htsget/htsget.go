@@ -35,12 +35,12 @@ var ArgHelp = `
         The ID of the dataset that the file is part of.
     [filename]
         The name of the file to download.
-	[reference]
-		The reference number of the file to download.
-	[htsgethost]
-		The hostname of the htsget server to use.
-	[key]
-		The public key file to use for the htsget request.`
+    [reference]
+        The reference number of the file to download.
+    [htsgethost]
+        The hostname of the htsget server to use.
+    [key]
+        The public key file to use for the htsget request.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help

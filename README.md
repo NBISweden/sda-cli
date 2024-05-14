@@ -236,6 +236,10 @@ You can download a (partial) file using the htsget server. The file will be down
 ```bash
 htsget -dataset <datasetID> -filename <filename> -reference <reference-number> -htsgethost <htsget-hostname> key <public-key-file> -outdir <dir>
 ```
+for example:
+```
+./sda-cli htsget -config testing/s3cmd.conf -dataset DATASET0001 -filename htsnexus_test_NA12878 -reference 11 -htsgethost http://localhost:8088 -key c4gh.pub.pem -outdir ~/tmp/
+```
 
 # Developers' section
 This section contains the information required to install, modify and run the `sda-cli` tool.
