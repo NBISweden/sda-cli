@@ -28,9 +28,9 @@ var Usage = `
 USAGE: %s upload -config <s3config-file> (--encrypt-with-key <public-key-file>) (--force-overwrite) (--force-unencrypted) (-r) [file(s) | folder(s)] (-targetDir <upload-directory>)
 
 upload:
-    Uploads files to the Sensitive Data Archive (SDA).  All files
-    to upload are required to be encrypted and have the .c4gh file
-    extension.
+    Uploads files to the Sensitive Data Archive (SDA).
+    All files to upload are required to be crypt4gh encrypted when the flag -encrypt-with-key is not set.
+    On the other hand, non-encrypted files should be provided when the flag -encrypt-with-key is set.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
@@ -59,9 +59,9 @@ var forceOverwrite = Args.Bool("force-overwrite", false, "Force overwrite existi
 
 var pubKeyPath = Args.String("encrypt-with-key", "",
 	"Public key file to use for encryption of files before upload.\n"+
-		"The key file may optionally contain several concatenated\n"+
-		"public keys.  The argument list may include only unencrypted\n"+
-		"data if this flag is set.")
+		"The key file may optionally contain several concatenated public keys.\n"+
+		"Only unencrypted data should be provided when this flag is set.",
+)
 
 // Function uploadFiles uploads the files in the input list to the s3 bucket
 func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Config) error {
