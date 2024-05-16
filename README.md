@@ -232,13 +232,13 @@ You can get the current version of the sda-cli by running:
 
 ## Htsget
 
-You can download a (partial) file using the htsget server. The file will be downloaded in the current directory, if outdir is not defined. Filename, htsgethost, and key are required.
+You can download a (partial) file using the htsget server. You can define where you want to save the result with using the `output`  variable. The file will be downloaded in the current directory, if `output` is not defined. If the file already exists, it will not be over-written unless you use the `--force-overwrite` flag. `filename`, `htsgethost`, and `key` are required. `reference` refers to the part of the file you wish to download.
 ```bash
-htsget -dataset <datasetID> -filename <filename> -reference <reference-number> -htsgethost <htsget-hostname> key <public-key-file> -outdir <dir>
+htsget -dataset <datasetID> -filename <filename> -reference <reference-number> -htsgethost <htsget-hostname> key <public-key-file> -output <file>
 ```
 for example:
 ```
-./sda-cli htsget -config testing/s3cmd.conf -dataset DATASET0001 -filename htsnexus_test_NA12878 -reference 11 -htsgethost http://localhost:8088 -key c4gh.pub.pem -outdir ~/tmp/
+./sda-cli htsget -config testing/s3cmd.conf -dataset DATASET0001 -filename htsnexus_test_NA12878 -reference 11 -htsgethost http://localhost:8088 -key testing/c4gh.pub.pem -output ~/tmp/result.c4gh --force-overwrite
 ```
 
 # Developers' section

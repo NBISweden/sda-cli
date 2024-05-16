@@ -19,13 +19,13 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help htsget` command
 var Usage = `
-USAGE: %s htsget [-dataset <datasetID>] [-filename <filename>] (-reference <referenceName>) [-htsgethost <htsget-hostname>] [-key <public-key-file>] (-outdir <dir>)
+USAGE: %s htsget [-dataset <datasetID>] [-filename <filename>] (-reference <referenceName>) [-htsgethost <htsget-hostname>] [-key <public-key-file>] (-output <file>) (--force-overwrite)
 
 htsget:
     Htsget downloads files from the Sensitive Data Archive (SDA), using the
 	htsget server. A dataset and a filename must be provided in order to 
 	download the file. The files will be downloaded in the current
-    directory, if outdir is not defined.
+    directory, if output is not defined.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
@@ -52,8 +52,9 @@ var htsgetHost = Args.String("htsgethost", "", "The htsget host to use")
 var publicKeyFile = Args.String("key", "", "Public key file to use for htsget request")
 var configPath = Args.String("config", "",
 	"S3 config file to use for uploading.")
-var outDir = Args.String("outdir", "",
-	"Directory for downloading file.")
+var outPut = Args.String("output", "",
+	"Filename for downloading file.")
+var forceOverwrite = Args.Bool("force-overwrite", false, "Force overwrite existing files.")
 
 type htsgetResponse struct {
 	Htsget struct {
@@ -81,12 +82,6 @@ func Htsget(args []string) error {
 		return fmt.Errorf("failed parsing arguments, reason: %v", err)
 	}
 
-	var currentPath string
-	currentPath, err = os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to get current path, reason: %v", err)
-	}
-
 	if *datasetID == "" || *fileName == "" || *htsgetHost == "" || *publicKeyFile == "" {
 		return fmt.Errorf("missing required arguments, dataset, filename, htsgethost and key are required")
 	}
@@ -97,7 +92,7 @@ func Htsget(args []string) error {
 	}
 
 	// read public key from file
-	publickey, err := os.ReadFile(currentPath + "/" + *publicKeyFile)
+	publickey, err := os.ReadFile(*publicKeyFile)
 	if err != nil {
 		return fmt.Errorf("failed to read public key, reason: %v", err)
 	}
@@ -109,9 +104,7 @@ func Htsget(args []string) error {
 	if *referenceName != "" {
 		url = url + "?referenceName=" + *referenceName
 	}
-
 	method := "GET"
-
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
@@ -152,17 +145,20 @@ func Htsget(args []string) error {
 
 func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error) {
 
-	// Create the file in the outdir or current location
-	var currentPath, pathToUse string
+	// Create the file with the output given or current location
+	var currentPath, filenameToUse string
 	currentPath, err = os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current path, reason: %v", err)
 	}
-	pathToUse = currentPath
-	if outDir != nil && *outDir != "" {
-		pathToUse = *outDir
+	filenameToUse = currentPath + "/" + *fileName + ".c4gh"
+	if outPut != nil && *outPut != "" {
+		filenameToUse = *outPut
 	}
-	out, err := os.OpenFile(pathToUse+"/"+*fileName+".c4gh", os.O_CREATE|os.O_WRONLY, 0644)
+	if helpers.FileExists(filenameToUse) && !*forceOverwrite {
+		return fmt.Errorf("file already exists, use --force-overwrite to overwrite")
+	}
+	out, err := os.OpenFile(filenameToUse, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
@@ -236,6 +232,7 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 		}
 
 	}
+	fmt.Println("File " + out.Name() + " downloaded successfully")
 
 	return nil
 
