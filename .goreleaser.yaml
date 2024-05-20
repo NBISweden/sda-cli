@@ -15,7 +15,7 @@ builds:
       - goarch: 386
       - goarch: arm
     ldflags:
-      - -s -w -X main.Version={{ GORELEASER_CURRENT_TAG }}
+      - -s -w -X main.Version={{ .Tag }}
 archives:
   - name_template: >-
       {{ .ProjectName }}_
