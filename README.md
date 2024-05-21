@@ -232,7 +232,7 @@ You can get the current version of the sda-cli by running:
 
 ## Htsget
 
-You can download a (partial) file using the htsget server. You can define where you want to save the result with using the `output`  variable. The file will be downloaded in the current directory, if `output` is not defined. If the file already exists, it will not be over-written unless you use the `--force-overwrite` flag. `filename`, `htsgethost`, and `key` are required. `reference` refers to the part of the file you wish to download.
+You can download a (partial) file using the htsget server. You can define the name of the file you want to save the result to by using the `output`  variable. If `output` is not defined, the file will keep it's original name. If the file already exists, it will not be over-written unless you use the `--force-overwrite` flag. `filename`, `htsgethost`, and `key` are required. `reference` refers to the part of the file you wish to download.
 ```bash
 htsget -dataset <datasetID> -filename <filename> -reference <reference-number> -htsgethost <htsget-hostname> key <public-key-file> -output <file>
 ```
