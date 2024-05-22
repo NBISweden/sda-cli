@@ -1,6 +1,6 @@
 module github.com/NBISweden/sda-cli
 
-go 1.21
+go 1.22.3
 
 require (
 	github.com/aws/aws-sdk-go v1.53.5
