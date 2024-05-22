@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/NBISweden/sda-cli/helpers"
@@ -145,13 +146,20 @@ func Htsget(args []string) error {
 
 func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error) {
 
-	// Create the file with the output given or current location
-	var currentPath, filenameToUse string
+	// Create the directory for the file
+	var currentPath, filePath, filenameToUse string
 	currentPath, err = os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current path, reason: %v", err)
 	}
-	filenameToUse = currentPath + "/" + *fileName + ".c4gh"
+	if strings.Contains(*fileName, string(os.PathSeparator)) {
+		filePath = filepath.Dir(*fileName)
+		err = os.MkdirAll(filePath, os.ModePerm)
+		if err != nil {
+			return fmt.Errorf("failed to create file path, reason: %v", err)
+		}
+	}
+	filenameToUse = *fileName + ".c4gh"
 	if outPut != nil && *outPut != "" {
 		filenameToUse = *outPut
 	}
