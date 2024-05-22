@@ -3,6 +3,8 @@ package sdadownload
 import (
 	"flag"
 	"fmt"
+	"io"
+	"net/http"
 
 	"github.com/NBISweden/sda-cli/helpers"
 )
@@ -60,10 +62,48 @@ func SdaDownload(args []string) error {
 		return err
 	}
 
+	// Check if the token has expired
 	err = helpers.CheckTokenExpiration(config.AccessToken)
 	if err != nil {
 		return err
 	}
+
+	// Get the response
+	err = getResponse(uri, config.AccessToken)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// getResponse gets the response from the SDA download service
+func getResponse(url, token string) error {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request, reason: %v", err)
+	}
+
+	// Add headers
+	req.Header.Add("Authorization", "Bearer "+token)
+	req.Header.Add("Content-Type", "application/json")
+
+	// Send the request
+	client := &http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to get response, reason: %v", err)
+	}
+
+	// Read the response body
+	resBody, err := io.ReadAll(res.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body, reason: %v", err)
+	}
+
+	fmt.Println(string(resBody))
+
+	defer res.Body.Close()
 
 	return nil
 }
