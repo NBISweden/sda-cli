@@ -88,9 +88,7 @@ func SdaDownload(args []string) error {
 		return errors.New("no files to download")
 	}
 
-	for _, fileNames := range Args.Args() {
-		files = append(files, fileNames)
-	}
+	files = append(files, Args.Args()...)
 
 	// Get the configuration file or the .sda-cli-session
 	config, err := helpers.GetAuth(*configPath)
@@ -104,14 +102,12 @@ func SdaDownload(args []string) error {
 		return err
 	}
 
+	// Loop through the files and download them
 	for _, file := range files {
 		download_url, inbox_path, err := downloadUrl(*url, config.AccessToken, *datasetID, file)
 		if err != nil {
 			return err
 		}
-
-		fmt.Println(download_url)
-		fmt.Println(inbox_path)
 
 		inboxPathSplit := strings.Split(inbox_path, "/")
 		inboxPath := strings.Join(inboxPathSplit[1:], "/")
@@ -129,13 +125,16 @@ func SdaDownload(args []string) error {
 	return nil
 }
 
+// downloadFile downloads the file by using the download URL
 func downloadFile(uri, token, filename string) error {
 	filename = strings.TrimSuffix(filename, ".c4gh")
+	// Get the file body
 	body, err := getBody(uri, token)
 	if err != nil {
 		return fmt.Errorf("failed to get file for download, reason: %v", err)
 	}
 
+	// Create the directory if it does not exist
 	filepath := filepath.Dir(filename)
 	err = os.MkdirAll(filepath, os.ModePerm)
 	if err != nil {
@@ -180,7 +179,6 @@ func downloadUrl(base_url, token, dataset, filename string) (string, string, err
 	fileID := ""
 	filePath := ""
 	for _, file := range files {
-		fmt.Println(file.DisplayFileName)
 		if file.DisplayFileName == filename {
 			fileID = file.FileID
 			filePath = file.FilePath
@@ -195,6 +193,7 @@ func downloadUrl(base_url, token, dataset, filename string) (string, string, err
 	return base_url + "/files/" + fileID, filePath, nil
 }
 
+// getBody gets the body of the response from the URL
 func getBody(url, token string) ([]byte, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
