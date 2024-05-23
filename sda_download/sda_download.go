@@ -2,6 +2,7 @@ package sdadownload
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -18,7 +19,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s sda-download -config <s3config-file> -dataset <datasetID> -filename <filename> (-outdir <dir>) [uri]
+USAGE: %s sda-download -config <s3config-file> -dataset <datasetID> -url <uri> (-outdir <dir>) [filename(s)]
 
 sda-download:
 	Downloads files from the Sensitive Data Archive (SDA) by using APIs. The user
@@ -31,10 +32,10 @@ sda-download:
 var ArgHelp = `
 	[dataset]
 		The ID of the dataset that the file is part of.
-	[filename]
-		The name of the file to download.
     [uri]
-        All flagless arguments will be used as sda-download uri.`
+        All flagless arguments will be used as sda-download uri.
+	[filename]
+		The name of the file to download.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
@@ -46,7 +47,7 @@ var configPath = Args.String("config", "",
 var datasetID = Args.String("dataset", "",
 	"Dataset ID for the file to download")
 
-var fileName = Args.String("filename", "",
+var url = Args.String("url", "",
 	"The name of the file to download")
 
 var outDir = Args.String("outdir", "",
@@ -71,23 +72,24 @@ type File struct {
 // SdaDownload function downloads files from the SDA by using the
 // download's service APIs
 func SdaDownload(args []string) error {
+	var files []string
 	// Call ParseArgs to take care of all the flag parsing
 	err := helpers.ParseArgs(args, Args)
 	if err != nil {
 		return fmt.Errorf("failed parsing arguments, reason: %v", err)
 	}
 
-	if *datasetID == "" || *fileName == "" || *configPath == "" {
+	if *datasetID == "" || *url == "" || *configPath == "" {
 		return fmt.Errorf("missing required arguments, dataset, filename, htsgethost and key are required")
 	}
 
-	uri := ""
-	if len(Args.Args()) > 1 {
-		return fmt.Errorf("failed to parse uri, only one is allowed")
-	} else if len(Args.Args()) == 0 {
-		return fmt.Errorf("failed to find uri, no argument parsed")
-	} else if len(Args.Args()) == 1 {
-		uri = Args.Args()[0]
+	// Check that input file/folder list is not empty
+	if len(Args.Args()) == 0 {
+		return errors.New("no files to download")
+	}
+
+	for _, fileNames := range Args.Args() {
+		files = append(files, fileNames)
 	}
 
 	// Get the configuration file or the .sda-cli-session
@@ -102,24 +104,26 @@ func SdaDownload(args []string) error {
 		return err
 	}
 
-	download_url, inbox_path, err := downloadUrl(uri, config.AccessToken, *datasetID, *fileName)
-	if err != nil {
-		return err
-	}
+	for _, file := range files {
+		download_url, inbox_path, err := downloadUrl(*url, config.AccessToken, *datasetID, file)
+		if err != nil {
+			return err
+		}
 
-	fmt.Println(download_url)
-	fmt.Println(inbox_path)
+		fmt.Println(download_url)
+		fmt.Println(inbox_path)
 
-	inboxPathSplit := strings.Split(inbox_path, "/")
-	inboxPath := strings.Join(inboxPathSplit[1:], "/")
-	outFilename := inboxPath
-	if *outDir != "" {
-		outFilename = *outDir + "/" + inboxPath
-	}
+		inboxPathSplit := strings.Split(inbox_path, "/")
+		inboxPath := strings.Join(inboxPathSplit[1:], "/")
+		outFilename := inboxPath
+		if *outDir != "" {
+			outFilename = *outDir + "/" + inboxPath
+		}
 
-	err = downloadFile(download_url, config.AccessToken, outFilename)
-	if err != nil {
-		return err
+		err = downloadFile(download_url, config.AccessToken, outFilename)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
