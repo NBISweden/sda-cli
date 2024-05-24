@@ -90,17 +90,16 @@ func main() {
 // of the arguments for the subcommand.
 func ParseArgs() (string, []string) {
 	// Print usage if no arguments are provided.
-	// Terminate with non-zero exit status.
 	if len(os.Args) < 2 {
 		_ = Help("help")
-		os.Exit(1)
+		os.Exit(0)
 	}
 
 	switch os.Args[1] {
 	case "version", "-v", "-version", "--version":
 		if len(os.Args) != 2 {
 			_ = Help("version")
-			os.Exit(1)
+			os.Exit(0)
 		}
 
 		return "version", os.Args
@@ -123,11 +122,12 @@ func ParseArgs() (string, []string) {
 		} else {
 			subcommand = "help"
 		}
-
-		if Help(subcommand) == nil {
-			os.Exit(0)
+		// If the subcommand is not recognized, we exit with status 1
+		err := Help(subcommand)
+		if err != nil {
+			os.Exit(1)
 		}
-		os.Exit(1)
+		os.Exit(0)
 
 	}
 
@@ -142,7 +142,7 @@ func ParseArgs() (string, []string) {
 	// non-zero exit status.
 	if len(os.Args) == 1 {
 		_ = Help(command)
-		os.Exit(1)
+		os.Exit(0)
 	}
 
 	return command, os.Args
@@ -166,10 +166,14 @@ func Help(command string) error {
 			fmt.Fprint(os.Stderr, subcommandUsage)
 		}
 		fmt.Fprintf(os.Stderr,
-			"Use '%s help <command>' to get help with subcommand flags.\n",
+			"use '%s help <command>' to get help with subcommand flags.\n",
 			os.Args[0])
 
-		return fmt.Errorf("Unknown command: %s", command)
+		if command == "help" {
+			return nil
+		}
+
+		return fmt.Errorf("unknown command: %s", command)
 	}
 
 	// print subcommand help
