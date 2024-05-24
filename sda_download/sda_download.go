@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	"github.com/NBISweden/sda-cli/helpers"
+	"github.com/vbauerster/mpb/v8"
+	"github.com/vbauerster/mpb/v8/decor"
 )
 
 // Help text and command line flags.
@@ -129,8 +131,8 @@ func SdaDownload(args []string) error {
 }
 
 // downloadFile downloads the file by using the download URL
-func downloadFile(uri, token, filename string) error {
-	filename = strings.TrimSuffix(filename, ".c4gh")
+func downloadFile(uri, token, filePath string) error {
+	filePath = strings.TrimSuffix(filePath, ".c4gh")
 	// Get the file body
 	body, err := getBody(uri, token)
 	if err != nil {
@@ -138,17 +140,41 @@ func downloadFile(uri, token, filename string) error {
 	}
 
 	// Create the directory if it does not exist
-	filepath := filepath.Dir(filename)
-	err = os.MkdirAll(filepath, os.ModePerm)
+	fileDir := filepath.Dir(filePath)
+	err = os.MkdirAll(fileDir, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("failed to create directory, reason: %v", err)
 	}
 
-	// Write the body to file
-	err = os.WriteFile(filename, body, 0666)
+	outfile, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to create file, reason: %v", err)
+	}
+	defer outfile.Close()
+
+	// Create a new progress container
+	p := mpb.New()
+
+	// Create a new progress bar with the length of the body
+	bar := p.AddBar(int64(len(body)),
+		mpb.PrependDecorators(
+			decor.CountersKibiByte("% .2f / % .2f"),
+		),
+	)
+
+	// Create a proxy reader
+	reader := strings.NewReader(string(body))
+	proxyReader := bar.ProxyReader(reader)
+
+	fmt.Printf("Downloading file to %s\n", filePath)
+	// Copy from the proxy reader (which updates the progress bar) to the file
+	_, err = io.Copy(outfile, proxyReader)
 	if err != nil {
 		return fmt.Errorf("failed to write file, reason: %v", err)
 	}
+
+	// Wait for the progress bar to finish
+	p.Wait()
 
 	return nil
 }
