@@ -103,17 +103,20 @@ func SdaDownload(args []string) error {
 	}
 
 	// Loop through the files and download them
-	for _, file := range files {
-		download_url, inbox_path, err := downloadUrl(*url, config.AccessToken, *datasetID, file)
+	for _, filePath := range files {
+		download_url, err := downloadUrl(*url, config.AccessToken, *datasetID, filePath)
 		if err != nil {
 			return err
 		}
 
-		inboxPathSplit := strings.Split(inbox_path, "/")
-		inboxPath := strings.Join(inboxPathSplit[1:], "/")
-		outFilename := inboxPath
+		filePathSplit := strings.Split(filePath, "/")
+		if strings.Contains(filePath, "elixir-europe.org") {
+			filePath = strings.Join(filePathSplit[1:], "/")
+		}
+
+		outFilename := filePath
 		if *outDir != "" {
-			outFilename = *outDir + "/" + inboxPath
+			outFilename = *outDir + "/" + filePath
 		}
 
 		err = downloadFile(download_url, config.AccessToken, outFilename)
@@ -152,7 +155,7 @@ func downloadFile(uri, token, filename string) error {
 
 // downloadUrl gets the datset files, parses the JSON response to get the file ID
 // and returns the download URL for the file
-func downloadUrl(base_url, token, dataset, filename string) (string, string, error) {
+func downloadUrl(base_url, token, dataset, filename string) (string, error) {
 	// Sanitize the base_url
 	base_url = strings.TrimSuffix(base_url, "/")
 	if !strings.HasPrefix(base_url, "https://") {
@@ -165,32 +168,32 @@ func downloadUrl(base_url, token, dataset, filename string) (string, string, err
 	// Get the response body from the files API
 	body, err := getBody(filesUrl, token)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to get files, reason: %v", err)
+		return "", fmt.Errorf("failed to get files, reason: %v", err)
 	}
 
 	// Parse the JSON response
 	var files []File
 	err = json.Unmarshal(body, &files)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to parse file list JSON, reason: %v", err)
+		return "", fmt.Errorf("failed to parse file list JSON, reason: %v", err)
 	}
 
 	// Get the file ID for the filename
 	fileID := ""
-	filePath := ""
+	//filePath := ""
 	for _, file := range files {
-		if file.DisplayFileName == filename {
+		if strings.Contains(file.FilePath, filename) {
 			fileID = file.FileID
-			filePath = file.FilePath
+			//filePath = file.FilePath
 			break
 		}
 	}
 
 	if fileID == "" {
-		return "", "", fmt.Errorf("failed to find file ID for %s", filename)
+		return "", fmt.Errorf("failed to find file ID for %s", filename)
 	}
 
-	return base_url + "/files/" + fileID, filePath, nil
+	return base_url + "/files/" + fileID, nil
 }
 
 // getBody gets the body of the response from the URL
