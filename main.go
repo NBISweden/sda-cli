@@ -88,7 +88,7 @@ func ParseArgs() (string, []string) {
 	// Print usage if no arguments are provided.
 	if len(os.Args) < 2 {
 		_ = Help("help")
-		os.Exit(0)
+		os.Exit(1)
 	}
 
 	switch os.Args[1] {
@@ -138,7 +138,7 @@ func ParseArgs() (string, []string) {
 	// non-zero exit status.
 	if len(os.Args) == 1 {
 		_ = Help(command)
-		os.Exit(0)
+		os.Exit(1)
 	}
 
 	return command, os.Args
