@@ -28,6 +28,7 @@ services:
       /usr/bin/mc rm -r --force s3/test;
       /usr/bin/mc mb s3/test;
       /usr/bin/mc mb s3/download;
+      /usr/bin/mc mb s3/archive;
       /usr/bin/mc policy set public s3/download;
       "
   rabbitmq:
@@ -173,6 +174,52 @@ services:
     ports:
       - "8002:8000"
     restart: always
+  download:
+    command: sda-download
+    container_name: download
+    depends_on:
+      postgres:
+        condition: service_healthy
+      s3_backend:
+        condition: service_healthy
+      mockauth:
+        condition: service_started
+    environment:
+      - ARCHIVE_URL=http://s3
+      - ARCHIVE_TYPE=s3
+      - ARCHIVE_PORT=9000
+      - ARCHIVE_ACCESSKEY=ElixirID
+      - ARCHIVE_SECRETKEY=987654321
+      - ARCHIVE_BUCKET=archive
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=rootpasswd
+      - DB_DATABASE=sda
+      - DB_SSLMODE=disable
+      - OIDC_CONFIGURATION_URL=http://mockauth:8000/.well-known/openid-configuration
+      - GRPC_PORT=50051
+      - GRPC_HOST=reencrypt
+    image: "ghcr.io/neicnordic/sensitive-data-archive:${TAG}-download"
+    volumes:
+      - ./archive_data/4293c9a7-dc50-46db-b79a-27ddc0dad1c6:/tmp/4293c9a7-dc50-46db-b79a-27ddc0dad1c6
+    mem_limit: 256m
+    ports:
+      - "8080:8080"
+    restart: always
+  reencrypt:
+    image: ghcr.io/neicnordic/sensitive-data-archive:${TAG}
+    command: [ sda-reencrypt ]
+    container_name: reencrypt
+    environment:
+      - LOG_LEVEL=debug
+      - C4GH_PASSPHRASE=oaagCP1YgAZeEyl2eJAkHv9lkcWXWFgm
+      - C4GH_FILEPATH=/dev_utils/c4gh.sec.pem
+    ports:
+      - "50051:50051"
+    restart: always
+    volumes:
+      - ./:/dev_utils/
 volumes:
   data:
   dbdata:
