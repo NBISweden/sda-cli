@@ -55,6 +55,9 @@ var url = Args.String("url", "",
 var outDir = Args.String("outdir", "",
 	"Directory for downloaded files.")
 
+// necessary for mocking in testing
+var getResponseBody = getBody
+
 // File struct represents the file metadata
 type File struct {
 	FileID                    string `json:"fileId"`
@@ -82,7 +85,7 @@ func SdaDownload(args []string) error {
 	}
 
 	if *datasetID == "" || *url == "" || *configPath == "" {
-		return fmt.Errorf("missing required arguments, dataset, filename, htsgethost and key are required")
+		return fmt.Errorf("missing required arguments, dataset, config and url are required")
 	}
 
 	// Check that input file/folder list is not empty
@@ -134,7 +137,7 @@ func SdaDownload(args []string) error {
 func downloadFile(uri, token, filePath string) error {
 	filePath = strings.TrimSuffix(filePath, ".c4gh")
 	// Get the file body
-	body, err := getBody(uri, token)
+	body, err := getResponseBody(uri, token)
 	if err != nil {
 		return fmt.Errorf("failed to get file for download, reason: %v", err)
 	}
@@ -192,7 +195,7 @@ func downloadUrl(base_url, token, dataset, filename string) (string, error) {
 	filesUrl := base_url + "/metadata/datasets/" + dataset + "/files"
 
 	// Get the response body from the files API
-	body, err := getBody(filesUrl, token)
+	body, err := getResponseBody(filesUrl, token)
 	if err != nil {
 		return "", fmt.Errorf("failed to get files, reason: %v", err)
 	}
