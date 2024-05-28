@@ -174,9 +174,14 @@ If no config is given by the user, the tool will look for a previous login from 
 
 ## Download
 
-The SDA/BP archive enables for downloading files and datasets in a secure manner. That can be achieved using the `sda-cli` tool and the process consists of the following two steps
+The SDA/BP archive enables for downloading files and datasets in a secure manner. That can be achieved using the `sda-cli` tool and and it can be done in two ways:
+- by downloading from a S3 bucket
+- by using the download API
 
-### Create keys
+### Download from S3 bucket
+This process consists of the following two steps: create keys and download file and is explained in the following sections.
+
+#### Create keys
 
 In order to make sure that the files are downloaded from the archive in a secure manner, the user is supposed to create the key pair that the files will be encrypted with. The key pair can be created using the following command:
 ```bash
@@ -186,7 +191,7 @@ where `<keypair_name>` is the base name of the key files. This command will crea
 
 **NOTE:** Make sure to keep these keys safe. Losing the keys could lead to sensitive data leaks.
 
-### Download file
+#### Download file
 
 The `sda-cli` tool allows for downloading file(s)/datasets. The URLs of the respective dataset files that are available for downloading are stored in a file named `urls_list.txt`. `sda-cli` allows to download files only by using such a file or the URL where it is stored. There are three different ways to pass the location of the file to the tool, similar to the [dataset size section](#get-dataset-size):
 1. a direct URL to `urls_list.txt` or a file with a different name but containing the locations of the dataset files
@@ -203,6 +208,19 @@ The tool also allows for selecting a folder where the files will be downloaded, 
 ./sda-cli download -outdir <outdir> <urls_file>
 ```
 **Note**: If needed, the user can download a selection of files from an available dataset by providing a customized `urls_list.txt` file.
+
+### Download using the download API
+
+The download API allows for downloading files from the archive and it requires the user to have access to the dataset, therefore a configuration file needs to be downloaded before starting the downloading of the files.
+For downloading files the user needs to know the download service URL, the dataset ID and the path of the file. Given those four arguments files can be downloaded using the following command:
+```bash
+./sda-cli sda-download -config <configuration_file> -dataset <datasetID> -url <download-service-URL> <filepath_1_to_download> <filepath_2_to_download> ...
+```
+where `<configuration_file>` the file downloaded in the previous step, `<dataset_id>` the ID of the dataset and `<filepath>` the path of the file in the dataset.
+The tool also allows for downloading multiple files at once, by listing them separated with space and it also allows for selecting a folder where the files will be downloaded, using the `outdir` argument:
+```bash
+./sda-cli sda-download -config <configuration_file> -dataset <datasetID> -url <download-service-url> -outdir <outdir> <filepath_1_to_download> <filepath_2_to_download> ...
+```
 
 ## Decrypt file
 
