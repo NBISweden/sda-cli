@@ -156,6 +156,23 @@ services:
       - shared:/shared
     ports:
       - 8080:8080
+  # mock oidc server for testing the download endpoint
+  mockauth:
+    command:
+      - /bin/sh
+      - -c
+      - |
+        pip install --upgrade pip
+        pip install aiohttp Authlib
+        python -u /mockoidc.py
+    container_name: mockauth
+    image: python:3.10-slim
+    volumes:
+      - ./mockoidc/mockoidc.py:/mockoidc.py
+    mem_limit: 256m
+    ports:
+      - "8002:8000"
+    restart: always
 volumes:
   data:
   dbdata:
