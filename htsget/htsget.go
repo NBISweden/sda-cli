@@ -49,12 +49,10 @@ var Args = flag.NewFlagSet("htsget", flag.ExitOnError)
 var datasetID = Args.String("dataset", "", "Dataset ID for the file to download")
 var fileName = Args.String("filename", "", "The name of the file to download")
 var referenceName = Args.String("reference", "", "The reference number of the file to download")
-var htsgetHost = Args.String("htsgethost", "", "The htsget host to use")
-var publicKeyFile = Args.String("key", "", "Public key file to use for htsget request")
-var configPath = Args.String("config", "",
-	"S3 config file to use for uploading.")
-var outPut = Args.String("output", "",
-	"Filename for downloading file.")
+var htsgetHost = Args.String("host", "", "The host to download from")
+var publicKeyFile = Args.String("pubkey", "", "Public key file")
+var configPath = Args.String("config", "", "config file.")
+var outPut = Args.String("output", "", "Name for the downloaded file.")
 var forceOverwrite = Args.Bool("force-overwrite", false, "Force overwrite existing files.")
 
 type htsgetResponse struct {
@@ -160,11 +158,11 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 		}
 	}
 	filenameToUse = *fileName + ".c4gh"
-	if outPut != nil && *outPut != "" {
+	if *outPut != "" {
 		filenameToUse = *outPut
 	}
 	if helpers.FileExists(filenameToUse) && !*forceOverwrite {
-		return fmt.Errorf("file already exists, use --force-overwrite to overwrite")
+		return fmt.Errorf("local file already exists, use --force-overwrite to overwrite")
 	}
 	out, err := os.OpenFile(filenameToUse, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -196,16 +194,14 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 			if err != nil {
 				deleteFile(out)
 
-				return fmt.Errorf("error copying the file, %v", err)
+				return fmt.Errorf("error writing the file, %v", err)
 			}
 
 			continue
 		}
 
-		method := "GET"
-
 		client := &http.Client{}
-		req, err := http.NewRequest(method, url, nil)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			deleteFile(out)
 
@@ -236,7 +232,7 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 		if err != nil {
 			deleteFile(out)
 
-			return fmt.Errorf("error copying the file, %v", err)
+			return fmt.Errorf("error writing the file, %v", err)
 		}
 
 	}
