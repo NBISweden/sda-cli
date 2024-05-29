@@ -84,7 +84,7 @@ func (suite *TestSuite) TestInvalidUrl() {
 
 func (suite *TestSuite) TestGetBody() {
 	// Create a test server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		// Set the response status code
 		w.WriteHeader(http.StatusOK)
 		// Set the response body
@@ -108,7 +108,7 @@ func (suite *TestSuite) TestGetBody() {
 func (suite *TestSuite) TestDownloadUrl() {
 	// Mock getBody function
 	defer func() { getResponseBody = getBody }()
-	getResponseBody = func(url, token string) ([]byte, error) {
+	getResponseBody = func(_, _ string) ([]byte, error) {
 		return []byte(`[
             {
                 "fileId": "file1",
@@ -118,18 +118,18 @@ func (suite *TestSuite) TestDownloadUrl() {
 	}
 
 	// Test with valid base_url, token, dataset, and filename
-	base_url := "https://some/url"
+	baseURL := "https://some/url"
 	token := suite.accessToken
 	dataset := "TES01"
 	filename := "file1"
-	expectedUrl := "https://some/url/files/file1"
-	url, err := downloadUrl(base_url, token, dataset, filename)
+	expectedURL := "https://some/url/files/file1"
+	url, err := downloadURL(baseURL, token, dataset, filename)
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), expectedUrl, url)
+	assert.Equal(suite.T(), expectedURL, url)
 
 	// Test with filename not in response
 	filename = "file2"
-	_, err = downloadUrl(base_url, token, dataset, filename)
+	_, err = downloadURL(baseURL, token, dataset, filename)
 	assert.Error(suite.T(), err)
 }
 
@@ -139,11 +139,11 @@ func (suite *TestSuite) TestDownloadFile() {
 
 	// Create a temporary file for testing
 	tempFile := filepath.Join(tempDir, "dummy-file.txt")
-	err := os.WriteFile(tempFile, []byte("test content"), 0644)
+	err := os.WriteFile(tempFile, []byte("test content"), 0600)
 	require.NoError(suite.T(), err)
 
 	// Create a test server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		// Set the response status code
 		w.WriteHeader(http.StatusOK)
 		// Set the response body

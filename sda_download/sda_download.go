@@ -109,7 +109,7 @@ func SdaDownload(args []string) error {
 
 	// Loop through the files and download them
 	for _, filePath := range files {
-		download_url, err := downloadUrl(*url, config.AccessToken, *datasetID, filePath)
+		downloadurl, err := downloadURL(*url, config.AccessToken, *datasetID, filePath)
 		if err != nil {
 			return err
 		}
@@ -124,7 +124,7 @@ func SdaDownload(args []string) error {
 			outFilename = *outDir + "/" + filePath
 		}
 
-		err = downloadFile(download_url, config.AccessToken, outFilename)
+		err = downloadFile(downloadurl, config.AccessToken, outFilename)
 		if err != nil {
 			return err
 		}
@@ -182,20 +182,20 @@ func downloadFile(uri, token, filePath string) error {
 	return nil
 }
 
-// downloadUrl gets the datset files, parses the JSON response to get the file ID
+// downloadURL gets the datset files, parses the JSON response to get the file ID
 // and returns the download URL for the file
-func downloadUrl(base_url, token, dataset, filename string) (string, error) {
+func downloadURL(baseURL, token, dataset, filename string) (string, error) {
 	// Sanitize the base_url
-	base_url = strings.TrimSuffix(base_url, "/")
-	if !strings.HasPrefix(base_url, "http") {
+	baseURL = strings.TrimSuffix(baseURL, "/")
+	if !strings.HasPrefix(baseURL, "http") {
 		return "", fmt.Errorf("invalid URL, missing protocol (http/https)")
 	}
 
 	// Make the url for listing files
-	filesUrl := base_url + "/metadata/datasets/" + dataset + "/files"
+	filesURL := baseURL + "/metadata/datasets/" + dataset + "/files"
 
 	// Get the response body from the files API
-	body, err := getResponseBody(filesUrl, token)
+	body, err := getResponseBody(filesURL, token)
 	if err != nil {
 		return "", fmt.Errorf("failed to get files, reason: %v", err)
 	}
@@ -209,11 +209,10 @@ func downloadUrl(base_url, token, dataset, filename string) (string, error) {
 
 	// Get the file ID for the filename
 	fileID := ""
-	//filePath := ""
 	for _, file := range files {
 		if strings.Contains(file.FilePath, filename) {
 			fileID = file.FileID
-			//filePath = file.FilePath
+
 			break
 		}
 	}
@@ -222,7 +221,7 @@ func downloadUrl(base_url, token, dataset, filename string) (string, error) {
 		return "", fmt.Errorf("failed to find file ID for %s", filename)
 	}
 
-	return base_url + "/files/" + fileID, nil
+	return baseURL + "/files/" + fileID, nil
 }
 
 // getBody gets the body of the response from the URL
