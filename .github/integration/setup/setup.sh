@@ -16,6 +16,7 @@ if [ ! -f "dummy.ega.nbis.se.pem" ]; then
     chmod 644 keys/dummy.ega.nbis.se.pub dummy.ega.nbis.se.pem
 fi
 
+cp s3cmd-template.conf s3cmd.conf
 output=$(python sign_jwt.py)
 echo "access_token=$output" >> s3cmd.conf
 

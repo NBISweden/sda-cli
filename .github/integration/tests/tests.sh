@@ -346,10 +346,36 @@ docker exec -e PGPASSWORD=rootpasswd -it postgres psql -U postgres -d sda -c "IN
 
 # Insert dataset in sda.datasets
 dataset_id=$(docker exec -e PGPASSWORD=rootpasswd -it postgres psql -U postgres -d sda -c "INSERT INTO sda.datasets (stable_id) \
-    VALUES ('https://doi.example/ty009.sfrrss/600.45asasg') RETURNING id;" | awk 'NR==3' | tr -dc '[:alnum:]-')
+    VALUES ('https://doi.example/ty009.sfrrss/600.45asasga') RETURNING id;" | awk 'NR==3' | tr -dc '[:alnum:]-')
 
 # Add file to dataset
 docker exec -e PGPASSWORD=rootpasswd -it postgres psql -U postgres -d sda -c "INSERT INTO sda.file_dataset (file_id, dataset_id) \
         VALUES ('$file_id', $dataset_id);"
+
+# Add file to archive
+s3cmd -c direct put archive_data/4293c9a7-dc50-46db-b79a-27ddc0dad1c6 s3://archive/4293c9a7-dc50-46db-b79a-27ddc0dad1c6
+
+# Get the correct token form mockoidc
+token=$(curl "http://localhost:8000/tokens" | jq -r  '.[0]')
+
+# Create s3cmd-download.conf file for download
+cp testing/s3cmd-template.conf testing/s3cmd-download.conf
+echo "access_token=$token" >> s3cmd-download.conf
+
+# Download file by using the sda download service
+./sda-cli sda-download -config testing/s3cmd-download.conf -dataset https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh
+
+# check if file exists in the path
+if [ ! -f "test-download/main/subfolder/dummy_data" ]; then
+    echo "Downloaded file not found"
+    exit 1
+fi
+
+# check the first line of that file
+first_line=$(head -n 1 test-download/main/subfolder/dummy_data)
+if [[ $first_line != *"THIS FILE IS JUST DUMMY DATA"* ]]; then
+    echo "First line does not contain the expected string"
+    exit 1
+fi
 
 echo "Integration test finished successfully"

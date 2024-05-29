@@ -187,8 +187,8 @@ func downloadFile(uri, token, filePath string) error {
 func downloadUrl(base_url, token, dataset, filename string) (string, error) {
 	// Sanitize the base_url
 	base_url = strings.TrimSuffix(base_url, "/")
-	if !strings.HasPrefix(base_url, "https://") {
-		base_url = "https://" + base_url
+	if !strings.HasPrefix(base_url, "http") {
+		return "", fmt.Errorf("invalid URL, missing protocol (http/https)")
 	}
 
 	// Make the url for listing files
