@@ -441,6 +441,49 @@ func ListFiles(config Config, prefix string) (result *s3.ListObjectsV2Output, er
 	return result, nil
 }
 
+func ListDatasets(config Config) (result *s3.ListDirectoryBucketsOutput, err error) {
+	sess := session.Must(session.NewSession(&aws.Config{
+		// The region for the backend is always the specified one
+		// and not present in the configuration from auth - hardcoded
+		Region:           aws.String("us-west-2"),
+		Credentials:      credentials.NewStaticCredentials(config.AccessKey, config.SecretKey, config.AccessToken),
+		Endpoint:         aws.String(config.HostBase),
+		DisableSSL:       aws.Bool(!config.UseHTTPS),
+		S3ForcePathStyle: aws.Bool(true),
+	}))
+
+	svc := s3.New(sess)
+
+	result, err = svc.ListDirectoryBuckets(&s3.ListDirectoryBucketsInput{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list datasets, reason: %v", err)
+	}
+
+	return result, nil
+}
+
+func ListDataset(config Config, dataset string) (result *s3.ListDirectoryBucketsOutput, err error) {
+	sess := session.Must(session.NewSession(&aws.Config{
+		// The region for the backend is always the specified one
+		// and not present in the configuration from auth - hardcoded
+		Region:           aws.String("us-west-2"),
+		Credentials:      credentials.NewStaticCredentials(config.AccessKey, config.SecretKey, config.AccessToken),
+		Endpoint:         aws.String(config.HostBase),
+		DisableSSL:       aws.Bool(!config.UseHTTPS),
+		S3ForcePathStyle: aws.Bool(true),
+	}))
+
+	svc := s3.New(sess)
+
+	result, err = svc.ListDirectoryBuckets(&s3.ListDirectoryBucketsInput{})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to list dataset, reason: %v", err)
+	}
+
+	return result, nil
+}
+
 // Check for invalid characters
 func CheckValidChars(filename string) error {
 	re := regexp.MustCompile(`[\\:\*\?"<>\|\x00-\x1F\x7F]`)
