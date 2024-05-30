@@ -34,9 +34,9 @@ sda-download:
 var ArgHelp = `
 	[dataset]
 		The ID of the dataset that the file is part of.
-    [uri]
-        All flagless arguments will be used as sda-download uri.
-	[filename]
+	[uri]
+		All flagless arguments will be used as sda-download uri.
+	[filename(s)]
 		The name of the file to download.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
