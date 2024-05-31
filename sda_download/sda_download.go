@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/NBISweden/sda-cli/helpers"
@@ -43,17 +44,13 @@ var ArgHelp = `
 // main program help
 var Args = flag.NewFlagSet("sda-download", flag.ExitOnError)
 
-var configPath = Args.String("config", "",
-	"S3 config file to use for downloading.")
+var configPath = Args.String("config", "", "S3 config file to use for downloading.")
 
-var datasetID = Args.String("dataset", "",
-	"Dataset ID for the file to download")
+var datasetID = Args.String("dataset", "", "Dataset ID for the file to download")
 
-var url = Args.String("url", "",
-	"The name of the file to download")
+var url = Args.String("url", "", "The name of the file to download")
 
-var outDir = Args.String("outdir", "",
-	"Directory for downloaded files.")
+var outDir = Args.String("outdir", "", "Directory for downloaded files.")
 
 // necessary for mocking in testing
 var getResponseBody = getBody
@@ -109,7 +106,7 @@ func SdaDownload(args []string) error {
 
 	// Loop through the files and download them
 	for _, filePath := range files {
-		downloadurl, err := downloadURL(*url, config.AccessToken, *datasetID, filePath)
+		fileIDURL, err := getFileIDURL(*url, config.AccessToken, *datasetID, filePath)
 		if err != nil {
 			return err
 		}
@@ -124,7 +121,7 @@ func SdaDownload(args []string) error {
 			outFilename = *outDir + "/" + filePath
 		}
 
-		err = downloadFile(downloadurl, config.AccessToken, outFilename)
+		err = downloadFile(fileIDURL, config.AccessToken, outFilename)
 		if err != nil {
 			return err
 		}
@@ -182,9 +179,9 @@ func downloadFile(uri, token, filePath string) error {
 	return nil
 }
 
-// downloadURL gets the datset files, parses the JSON response to get the file ID
+// getFileIDURL gets the datset files, parses the JSON response to get the file ID
 // and returns the download URL for the file
-func downloadURL(baseURL, token, dataset, filename string) (string, error) {
+func getFileIDURL(baseURL, token, dataset, filename string) (string, error) {
 	// Sanitize the base_url
 	baseURL = strings.TrimSuffix(baseURL, "/")
 	if !strings.HasPrefix(baseURL, "http") {
@@ -208,20 +205,12 @@ func downloadURL(baseURL, token, dataset, filename string) (string, error) {
 	}
 
 	// Get the file ID for the filename
-	fileID := ""
-	for _, file := range files {
-		if strings.Contains(file.FilePath, filename) {
-			fileID = file.FileID
-
-			break
-		}
-	}
-
-	if fileID == "" {
+	idx := slices.IndexFunc(files, func(f File) bool { return strings.Contains(f.FilePath, filename) })
+	if idx == -1 {
 		return "", fmt.Errorf("failed to find file ID for %s", filename)
 	}
 
-	return baseURL + "/files/" + fileID, nil
+	return baseURL + "/files/" + files[idx].FileID, nil
 }
 
 // getBody gets the body of the response from the URL

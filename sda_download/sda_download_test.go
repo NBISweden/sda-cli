@@ -110,8 +110,11 @@ func (suite *TestSuite) TestDownloadUrl() {
 	getResponseBody = func(_, _ string) ([]byte, error) {
 		return []byte(`[
             {
-                "fileId": "file1",
-                "filePath": "path/to/file1"
+                "fileId": "file1id",
+				"datasetId": "TES01",
+				"displayName": "file1",
+                "filePath": "path/to/file1",
+				"fileName": "4293c9a7-re60-46ac-b79a-40ddc0ddd1c6"
             }
         ]`), nil
 	}
@@ -120,15 +123,15 @@ func (suite *TestSuite) TestDownloadUrl() {
 	baseURL := "https://some/url"
 	token := suite.accessToken
 	dataset := "TES01"
-	filename := "file1"
-	expectedURL := "https://some/url/files/file1"
-	url, err := downloadURL(baseURL, token, dataset, filename)
+	filepath := "path/to/file1"
+	expectedURL := "https://some/url/files/file1id"
+	url, err := getFileIDURL(baseURL, token, dataset, filepath)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expectedURL, url)
 
 	// Test with filename not in response
-	filename = "file2"
-	_, err = downloadURL(baseURL, token, dataset, filename)
+	filepath = "path/to/file2"
+	_, err = getFileIDURL(baseURL, token, dataset, filepath)
 	assert.Error(suite.T(), err)
 }
 
