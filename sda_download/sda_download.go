@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -111,9 +112,17 @@ func SdaDownload(args []string) error {
 			return err
 		}
 
+		// Check if the file path contains a userID and if it does,
+		// do not keep it in the file path
 		filePathSplit := strings.Split(filePath, "/")
-		if strings.Contains(filePath, "elixir-europe.org") {
-			filePath = strings.Join(filePathSplit[1:], "/")
+		if strings.Contains(filePathSplit[0], "_") {
+			userIdSplit := strings.Split(filePathSplit[0], "_")
+			userSHA := userIdSplit[0]
+			userSHARegex := regexp.MustCompile("^[a-f0-9]{40}$")
+			match := userSHARegex.MatchString(userSHA)
+			if match {
+				filePath = strings.Join(filePathSplit[1:], "/")
+			}
 		}
 
 		outFilename := filePath
