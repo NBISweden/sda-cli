@@ -116,8 +116,8 @@ func SdaDownload(args []string) error {
 		// do not keep it in the file path
 		filePathSplit := strings.Split(filePath, "/")
 		if strings.Contains(filePathSplit[0], "_") {
-			userIdSplit := strings.Split(filePathSplit[0], "_")
-			userSHA := userIdSplit[0]
+			userIDSplit := strings.Split(filePathSplit[0], "_")
+			userSHA := userIDSplit[0]
 			userSHARegex := regexp.MustCompile("^[a-f0-9]{40}$")
 			match := userSHARegex.MatchString(userSHA)
 			if match {
