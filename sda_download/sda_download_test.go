@@ -137,7 +137,7 @@ func (suite *TestSuite) TestDownloadUrl() {
 	// Test with fileID
 	filepath = "file1id"
 	_, err = getFileIDURL(baseURL, token, dataset, filepath)
-	assert.NoError(suite.T(), err)	
+	assert.NoError(suite.T(), err)
 
 	// Testr with bad URL
 	_, err = getFileIDURL("some/url", token, dataset, filepath)

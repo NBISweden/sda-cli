@@ -117,7 +117,7 @@ func SdaDownload(args []string) error {
 		// do not keep it in the file path
 		filePathSplit := strings.Split(filePath, "/")
 		if strings.Contains(filePathSplit[0], "_") {
-			_, err := mail.ParseAddress(strings.Replace(filePathSplit[0], "_", "@", -1))
+			_, err := mail.ParseAddress(strings.ReplaceAll(filePathSplit[0], "_", "@"))
 			if err == nil {
 				filePath = strings.Join(filePathSplit[1:], "/")
 			}
@@ -196,7 +196,7 @@ func getFileIDURL(baseURL, token, dataset, filename string) (string, error) {
 	}
 
 	// Make the url for listing files
-	filesURL, _ := url.JoinPath(baseURL + "/metadata/datasets/" + dataset + "/files")
+	filesURL := baseURL + "/metadata/datasets/" + dataset + "/files"
 
 	// Get the response body from the files API
 	body, err := getResponseBody(filesURL, token)
@@ -219,7 +219,7 @@ func getFileIDURL(baseURL, token, dataset, filename string) (string, error) {
 	default:
 		idx = slices.IndexFunc(files, func(f File) bool { return strings.Contains(f.FileID, filename) })
 	}
-	
+
 	if idx == -1 {
 		return "", fmt.Errorf("File not found in dataset %s", filename)
 	}
