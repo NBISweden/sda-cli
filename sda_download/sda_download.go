@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/mail"
+	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -49,7 +50,7 @@ var configPath = Args.String("config", "", "S3 config file to use for downloadin
 
 var datasetID = Args.String("dataset", "", "Dataset ID for the file to download")
 
-var url = Args.String("url", "", "The name of the file to download")
+var URL = Args.String("url", "", "The name of the file to download")
 
 var outDir = Args.String("outdir", "", "Directory for downloaded files.")
 
@@ -82,7 +83,7 @@ func SdaDownload(args []string) error {
 		return fmt.Errorf("failed parsing arguments, reason: %v", err)
 	}
 
-	if *datasetID == "" || *url == "" || *configPath == "" {
+	if *datasetID == "" || *URL == "" || *configPath == "" {
 		return fmt.Errorf("missing required arguments, dataset, config and url are required")
 	}
 
@@ -107,7 +108,7 @@ func SdaDownload(args []string) error {
 
 	// Loop through the files and download them
 	for _, filePath := range files {
-		fileIDURL, err := getFileIDURL(*url, config.AccessToken, *datasetID, filePath)
+		fileIDURL, err := getFileIDURL(*URL, config.AccessToken, *datasetID, filePath)
 		if err != nil {
 			return err
 		}
@@ -116,11 +117,8 @@ func SdaDownload(args []string) error {
 		// do not keep it in the file path
 		filePathSplit := strings.Split(filePath, "/")
 		if strings.Contains(filePathSplit[0], "_") {
-			userIDSplit := strings.Split(filePathSplit[0], "_")
-			userSHA := userIDSplit[0]
-			userSHARegex := regexp.MustCompile("^[a-f0-9]{40}$")
-			match := userSHARegex.MatchString(userSHA)
-			if match {
+			_, err := mail.ParseAddress(strings.Replace(filePathSplit[0], "_", "@", -1))
+			if err == nil {
 				filePath = strings.Join(filePathSplit[1:], "/")
 			}
 		}
@@ -192,13 +190,13 @@ func downloadFile(uri, token, filePath string) error {
 // and returns the download URL for the file
 func getFileIDURL(baseURL, token, dataset, filename string) (string, error) {
 	// Sanitize the base_url
-	baseURL = strings.TrimSuffix(baseURL, "/")
-	if !strings.HasPrefix(baseURL, "http") {
-		return "", fmt.Errorf("invalid URL, missing protocol (http/https)")
+	u, err := url.ParseRequestURI(baseURL)
+	if err != nil || u.Scheme == "" {
+		return "", err
 	}
 
 	// Make the url for listing files
-	filesURL := baseURL + "/metadata/datasets/" + dataset + "/files"
+	filesURL, _ := url.JoinPath(baseURL + "/metadata/datasets/" + dataset + "/files")
 
 	// Get the response body from the files API
 	body, err := getResponseBody(filesURL, token)
@@ -214,9 +212,16 @@ func getFileIDURL(baseURL, token, dataset, filename string) (string, error) {
 	}
 
 	// Get the file ID for the filename
-	idx := slices.IndexFunc(files, func(f File) bool { return strings.Contains(f.FilePath, filename) })
+	var idx int
+	switch {
+	case strings.Contains(filename, "/"):
+		idx = slices.IndexFunc(files, func(f File) bool { return strings.Contains(f.FilePath, filename) })
+	default:
+		idx = slices.IndexFunc(files, func(f File) bool { return strings.Contains(f.FileID, filename) })
+	}
+	
 	if idx == -1 {
-		return "", fmt.Errorf("failed to find file ID for %s", filename)
+		return "", fmt.Errorf("File not found in dataset %s", filename)
 	}
 
 	return baseURL + "/files/" + files[idx].FileID, nil
