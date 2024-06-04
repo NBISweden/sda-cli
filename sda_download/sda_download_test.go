@@ -119,13 +119,20 @@ func (suite *TestSuite) TestDownloadUrl() {
         ]`), nil
 	}
 
-	// Test with valid base_url, token, dataset, and filename
 	baseURL := "https://some/url"
 	token := suite.accessToken
-	dataset := "TES01"
+	dataset := "test-dataset"
 	filepath := "path/to/file1"
 	expectedURL := "https://some/url/files/file1id"
+
+	// Test with valid base_url, token, dataset, and filename
 	url, err := getFileIDURL(baseURL, token, dataset, filepath)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), expectedURL, url)
+
+	// Test with url as dataset
+	dataset = "https://doi.example/another/url/001"
+	_, err = getFileIDURL(baseURL, token, dataset, filepath)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expectedURL, url)
 
