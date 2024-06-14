@@ -216,7 +216,7 @@ For downloading files the user needs to know the download service URL, the datas
 ```bash
 ./sda-cli sda-download -config <configuration_file> -dataset <datasetID> -url <download-service-URL> <filepath_1_to_download> <filepath_2_to_download> ...
 ```
-where `<configuration_file>` the file downloaded in the previous step, `<dataset_id>` the ID of the dataset and `<filepath>` the path of the file in the dataset.
+where `<configuration_file>` the file downloaded in the [previous step](#download-the-configuration-file), `<dataset_id>` the ID of the dataset and `<filepath>` the path of the file in the dataset.
 The tool also allows for downloading multiple files at once, by listing them separated with space and it also allows for selecting a folder where the files will be downloaded, using the `outdir` argument:
 ```bash
 ./sda-cli sda-download -config <configuration_file> -dataset <datasetID> -url <download-service-url> -outdir <outdir> <filepath_1_to_download> <filepath_2_to_download> ...
