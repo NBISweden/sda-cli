@@ -212,12 +212,12 @@ The tool also allows for selecting a folder where the files will be downloaded, 
 ### Download using the download API
 
 The download API allows for downloading files from the archive and it requires the user to have access to the dataset, therefore a configuration file needs to be downloaded before starting the downloading of the files.
-For downloading files the user needs to know the download service URL, the dataset ID and the path of the file. Given those four arguments files can be downloaded using the following command:
+For downloading files the user also needs to know the download service URL, the dataset ID and the path of the file. Given those four arguments files can be downloaded using the following command:
 ```bash
 ./sda-cli sda-download -config <configuration_file> -dataset <datasetID> -url <download-service-URL> <filepath_1_to_download> <filepath_2_to_download> ...
 ```
 where `<configuration_file>` the file downloaded in the [previous step](#download-the-configuration-file), `<dataset_id>` the ID of the dataset and `<filepath>` the path of the file in the dataset.
-The tool also allows for downloading multiple files at once, by listing them separated with space and it also allows for selecting a folder where the files will be downloaded, using the `outdir` argument:
+The tool also allows for downloading multiple files at once, by listing their filepaths separated with space and it also allows for selecting a folder where the files will be downloaded, using the `outdir` argument:
 ```bash
 ./sda-cli sda-download -config <configuration_file> -dataset <datasetID> -url <download-service-url> -outdir <outdir> <filepath_1_to_download> <filepath_2_to_download> ...
 ```

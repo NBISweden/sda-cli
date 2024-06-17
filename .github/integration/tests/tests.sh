@@ -337,4 +337,6 @@ if [[ $first_line != *"THIS FILE IS JUST DUMMY DATA"* ]]; then
     exit 1
 fi
 
+rm -r test-download
+
 echo "Integration test finished successfully"

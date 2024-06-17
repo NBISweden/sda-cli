@@ -24,10 +24,10 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s sda-download -config <s3config-file> -dataset <datasetID> -url <uri> (-outdir <dir>) [filename(s)]
+USAGE: %s sda-download -config <s3config-file> -dataset <datasetID> -url <uri> (-outdir <dir>) [filepath(s)]
 
 sda-download:
-	Downloads files from the Sensitive Data Archive (SDA) by using APIs. The user
+	Downloads files from the Sensitive Data Archive (SDA) by using APIs from the given url. The user
 	must have been granted access to the datasets (visas) that are to be downloaded.
 	The files will be downloaded in the current directory, if outdir is not defined.
 `
@@ -39,8 +39,8 @@ var ArgHelp = `
 		The ID of the dataset that the file is part of.
 	[uri]
 		All flagless arguments will be used as sda-download uri.
-	[filename(s)]
-		The name of the file to download.`
+	[filepath(s)]
+		The filepath of the file to download.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
@@ -50,7 +50,7 @@ var configPath = Args.String("config", "", "S3 config file to use for downloadin
 
 var datasetID = Args.String("dataset", "", "Dataset ID for the file to download")
 
-var URL = Args.String("url", "", "The name of the file to download")
+var URL = Args.String("url", "", "The url of the sda-download server")
 
 var outDir = Args.String("outdir", "", "Directory for downloaded files.")
 
