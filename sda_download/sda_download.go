@@ -1,6 +1,7 @@
 package sdadownload
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -24,12 +25,13 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s sda-download -config <s3config-file> -dataset <datasetID> -url <uri> (-outdir <dir>) [filepath(s)]
+USAGE: %s sda-download -config <s3config-file> -dataset <datasetID> -url <uri> (--public-key <public-key-file>) (-outdir <dir>) [filepath(s)]
 
 sda-download:
 	Downloads files from the Sensitive Data Archive (SDA) by using APIs from the given url. The user
 	must have been granted access to the datasets (visas) that are to be downloaded.
 	The files will be downloaded in the current directory, if outdir is not defined.
+	When the -public-key flag is used, the downloaded files will be encrypted with the given public key.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
@@ -48,11 +50,14 @@ var Args = flag.NewFlagSet("sda-download", flag.ExitOnError)
 
 var configPath = Args.String("config", "", "S3 config file to use for downloading.")
 
-var datasetID = Args.String("dataset", "", "Dataset ID for the file to download")
+var datasetID = Args.String("dataset", "", "Dataset ID for the file to download.")
 
-var URL = Args.String("url", "", "The url of the sda-download server")
+var URL = Args.String("url", "", "The url of the sda-download server.")
 
 var outDir = Args.String("outdir", "", "Directory for downloaded files.")
+
+var pubKeyPath = Args.String("public-key", "",
+	"Public key file to use for encryption of files to download.")
 
 // necessary for mocking in testing
 var getResponseBody = getBody
@@ -106,11 +111,22 @@ func SdaDownload(args []string) error {
 		return err
 	}
 
+	*pubKeyPath = strings.TrimSpace(*pubKeyPath)
+	var pubKeyBase64 string
+	if *pubKeyPath != "" {
+		// Read the public key
+		pubKey, err := os.ReadFile(*pubKeyPath)
+		if err != nil {
+			return fmt.Errorf("failed to read public key, reason: %v", err)
+		}
+		pubKeyBase64 = base64.StdEncoding.EncodeToString(pubKey)
+	}
+
 	// Loop through the files and download them
 	for _, filePath := range files {
-		fileIDURL, err := getFileIDURL(*URL, config.AccessToken, *datasetID, filePath)
+		fileIDURL, err := getFileIDURL(*URL, config.AccessToken, pubKeyBase64, *datasetID, filePath)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get URL for the given file, reason: %v", err)
 		}
 
 		// Check if the file path contains a userID and if it does,
@@ -128,7 +144,7 @@ func SdaDownload(args []string) error {
 			outFilename = *outDir + "/" + filePath
 		}
 
-		err = downloadFile(fileIDURL, config.AccessToken, outFilename)
+		err = downloadFile(fileIDURL, config.AccessToken, pubKeyBase64, outFilename)
 		if err != nil {
 			return err
 		}
@@ -138,10 +154,10 @@ func SdaDownload(args []string) error {
 }
 
 // downloadFile downloads the file by using the download URL
-func downloadFile(uri, token, filePath string) error {
+func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	filePath = strings.TrimSuffix(filePath, ".c4gh")
 	// Get the file body
-	body, err := getResponseBody(uri, token)
+	body, err := getResponseBody(uri, token, pubKeyBase64)
 	if err != nil {
 		return fmt.Errorf("failed to get file for download, reason: %v", err)
 	}
@@ -153,6 +169,9 @@ func downloadFile(uri, token, filePath string) error {
 		return fmt.Errorf("failed to create directory, reason: %v", err)
 	}
 
+	if pubKeyBase64 != "" {
+		filePath = filePath + ".c4gh"
+	}
 	outfile, err := os.Create(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to create file, reason: %v", err)
@@ -188,47 +207,54 @@ func downloadFile(uri, token, filePath string) error {
 
 // getFileIDURL gets the datset files, parses the JSON response to get the file ID
 // and returns the download URL for the file
-func getFileIDURL(baseURL, token, dataset, filename string) (string, error) {
+func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (string, error) {
 	// Sanitize the base_url
 	u, err := url.ParseRequestURI(baseURL)
 	if err != nil || u.Scheme == "" {
 		return "", err
 	}
 
-	// Make the url for listing files
-	filesURL := baseURL + "/metadata/datasets/" + dataset + "/files"
+	var fileURL string
 
-	// Get the response body from the files API
-	body, err := getResponseBody(filesURL, token)
-	if err != nil {
-		return "", fmt.Errorf("failed to get files, reason: %v", err)
+	if pubKeyBase64 == "" { // If no public key is provided, retrieve the unencrypted file
+		// Make the url for listing files
+		filesURL := baseURL + "/metadata/datasets/" + dataset + "/files"
+
+		// Get the response body from the files API
+		body, err := getResponseBody(filesURL, token, pubKeyBase64)
+		if err != nil {
+			return "", fmt.Errorf("failed to get files, reason: %v", err)
+		}
+
+		// Parse the JSON response
+		var files []File
+		err = json.Unmarshal(body, &files)
+		if err != nil {
+			return "", fmt.Errorf("failed to parse file list JSON, reason: %v", err)
+		}
+
+		// Get the file ID for the filename
+		var idx int
+		switch {
+		case strings.Contains(filename, "/"):
+			idx = slices.IndexFunc(files, func(f File) bool { return strings.Contains(f.FilePath, filename) })
+		default:
+			idx = slices.IndexFunc(files, func(f File) bool { return strings.Contains(f.FileID, filename) })
+		}
+
+		if idx == -1 {
+			return "", fmt.Errorf("File not found in dataset %s", filename)
+		}
+		fileURL = baseURL + "/files/" + files[idx].FileID
+	} else { // If a public key is provided, retrieve from the encrypted endpoint
+		fileURL = baseURL + "/s3-encrypted/" + dataset + "/" + filename
 	}
 
-	// Parse the JSON response
-	var files []File
-	err = json.Unmarshal(body, &files)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse file list JSON, reason: %v", err)
-	}
-
-	// Get the file ID for the filename
-	var idx int
-	switch {
-	case strings.Contains(filename, "/"):
-		idx = slices.IndexFunc(files, func(f File) bool { return strings.Contains(f.FilePath, filename) })
-	default:
-		idx = slices.IndexFunc(files, func(f File) bool { return strings.Contains(f.FileID, filename) })
-	}
-
-	if idx == -1 {
-		return "", fmt.Errorf("File not found in dataset %s", filename)
-	}
-
-	return baseURL + "/files/" + files[idx].FileID, nil
+	return fileURL, nil
 }
 
 // getBody gets the body of the response from the URL
-func getBody(url, token string) ([]byte, error) {
+func getBody(url, token, pubKeyBase64 string) ([]byte, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request, reason: %v", err)
@@ -237,6 +263,9 @@ func getBody(url, token string) ([]byte, error) {
 	// Add headers
 	req.Header.Add("Authorization", "Bearer "+token)
 	req.Header.Add("Content-Type", "application/json")
+	if pubKeyBase64 != "" {
+		req.Header.Add("Client-Public-Key", pubKeyBase64)
+	}
 
 	// Send the request
 	client := &http.Client{}
