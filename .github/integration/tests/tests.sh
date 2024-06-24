@@ -321,4 +321,22 @@ fi
 
 rm -r downloads
 
+# Download file by using the sda download service
+./sda-cli sda-download -config testing/s3cmd-download.conf -dataset https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh
+
+# check if file exists in the path
+if [ ! -f "test-download/main/subfolder/dummy_data" ]; then
+    echo "Downloaded file not found"
+    exit 1
+fi
+
+# check the first line of that file
+first_line=$(head -n 1 test-download/main/subfolder/dummy_data)
+if [[ $first_line != *"THIS FILE IS JUST DUMMY DATA"* ]]; then
+    echo "First line does not contain the expected string"
+    exit 1
+fi
+
+rm -r test-download
+
 echo "Integration test finished successfully"
