@@ -175,11 +175,11 @@ If no config is given by the user, the tool will look for a previous login from 
 ## Download
 
 The SDA/BP archive enables for downloading files and datasets in a secure manner. That can be achieved using the `sda-cli` tool and and it can be done in two ways:
-- by downloading from a S3 bucket
-- by using the download API
+- by downloading from a S3 bucket (`./sda-cli download`)
+- by using the download API (`./sda-cli sda-download`)
 
 ### Download from S3 bucket
-This process consists of the following two steps: create keys and download file and is explained in the following sections.
+This process consists of the following two steps: create keys and downloading the file. These steps are explained in the following sections.
 
 #### Create keys
 
@@ -211,7 +211,7 @@ The tool also allows for selecting a folder where the files will be downloaded, 
 
 ### Download using the download API
 
-The download API allows for downloading files from the archive and it requires the user to have access to the dataset, therefore a configuration file needs to be downloaded before starting the downloading of the files.
+The download API allows for downloading files from the archive and it requires the user to have access to the dataset, therefore a [configuration file](#download-the-configuration-file) needs to be downloaded before starting the downloading of the files.
 For downloading files the user also needs to know the download service URL, the dataset ID and the path of the file. Given those four arguments files can be downloaded using the following command:
 ```bash
 ./sda-cli sda-download -config <configuration_file> -dataset <datasetID> -url <download-service-URL> <filepath_1_to_download> <filepath_2_to_download> ...
