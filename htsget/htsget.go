@@ -20,7 +20,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help htsget` command
 var Usage = `
-USAGE: %s htsget [-dataset <datasetID>] [-filename <filename>] (-reference <referenceName>) [-htsgethost <htsget-hostname>] [-key <public-key-file>] (-output <file>) (--force-overwrite)
+USAGE: %s htsget [-dataset <datasetID>] [-filename <filename>] (-reference <referenceName>) [-htsgethost <htsget-hostname>] [-pubkey <public-key-file>] (-output <file>) (--force-overwrite)
 
 htsget:
     Htsget downloads files from the Sensitive Data Archive (SDA), using the
@@ -38,9 +38,9 @@ var ArgHelp = `
         The name of the file to download.
     [reference]
         The reference number of the file to download.
-    [htsgethost]
+    [host]
         The hostname of the htsget server to use.
-    [key]
+    [pubkey]
         The public key file to use for the htsget request.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
@@ -82,7 +82,7 @@ func Htsget(args []string) error {
 	}
 
 	if *datasetID == "" || *fileName == "" || *htsgetHost == "" || *publicKeyFile == "" {
-		return fmt.Errorf("missing required arguments, dataset, filename, htsgethost and key are required")
+		return fmt.Errorf("missing required arguments, dataset, filename, host and key are required")
 	}
 
 	config, err := helpers.GetAuth(*configPath)
@@ -114,6 +114,7 @@ func Htsget(args []string) error {
 	req.Header.Add("client-public-key", base64publickey)
 
 	res, err := client.Do(req)
+
 	if err != nil {
 		return fmt.Errorf("failed to do the request, reason: %v", err)
 	}
@@ -127,7 +128,7 @@ func Htsget(args []string) error {
 		return fmt.Errorf("failed to read response, reason: %v", err)
 	}
 
-	var htsgetURLs htsgetResponse
+	htsgetURLs := htsgetResponse{}
 	err = json.Unmarshal(body, &htsgetURLs)
 	if err != nil {
 		return fmt.Errorf("error unmarshaling response, reason: %v", err)
@@ -145,8 +146,7 @@ func Htsget(args []string) error {
 func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error) {
 
 	// Create the directory for the file
-	var currentPath, filePath, filenameToUse string
-	currentPath, err = os.Getwd()
+	var filePath, filenameToUse string
 	if err != nil {
 		return fmt.Errorf("failed to get current path, reason: %v", err)
 	}
@@ -171,7 +171,7 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 	defer out.Close()
 
 	// read public key from file
-	publickey, err := os.ReadFile(currentPath + "/" + *publicKeyFile)
+	publickey, err := os.ReadFile(*publicKeyFile)
 	if err != nil {
 		deleteFile(out)
 
@@ -202,6 +202,7 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 
 		client := &http.Client{}
 		req, err := http.NewRequest(http.MethodGet, url, nil)
+
 		if err != nil {
 			deleteFile(out)
 
@@ -223,7 +224,7 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 		if res.StatusCode != 200 {
 			deleteFile(out)
 
-			return fmt.Errorf("failed to get the file, status code: %v", res.StatusCode)
+			return fmt.Errorf("failed to get the file, status code: %v", res)
 		}
 		defer res.Body.Close()
 
