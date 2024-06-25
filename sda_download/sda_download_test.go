@@ -92,7 +92,7 @@ func (suite *TestSuite) TestGetBody() {
 	defer server.Close()
 
 	// Make a request to the test server
-	body, err := getBody(server.URL, "test-token")
+	body, err := getBody(server.URL, "test-token", "")
 	if err != nil {
 		suite.T().Errorf("getBody returned an error: %v", err)
 	}
@@ -107,7 +107,7 @@ func (suite *TestSuite) TestGetBody() {
 func (suite *TestSuite) TestDownloadUrl() {
 	// Mock getBody function
 	defer func() { getResponseBody = getBody }()
-	getResponseBody = func(_, _ string) ([]byte, error) {
+	getResponseBody = func(_, _, _ string) ([]byte, error) {
 		return []byte(`[
             {
                 "fileId": "file1id",
@@ -126,28 +126,28 @@ func (suite *TestSuite) TestDownloadUrl() {
 	expectedURL := "https://some/url/files/file1id"
 
 	// Test with valid base_url, token, dataset, and filename
-	url, err := getFileIDURL(baseURL, token, dataset, filepath)
+	url, err := getFileIDURL(baseURL, token, "", dataset, filepath)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expectedURL, url)
 
 	// Test with url as dataset
 	dataset = "https://doi.example/another/url/001"
-	_, err = getFileIDURL(baseURL, token, dataset, filepath)
+	_, err = getFileIDURL(baseURL, token, "", dataset, filepath)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expectedURL, url)
 
 	// Test with filename not in response
 	filepath = "path/to/file2"
-	_, err = getFileIDURL(baseURL, token, dataset, filepath)
+	_, err = getFileIDURL(baseURL, token, "", dataset, filepath)
 	assert.Error(suite.T(), err)
 
 	// Test with fileID
 	filepath = "file1id"
-	_, err = getFileIDURL(baseURL, token, dataset, filepath)
+	_, err = getFileIDURL(baseURL, token, "", dataset, filepath)
 	assert.NoError(suite.T(), err)
 
 	// Testr with bad URL
-	_, err = getFileIDURL("some/url", token, dataset, filepath)
+	_, err = getFileIDURL("some/url", token, "", dataset, filepath)
 	assert.Error(suite.T(), err)
 }
 
@@ -170,7 +170,7 @@ func (suite *TestSuite) TestDownloadFile() {
 	defer server.Close()
 
 	// Call the downloadFile function
-	err = downloadFile(server.URL, "test-token", tempFile)
+	err = downloadFile(server.URL, "test-token", "", tempFile)
 	require.NoError(suite.T(), err)
 
 	// Read the downloaded file
