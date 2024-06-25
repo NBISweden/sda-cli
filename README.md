@@ -222,6 +222,14 @@ The tool also allows for downloading multiple files at once, by listing their fi
 ./sda-cli sda-download -config <configuration_file> -dataset <datasetID> -url <download-service-url> -outdir <outdir> <filepath_1_to_download> <filepath_2_to_download> ...
 ```
 
+#### Download encrypted files using the download API
+
+When a [public key](#create-keys) is provided, you can download files encrypted with that public key. The command is similar to downloading the unencrypted files except that a public key is provided through the `-public-key` flag. For example:
+```bash
+./sda-cli sda-download -public-key <public-key-file> -config <configuration_file> -dataset <datasetID> -url <download-service-url> -outdir <outdir> <filepath_1_to_download> <filepath_2_to_download> ...
+```
+After a successful download, the encrypted files can be [decrypted](#decrypt-file) using the private key corresponding to the provided public key.
+
 ## Decrypt file
 
 Given that the instructions in the [download section](#download) have been followed, the key pair and the data files should be stored in some location. The last step is to decrypt the files in order to access their content. That can be achieved using the following command:
