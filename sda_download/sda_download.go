@@ -170,7 +170,7 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	}
 
 	if pubKeyBase64 != "" {
-		filePath = filePath + ".c4gh"
+		filePath += ".c4gh"
 	}
 	outfile, err := os.Create(filePath)
 	if err != nil {
