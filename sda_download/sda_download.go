@@ -216,35 +216,35 @@ func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (strin
 
 	var fileURL string
 
+	// Make the url for listing files
+	filesURL := baseURL + "/metadata/datasets/" + dataset + "/files"
+
+	// Get the response body from the files API
+	body, err := getResponseBody(filesURL, token, pubKeyBase64)
+	if err != nil {
+		return "", fmt.Errorf("failed to get files, reason: %v", err)
+	}
+
+	// Parse the JSON response
+	var files []File
+	err = json.Unmarshal(body, &files)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse file list JSON, reason: %v", err)
+	}
+
+	// Get the file ID for the filename
+	var idx int
+	switch {
+	case strings.Contains(filename, "/"):
+		idx = slices.IndexFunc(files, func(f File) bool { return strings.Contains(f.FilePath, filename) })
+	default:
+		idx = slices.IndexFunc(files, func(f File) bool { return strings.Contains(f.FileID, filename) })
+	}
+
+	if idx == -1 {
+		return "", fmt.Errorf("File not found in dataset %s", filename)
+	}
 	if pubKeyBase64 == "" { // If no public key is provided, retrieve the unencrypted file
-		// Make the url for listing files
-		filesURL := baseURL + "/metadata/datasets/" + dataset + "/files"
-
-		// Get the response body from the files API
-		body, err := getResponseBody(filesURL, token, pubKeyBase64)
-		if err != nil {
-			return "", fmt.Errorf("failed to get files, reason: %v", err)
-		}
-
-		// Parse the JSON response
-		var files []File
-		err = json.Unmarshal(body, &files)
-		if err != nil {
-			return "", fmt.Errorf("failed to parse file list JSON, reason: %v", err)
-		}
-
-		// Get the file ID for the filename
-		var idx int
-		switch {
-		case strings.Contains(filename, "/"):
-			idx = slices.IndexFunc(files, func(f File) bool { return strings.Contains(f.FilePath, filename) })
-		default:
-			idx = slices.IndexFunc(files, func(f File) bool { return strings.Contains(f.FileID, filename) })
-		}
-
-		if idx == -1 {
-			return "", fmt.Errorf("File not found in dataset %s", filename)
-		}
 		fileURL = baseURL + "/files/" + files[idx].FileID
 	} else { // If a public key is provided, retrieve from the encrypted endpoint
 		fileURL = baseURL + "/s3-encrypted/" + dataset + "/" + filename
