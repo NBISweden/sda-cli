@@ -209,7 +209,7 @@ func (suite *TestSuite) TestDownloadFile() {
 	}))
 	defer server.Close()
 
-	// Call the downloadFile function
+	// Call the downloadFile function without a public key
 	err = downloadFile(server.URL, "test-token", "", tempFile)
 	require.NoError(suite.T(), err)
 
@@ -219,5 +219,17 @@ func (suite *TestSuite) TestDownloadFile() {
 
 	// Check if the downloaded content matches the expected content
 	expectedContent := "dummy response"
+	assert.Equal(suite.T(), expectedContent, string(downloadedContent))
+
+	// Call the downloadFile function with a public key
+	err = downloadFile(server.URL, "test-token", "test-public-key", tempFile)
+	require.NoError(suite.T(), err)
+
+	// Read the downloaded file
+	downloadedContent, err = os.ReadFile(tempFile)
+	require.NoError(suite.T(), err)
+
+	// Check if the downloaded content matches the expected content
+	expectedContent = "dummy response"
 	assert.Equal(suite.T(), expectedContent, string(downloadedContent))
 }
