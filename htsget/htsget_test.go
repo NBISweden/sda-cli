@@ -6,7 +6,6 @@ import (
 	"os"
 	"testing"
 
-	//"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -50,10 +49,12 @@ multipart_chunk_size_mb = 50
 use_https = False
 socket_timeout = 30
 access_token = eyJ0eXAiOiJKV1QiLCJqa3UiOiJodHRwczovL29pZGM6ODA4MC9qd2siLCJhbGciOiJFUzI1NiIsImtpZCI6IlYxcXN1VlVINUEyaTR5TWlmSFZTQWJDTTlxMnVldkF0MUktNzZfdlNTVjQifQ.eyJzdWIiOiJyZXF1ZXN0ZXJAZGVtby5vcmciLCJhdWQiOlsiYXVkMSIsImF1ZDIiXSwiYXpwIjoiYXpwIiwic2NvcGUiOiJvcGVuaWQgZ2E0Z2hfcGFzc3BvcnRfdjEiLCJpc3MiOiJodHRwczovL29pZGM6ODA4MC8iLCJleHAiOjk5OTk5OTk5OTksImlhdCI6MTU2MTYyMTkxMywianRpIjoiNmFkN2FhNDItM2U5Yy00ODMzLWJkMTYtNzY1Y2I4MGMyMTAyIn0.shY1Af3m6cPbRQd5Rn_tjvzBiJ8zx0cbsPkV8nebGrqAekpp42kUuoTYc2GCekowZMx-7J_qt3pz5Tk6nRyIHw`
-	os.WriteFile(tmpDir+"s3cmd_test.conf", []byte(s3cmdConf), 0644)
-
+	err := os.WriteFile(tmpDir+"s3cmd_test.conf", []byte(s3cmdConf), 0600)
+	if err != nil {
+		panic(err)
+	}
 	os.Args = []string{"htsget", "-config", tmpDir + "s3cmd_test.conf", "-dataset", "DATASET0001", "-filename", "htsnexus_test_NA12878", "-host", "somehost", "-pubkey", "somekey"}
-	err := Htsget(os.Args)
+	err = Htsget(os.Args)
 	assert.ErrorContains(suite.T(), err, "failed to read public key")
 }
 
@@ -73,15 +74,19 @@ multipart_chunk_size_mb = 50
 use_https = False
 socket_timeout = 30
 access_token = eyJ0eXAiOiJKV1QiLCJqa3UiOiJodHRwczovL29pZGM6ODA4MC9qd2siLCJhbGciOiJFUzI1NiIsImtpZCI6IlYxcXN1VlVINUEyaTR5TWlmSFZTQWJDTTlxMnVldkF0MUktNzZfdlNTVjQifQ.eyJzdWIiOiJyZXF1ZXN0ZXJAZGVtby5vcmciLCJhdWQiOlsiYXVkMSIsImF1ZDIiXSwiYXpwIjoiYXpwIiwic2NvcGUiOiJvcGVuaWQgZ2E0Z2hfcGFzc3BvcnRfdjEiLCJpc3MiOiJodHRwczovL29pZGM6ODA4MC8iLCJleHAiOjk5OTk5OTk5OTksImlhdCI6MTU2MTYyMTkxMywianRpIjoiNmFkN2FhNDItM2U5Yy00ODMzLWJkMTYtNzY1Y2I4MGMyMTAyIn0.shY1Af3m6cPbRQd5Rn_tjvzBiJ8zx0cbsPkV8nebGrqAekpp42kUuoTYc2GCekowZMx-7J_qt3pz5Tk6nRyIHw`
-	os.WriteFile(tmpDir+"s3cmd_test.conf", []byte(s3cmdConf), 0644)
-
+	err := os.WriteFile(tmpDir+"s3cmd_test.conf", []byte(s3cmdConf), 0600)
+	if err != nil {
+		panic(err)
+	}
 	pubKey := `-----BEGIN CRYPT4GH PUBLIC KEY-----
 KKj6NUcJGZ2/HeqkYbxm57ZaFLP5cIHsdK+0nQubFVs=
 -----END CRYPT4GH PUBLIC KEY-----`
-	os.WriteFile(tmpDir+"c4gh.pub.pem", []byte(pubKey), 0644)
-
+	err = os.WriteFile(tmpDir+"c4gh.pub.pem", []byte(pubKey), 0600)
+	if err != nil {
+		panic(err)
+	}
 	os.Args = []string{"htsget", "-config", tmpDir + "s3cmd_test.conf", "-dataset", "DATASET0001", "-filename", "htsnexus_test_NA12878", "-host", "missingserver", "-pubkey", tmpDir + "c4gh.pub.pem"}
-	err := Htsget(os.Args)
+	err = Htsget(os.Args)
 	assert.ErrorContains(suite.T(), err, "failed to do the request")
 }
 
@@ -102,12 +107,18 @@ multipart_chunk_size_mb = 50
 use_https = False
 socket_timeout = 30
 access_token = eyJ0eXAiOiJKV1QiLCJqa3UiOiJodHRwczovL29pZGM6ODA4MC9qd2siLCJhbGciOiJFUzI1NiIsImtpZCI6IlYxcXN1VlVINUEyaTR5TWlmSFZTQWJDTTlxMnVldkF0MUktNzZfdlNTVjQifQ.eyJzdWIiOiJyZXF1ZXN0ZXJAZGVtby5vcmciLCJhdWQiOlsiYXVkMSIsImF1ZDIiXSwiYXpwIjoiYXpwIiwic2NvcGUiOiJvcGVuaWQgZ2E0Z2hfcGFzc3BvcnRfdjEiLCJpc3MiOiJodHRwczovL29pZGM6ODA4MC8iLCJleHAiOjk5OTk5OTk5OTksImlhdCI6MTU2MTYyMTkxMywianRpIjoiNmFkN2FhNDItM2U5Yy00ODMzLWJkMTYtNzY1Y2I4MGMyMTAyIn0.shY1Af3m6cPbRQd5Rn_tjvzBiJ8zx0cbsPkV8nebGrqAekpp42kUuoTYc2GCekowZMx-7J_qt3pz5Tk6nRyIHw`
-	os.WriteFile(tmpDir+"s3cmd_test.conf", []byte(s3cmdConf), 0644)
+	err := os.WriteFile(tmpDir+"s3cmd_test.conf", []byte(s3cmdConf), 0600)
+	if err != nil {
+		panic(err)
+	}
 
 	pubKey := `-----BEGIN CRYPT4GH PUBLIC KEY-----
 KKj6NUcJGZ2/HeqkYbxm57ZaFLP5cIHsdK+0nQubFVs=
 -----END CRYPT4GH PUBLIC KEY-----`
-	os.WriteFile(tmpDir+"c4gh.pub.pem", []byte(pubKey), 0644)
+	err = os.WriteFile(tmpDir+"c4gh.pub.pem", []byte(pubKey), 0600)
+	if err != nil {
+		panic(err)
+	}
 
 	jsonData := `{
   "htsget": {
@@ -158,15 +169,17 @@ KKj6NUcJGZ2/HeqkYbxm57ZaFLP5cIHsdK+0nQubFVs=
 
 	// Create a test server
 	mux := http.NewServeMux()
-	mux.HandleFunc("/reads/DATASET0001/htsnexus_test_NA12878", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/reads/DATASET0001/htsnexus_test_NA12878", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(jsonData))
+		if _, err := w.Write([]byte(jsonData)); err != nil {
+			http.Error(w, "Failed to write response", http.StatusInternalServerError)
+		}
 	})
 
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
 	os.Args = []string{"htsget", "-config", tmpDir + "s3cmd_test.conf", "-dataset", "DATASET0001", "-filename", "htsnexus_test_NA12878", "-host", server.URL, "-pubkey", tmpDir + "c4gh.pub.pem"}
-	err := Htsget(os.Args)
+	err = Htsget(os.Args)
 	assert.ErrorContains(suite.T(), err, "error downloading the files")
 }
