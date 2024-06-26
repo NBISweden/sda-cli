@@ -113,7 +113,7 @@ func SdaDownload(args []string) error {
 			return err
 		}
 
-		err = downloadFile(fileIDURL, config.AccessToken, outFilename)
+		err = downloadFile(fileIDURL, config.AccessToken, filePath)
 		if err != nil {
 			return err
 		}
