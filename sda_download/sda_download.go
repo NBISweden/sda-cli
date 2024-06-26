@@ -2,7 +2,6 @@ package sdadownload
 
 import (
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -86,8 +85,8 @@ func SdaDownload(args []string) error {
 	if *datasetID == "" || *URL == "" || *configPath == "" {
 		return fmt.Errorf("missing required arguments, dataset, config and url are required")
 	}
-	
-    // Get the configuration file or the .sda-cli-session
+
+	// Get the configuration file or the .sda-cli-session
 	config, err := helpers.GetAuth(*configPath)
 	if err != nil {
 		return err
@@ -157,9 +156,9 @@ func downloadFile(uri, token, filePath string) error {
 	}
 
 	filePath = strings.TrimSuffix(outFilename, ".c4gh")
-    fmt.Println("filepath: ", filePath)
-    fmt.Println("uri: ", uri)
-    // Get the file body
+	fmt.Println("filepath: ", filePath)
+	fmt.Println("uri: ", uri)
+	// Get the file body
 	body, err := getResponseBody(uri, token)
 	if err != nil {
 		return fmt.Errorf("failed to get file for download, reason: %v", err)
@@ -238,8 +237,8 @@ func getFilesInfo(baseURL, dataset, token string) ([]File, error) {
 	}
 	// Make the url for listing files
 	filesURL := baseURL + "/metadata/datasets/" + dataset + "/files"
-    fmt.Println("files url: ", filesURL)
-    // Get the response body from the files API
+	fmt.Println("files url: ", filesURL)
+	// Get the response body from the files API
 	allFiles, err := getResponseBody(filesURL, token)
 	if err != nil {
 		return []File{}, fmt.Errorf("failed to get files, reason: %v", err)
