@@ -86,15 +86,8 @@ func SdaDownload(args []string) error {
 	if *datasetID == "" || *URL == "" || *configPath == "" {
 		return fmt.Errorf("missing required arguments, dataset, config and url are required")
 	}
-
-	// Check that input file/folder list is not empty
-	if len(Args.Args()) == 0 {
-		return errors.New("no files to download")
-	}
-
-	files = append(files, Args.Args()...)
-
-	// Get the configuration file or the .sda-cli-session
+	
+    // Get the configuration file or the .sda-cli-session
 	config, err := helpers.GetAuth(*configPath)
 	if err != nil {
 		return err
@@ -106,16 +99,40 @@ func SdaDownload(args []string) error {
 		return err
 	}
 
-	// Loop through the files and download them
-	for _, filePath := range files {
-		fileIDURL, err := getFileIDURL(*URL, config.AccessToken, *datasetID, filePath)
+	// Check if arguments are provided
+	// If not, download all files in the dataset
+	// If arguments are provided, download the files that are provided
+	if len(Args.Args()) == 0 {
+		fmt.Println("No files provided, downloading all files in the dataset")
+		files, err := getFilesInfo(*URL, *datasetID, config.AccessToken)
 		if err != nil {
 			return err
 		}
+		// Loop through the files and download them
+		for _, file := range files {
+			// Download URL for the file
+			fileURL := *URL + "/files/" + file.FileID
+			err = downloadFile(fileURL, config.AccessToken, file.FilePath)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		fmt.Println("Downloading files")
+		// Get the files from the arguments
+		files = append(files, Args.Args()...)
 
-		err = downloadFile(fileIDURL, config.AccessToken, filePath)
-		if err != nil {
-			return err
+		// Loop through the files and download them
+		for _, filePath := range files {
+			fileIDURL, err := getFileIDURL(*URL, config.AccessToken, *datasetID, filePath)
+			if err != nil {
+				return err
+			}
+
+			err = downloadFile(fileIDURL, config.AccessToken, filePath)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
