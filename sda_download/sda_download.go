@@ -102,57 +102,57 @@ func SdaDownload(args []string) error {
 	// If arguments are provided, download the files that are provided
 	if len(Args.Args()) == 0 {
 		err = datasetCase(config.AccessToken)
-        if err != nil {
-            return err
-        }
+		if err != nil {
+			return err
+		}
 	} else {
-        err = fileCase(config.AccessToken)
-        if err != nil {
-            return err
-        }
+		err = fileCase(config.AccessToken)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
 func datasetCase(token string) error {
-    fmt.Println("No files provided, downloading all files in the dataset")
-    files, err := getFilesInfo(*URL, *datasetID, token)
-    if err != nil {
-        return err
-    }
-    // Loop through the files and download them
-    for _, file := range files {
-        // Download URL for the file
-        fileURL := *URL + "/files/" + file.FileID
-        err = downloadFile(fileURL, token, file.FilePath)
-        if err != nil {
-            return err
-        }
-    }
-    
-    return nil
+	fmt.Println("No files provided, downloading all files in the dataset")
+	files, err := getFilesInfo(*URL, *datasetID, token)
+	if err != nil {
+		return err
+	}
+	// Loop through the files and download them
+	for _, file := range files {
+		// Download URL for the file
+		fileURL := *URL + "/files/" + file.FileID
+		err = downloadFile(fileURL, token, file.FilePath)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func fileCase(token string) error {
-    fmt.Println("Downloading files")
-    // Get the files from the arguments
+	fmt.Println("Downloading files")
+	// Get the files from the arguments
 	var files []string
-    files = append(files, Args.Args()...)
-    // Loop through the files and download them
-    for _, filePath := range files {
-        fileIDURL, err := getFileIDURL(*URL, token, *datasetID, filePath)
-        if err != nil {
-            return err
-        }
+	files = append(files, Args.Args()...)
+	// Loop through the files and download them
+	for _, filePath := range files {
+		fileIDURL, err := getFileIDURL(*URL, token, *datasetID, filePath)
+		if err != nil {
+			return err
+		}
 
-        err = downloadFile(fileIDURL, token, filePath)
-        if err != nil {
-            return err
-        }
-    }
+		err = downloadFile(fileIDURL, token, filePath)
+		if err != nil {
+			return err
+		}
+	}
 
-    return nil
+	return nil
 }
 
 // downloadFile downloads the file by using the download URL
