@@ -113,21 +113,6 @@ func SdaDownload(args []string) error {
 			return err
 		}
 
-		// Check if the file path contains a userID and if it does,
-		// do not keep it in the file path
-		filePathSplit := strings.Split(filePath, "/")
-		if strings.Contains(filePathSplit[0], "_") {
-			_, err := mail.ParseAddress(strings.ReplaceAll(filePathSplit[0], "_", "@"))
-			if err == nil {
-				filePath = strings.Join(filePathSplit[1:], "/")
-			}
-		}
-
-		outFilename := filePath
-		if *outDir != "" {
-			outFilename = *outDir + "/" + filePath
-		}
-
 		err = downloadFile(fileIDURL, config.AccessToken, outFilename)
 		if err != nil {
 			return err
@@ -189,42 +174,50 @@ func downloadFile(uri, token, filePath string) error {
 // getFileIDURL gets the datset files, parses the JSON response to get the file ID
 // and returns the download URL for the file
 func getFileIDURL(baseURL, token, dataset, filename string) (string, error) {
-	// Sanitize the base_url
-	u, err := url.ParseRequestURI(baseURL)
-	if err != nil || u.Scheme == "" {
+	// Get the files of the dataset
+	datasetFiles, err := getFilesInfo(baseURL, dataset, token)
+	if err != nil {
 		return "", err
 	}
-
-	// Make the url for listing files
-	filesURL := baseURL + "/metadata/datasets/" + dataset + "/files"
-
-	// Get the response body from the files API
-	body, err := getResponseBody(filesURL, token)
-	if err != nil {
-		return "", fmt.Errorf("failed to get files, reason: %v", err)
-	}
-
-	// Parse the JSON response
-	var files []File
-	err = json.Unmarshal(body, &files)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse file list JSON, reason: %v", err)
-	}
-
 	// Get the file ID for the filename
 	var idx int
 	switch {
 	case strings.Contains(filename, "/"):
-		idx = slices.IndexFunc(files, func(f File) bool { return strings.Contains(f.FilePath, filename) })
+		idx = slices.IndexFunc(datasetFiles, func(f File) bool { return strings.Contains(f.FilePath, filename) })
 	default:
-		idx = slices.IndexFunc(files, func(f File) bool { return strings.Contains(f.FileID, filename) })
+		idx = slices.IndexFunc(datasetFiles, func(f File) bool { return strings.Contains(f.FileID, filename) })
 	}
 
 	if idx == -1 {
 		return "", fmt.Errorf("File not found in dataset %s", filename)
 	}
 
-	return baseURL + "/files/" + files[idx].FileID, nil
+	return baseURL + "/files/" + datasetFiles[idx].FileID, nil
+}
+
+// getFilesInfo gets the files of the dataset by using the dataset ID
+func getFilesInfo(baseURL, dataset, token string) ([]File, error) {
+	// Sanitize the base_url
+	u, err := url.ParseRequestURI(baseURL)
+	if err != nil || u.Scheme == "" {
+		return []File{}, fmt.Errorf("invalid base URL")
+	}
+	// Make the url for listing files
+	filesURL := baseURL + "/metadata/datasets/" + dataset + "/files"
+    fmt.Println("files url: ", filesURL)
+    // Get the response body from the files API
+	allFiles, err := getResponseBody(filesURL, token)
+	if err != nil {
+		return []File{}, fmt.Errorf("failed to get files, reason: %v", err)
+	}
+	// Parse the JSON response
+	var files []File
+	err = json.Unmarshal(allFiles, &files)
+	if err != nil {
+		return []File{}, fmt.Errorf("failed to parse file list JSON, reason: %v", err)
+	}
+
+	return files, nil
 }
 
 // getBody gets the body of the response from the URL
