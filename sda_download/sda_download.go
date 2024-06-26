@@ -75,7 +75,6 @@ type File struct {
 // SdaDownload function downloads files from the SDA by using the
 // download's service APIs
 func SdaDownload(args []string) error {
-	var files []string
 	// Call ParseArgs to take care of all the flag parsing
 	err := helpers.ParseArgs(args, Args)
 	if err != nil {
@@ -102,40 +101,58 @@ func SdaDownload(args []string) error {
 	// If not, download all files in the dataset
 	// If arguments are provided, download the files that are provided
 	if len(Args.Args()) == 0 {
-		fmt.Println("No files provided, downloading all files in the dataset")
-		files, err := getFilesInfo(*URL, *datasetID, config.AccessToken)
-		if err != nil {
-			return err
-		}
-		// Loop through the files and download them
-		for _, file := range files {
-			// Download URL for the file
-			fileURL := *URL + "/files/" + file.FileID
-			err = downloadFile(fileURL, config.AccessToken, file.FilePath)
-			if err != nil {
-				return err
-			}
-		}
+		err = datasetCase(config.AccessToken)
+        if err != nil {
+            return err
+        }
 	} else {
-		fmt.Println("Downloading files")
-		// Get the files from the arguments
-		files = append(files, Args.Args()...)
-
-		// Loop through the files and download them
-		for _, filePath := range files {
-			fileIDURL, err := getFileIDURL(*URL, config.AccessToken, *datasetID, filePath)
-			if err != nil {
-				return err
-			}
-
-			err = downloadFile(fileIDURL, config.AccessToken, filePath)
-			if err != nil {
-				return err
-			}
-		}
+        err = fileCase(config.AccessToken)
+        if err != nil {
+            return err
+        }
 	}
 
 	return nil
+}
+
+func datasetCase(token string) error {
+    fmt.Println("No files provided, downloading all files in the dataset")
+    files, err := getFilesInfo(*URL, *datasetID, token)
+    if err != nil {
+        return err
+    }
+    // Loop through the files and download them
+    for _, file := range files {
+        // Download URL for the file
+        fileURL := *URL + "/files/" + file.FileID
+        err = downloadFile(fileURL, token, file.FilePath)
+        if err != nil {
+            return err
+        }
+    }
+    
+    return nil
+}
+
+func fileCase(token string) error {
+    fmt.Println("Downloading files")
+    // Get the files from the arguments
+	var files []string
+    files = append(files, Args.Args()...)
+    // Loop through the files and download them
+    for _, filePath := range files {
+        fileIDURL, err := getFileIDURL(*URL, token, *datasetID, filePath)
+        if err != nil {
+            return err
+        }
+
+        err = downloadFile(fileIDURL, token, filePath)
+        if err != nil {
+            return err
+        }
+    }
+
+    return nil
 }
 
 // downloadFile downloads the file by using the download URL
@@ -156,8 +173,6 @@ func downloadFile(uri, token, filePath string) error {
 	}
 
 	filePath = strings.TrimSuffix(outFilename, ".c4gh")
-	fmt.Println("filepath: ", filePath)
-	fmt.Println("uri: ", uri)
 	// Get the file body
 	body, err := getResponseBody(uri, token)
 	if err != nil {
@@ -237,7 +252,6 @@ func getFilesInfo(baseURL, dataset, token string) ([]File, error) {
 	}
 	// Make the url for listing files
 	filesURL := baseURL + "/metadata/datasets/" + dataset + "/files"
-	fmt.Println("files url: ", filesURL)
 	// Get the response body from the files API
 	allFiles, err := getResponseBody(filesURL, token)
 	if err != nil {
