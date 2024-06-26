@@ -124,8 +124,25 @@ func SdaDownload(args []string) error {
 
 // downloadFile downloads the file by using the download URL
 func downloadFile(uri, token, filePath string) error {
-	filePath = strings.TrimSuffix(filePath, ".c4gh")
-	// Get the file body
+	// Check if the file path contains a userID and if it does,
+	// do not keep it in the file path
+	filePathSplit := strings.Split(filePath, "/")
+	if strings.Contains(filePathSplit[0], "_") {
+		_, err := mail.ParseAddress(strings.ReplaceAll(filePathSplit[0], "_", "@"))
+		if err == nil {
+			filePath = strings.Join(filePathSplit[1:], "/")
+		}
+	}
+
+	outFilename := filePath
+	if *outDir != "" {
+		outFilename = *outDir + "/" + filePath
+	}
+
+	filePath = strings.TrimSuffix(outFilename, ".c4gh")
+    fmt.Println("filepath: ", filePath)
+    fmt.Println("uri: ", uri)
+    // Get the file body
 	body, err := getResponseBody(uri, token)
 	if err != nil {
 		return fmt.Errorf("failed to get file for download, reason: %v", err)
