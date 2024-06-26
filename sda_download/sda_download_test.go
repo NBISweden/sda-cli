@@ -181,3 +181,44 @@ func (suite *TestSuite) TestDownloadFile() {
 	expectedContent := "dummy response"
 	assert.Equal(suite.T(), expectedContent, string(downloadedContent))
 }
+
+func (suite *TestSuite) TestGetFilesInfo() {
+	// Mock getBody function
+	defer func() { getResponseBody = getBody }()
+	getResponseBody = func(_, _ string) ([]byte, error) {
+		return []byte(`[
+            {
+                "fileId": "file1id",
+				"datasetId": "TES01",
+				"displayFileName": "file1",
+                "filePath": "path/to/file1",
+				"fileName": "4293c9a7-re60-46ac-b79a-40ddc0ddd1c6"
+            },
+			{
+                "fileId": "file2id",
+				"datasetId": "TES01",
+				"displayFileName": "file2",
+                "filePath": "path/to/file2",
+				"fileName": "4b40bd16-9eba-4992-af39-a7f824e612e2"
+            }
+        ]`), nil
+	}
+
+	// Test
+	token := suite.accessToken
+	baseURL := "https://some/url"
+	dataset := "test-dataset"
+	files, err := getFilesInfo(baseURL, dataset, token)
+	require.NoError(suite.T(), err)
+	require.Len(suite.T(), files, 2)
+	assert.Equal(suite.T(), "file1id", files[0].FileID)
+	assert.Equal(suite.T(), "file1", files[0].DisplayFileName)
+	assert.Equal(suite.T(), "path/to/file1", files[0].FilePath)
+	assert.Equal(suite.T(), "4293c9a7-re60-46ac-b79a-40ddc0ddd1c6", files[0].FileName)
+	assert.Equal(suite.T(), "TES01", files[0].DatasetID)
+	assert.Equal(suite.T(), "file2id", files[1].FileID)
+	assert.Equal(suite.T(), "file2", files[1].DisplayFileName)
+	assert.Equal(suite.T(), "path/to/file2", files[1].FilePath)
+	assert.Equal(suite.T(), "4b40bd16-9eba-4992-af39-a7f824e612e2", files[1].FileName)
+	assert.Equal(suite.T(), "TES01", files[1].DatasetID)
+}
