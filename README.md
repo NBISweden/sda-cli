@@ -224,7 +224,7 @@ The tool also allows for downloading multiple files at once, by listing their fi
 
 #### Download encrypted files using the download API
 
-When a [public key](#create-keys) is provided, you can download files encrypted with that public key. The command is similar to downloading the unencrypted files except that a public key is provided through the `-public-key` flag. For example:
+When a [public key](#create-keys) is provided, you can download files that are encrypted on the server-side with that public key. The command is similar to downloading the unencrypted files except that a public key is provided through the `-public-key` flag. For example:
 ```bash
 ./sda-cli sda-download -public-key <public-key-file> -config <configuration_file> -dataset <datasetID> -url <download-service-url> -outdir <outdir> <filepath_1_to_download> <filepath_2_to_download> ...
 ```

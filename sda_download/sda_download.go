@@ -31,7 +31,7 @@ sda-download:
 	Downloads files from the Sensitive Data Archive (SDA) by using APIs from the given url. The user
 	must have been granted access to the datasets (visas) that are to be downloaded.
 	The files will be downloaded in the current directory, if outdir is not defined.
-	When the -public-key flag is used, the downloaded files will be encrypted with the given public key.
+	When the -public-key flag is used, the downloaded files will be server-side encrypted with the given public key.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in

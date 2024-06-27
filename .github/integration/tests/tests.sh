@@ -35,7 +35,7 @@ user=test_dummy.org
 dd if=/dev/urandom of=data_file count=1 bs=1M
 
 # Create key pair
-if ( echo "" | ./sda-cli createKey sda_key ) ; then
+if ( yes "" | ./sda-cli createKey sda_key ) ; then
     echo "Created key pair for encryption"
 else
     echo "Failed to create key pair for encryption"
@@ -182,7 +182,7 @@ fi
 # Create another couple of key-pairs
 for c in 1 2
 do
-    if ( echo "" | ./sda-cli createKey sda_key$c ) ; then
+    if ( yes "" | ./sda-cli createKey sda_key$c ) ; then
         echo "Created key pair for encryption"
     else
         echo "Failed to create key pair for encryption"
@@ -341,7 +341,7 @@ rm -r test-download
 
 # Download encrypted file by using the sda download service
 # Create a user key pair
-if ( echo "" | ./sda-cli createKey user_key ) ; then
+if ( yes "" | ./sda-cli createKey user_key ) ; then
     echo "Created a user key pair for downloading encrypted files"
 else
     echo "Failed to create a user key pair for downloading encrypted files"
@@ -358,7 +358,7 @@ fi
 # decrypt the downloaded file
 C4GH_PASSWORD="" ./sda-cli decrypt -key user_key.sec.pem test-download/main/subfolder/dummy_data.c4gh 
 
-if [ -f test-download/main/subfolder/dummy_data.c4gh  ]; then
+if [ -f test-download/main/subfolder/dummy_data  ]; then
     echo "Decrypting downloaded file succeeded"
 else
     echo "Failed to decrypt downloaded file"
