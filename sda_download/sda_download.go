@@ -23,7 +23,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s sda-download -config <s3config-file> -dataset <datasetID> -url <uri> (-outdir <dir>) [filepath(s)]
+USAGE: %s sda-download -config <s3config-file> -dataset <datasetID> -url <uri> (-outdir <dir>) ([filepath(s)])
 
 sda-download:
 	Downloads files from the Sensitive Data Archive (SDA) by using APIs from the given url. The user
@@ -39,7 +39,8 @@ var ArgHelp = `
 	[uri]
 		All flagless arguments will be used as sda-download uri.
 	[filepath(s)]
-		The filepath of the file to download.`
+		The filepath of the file to download. If no filepath is provided
+        then the whole dataset will be downloaded.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
