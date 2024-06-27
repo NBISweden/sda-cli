@@ -204,6 +204,8 @@ services:
     image: "ghcr.io/neicnordic/sensitive-data-archive:${TAG}-download"
     volumes:
       - ./archive_data/4293c9a7-dc50-46db-b79a-27ddc0dad1c6:/tmp/4293c9a7-dc50-46db-b79a-27ddc0dad1c6
+      - ./archive_data/1113c9a7-dc50-46db-b79a-27ddc0dad1c6:/tmp/1113c9a7-dc50-46db-b79a-27ddc0dad1c6
+      - ./archive_data/83d58910-4c53-4dad-bd8a-f10a04c1845c:/tmp/83d58910-4c53-4dad-bd8a-f10a04c1845c
     mem_limit: 256m
     ports:
       - "8080:8080"

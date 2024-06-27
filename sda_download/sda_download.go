@@ -137,10 +137,11 @@ func SdaDownload(args []string) error {
 
 func datasetCase(token string) error {
 	fmt.Println("Downloading all files in the dataset")
-	files, err := getFilesInfo(*URL, *datasetID, "", token)
+	files, err := GetFilesInfo(*URL, *datasetID, "", token)
 	if err != nil {
 		return err
 	}
+	fmt.Println("### files: ", files)
 	// Loop through the files and download them
 	for _, file := range files {
 		// Download URL for the file
@@ -259,10 +260,11 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 // and returns the download URL for the file
 func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (string, error) {
 	// Get the files of the dataset
-	datasetFiles, err := getFilesInfo(baseURL, dataset, pubKeyBase64, token)
+	datasetFiles, err := GetFilesInfo(baseURL, dataset, pubKeyBase64, token)
 	if err != nil {
 		return "", err
 	}
+
 	// Get the file ID for the filename
 	var idx int
 	switch {
@@ -293,8 +295,31 @@ func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (strin
 	return url, nil
 }
 
-// getFilesInfo gets the files of the dataset by using the dataset ID
-func getFilesInfo(baseURL, dataset, pubKeyBase64, token string) ([]File, error) {
+func GetDatasets(baseURL, token string) ([]string, error) {
+	// Sanitize the base_url
+	u, err := url.ParseRequestURI(baseURL)
+	if err != nil || u.Scheme == "" {
+		return []string{}, fmt.Errorf("invalid base URL")
+	}
+	// Make the url for listing datasets
+	datasetsURL := baseURL + "/metadata/datasets"
+	// Get the response body from the datasets API
+	allDatasets, err := getResponseBody(datasetsURL, token, "")
+	if err != nil {
+		return []string{}, fmt.Errorf("failed to get datasets, reason: %v", err)
+	}
+	// Parse the JSON response
+	var datasets []string
+	err = json.Unmarshal(allDatasets, &datasets)
+	if err != nil {
+		return []string{}, fmt.Errorf("failed to parse dataset list JSON, reason: %v", err)
+	}
+
+	return datasets, nil
+}
+
+// GetFilesInfo gets the files of the dataset by using the dataset ID
+func GetFilesInfo(baseURL, dataset, pubKeyBase64, token string) ([]File, error) {
 	// Sanitize the base_url
 	u, err := url.ParseRequestURI(baseURL)
 	if err != nil || u.Scheme == "" {
