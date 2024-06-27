@@ -16,8 +16,28 @@ if [ ! -f "dummy.ega.nbis.se.pem" ]; then
     chmod 644 keys/dummy.ega.nbis.se.pub dummy.ega.nbis.se.pem
 fi
 
+cp s3cmd-template.conf s3cmd.conf
 output=$(python sign_jwt.py)
 echo "access_token=$output" >> s3cmd.conf
+
+# Create crypt4gh keys for testing the download service
+cat << EOF > c4gh.pub.pem
+-----BEGIN CRYPT4GH PUBLIC KEY-----
+avFAerx0ZWuJE6fTI8S/0wv3yMo1n3SuNTV6zvKdxQc=
+-----END CRYPT4GH PUBLIC KEY-----
+EOF
+
+chmod 444 c4gh.pub.pem
+
+cat << EOF > c4gh.sec.pem
+-----BEGIN CRYPT4GH ENCRYPTED PRIVATE KEY-----
+YzRnaC12MQAGc2NyeXB0ABQAAAAAwAs5mVkXda50vqeYv6tbkQARY2hhY2hhMjBf
+cG9seTEzMDUAPAd46aTuoVWAe+fMGl3VocCKCCWmgFUsFIHejJoWxNwy62c1L/Vc
+R9haQsAPfJMLJSvUXStJ04cyZnDHSw==
+-----END CRYPT4GH ENCRYPTED PRIVATE KEY-----
+EOF
+
+chmod 444 c4gh.sec.pem
 
 # get latest image tag for s3inbox
 latest_tag=$(curl -s https://api.github.com/repos/neicnordic/sensitive-data-archive/tags | jq -r '.[0].name')
@@ -65,5 +85,78 @@ do echo "waiting for buckets to be created"
     fi
     sleep 10
 done
+
+# Populate database with for testing the download service
+# Insert entry in sda.files
+file_id=$(docker run --rm --name client --network testing_default \
+    neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.files (stable_id, submission_user, \
+        submission_file_path, submission_file_size, archive_file_path, \
+        archive_file_size, decrypted_file_size, backup_path, header, \
+        encryption_method) VALUES ('urn:neic:001-002', 'integration-test', '5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8_elixir-europe.org/main/subfolder/dummy_data.c4gh', \
+        1048729, '4293c9a7-dc50-46db-b79a-27ddc0dad1c6', 1049081, 1048605, \
+        '', '637279707434676801000000010000006c000000000000006af1407abc74656b8913a7d323c4bfd30bf7c8ca359f74ae35357acef29dc5073799e207ec5d022b2601340585ff082565e55fbff5b6cdbbbe6b12a0d0a19ef325a219f8b62344325e22c8d26a8e82e45f053f4dcee10c0ec4bb9e466d5253f139dcd4be', 'CRYPT4GH') RETURNING id;" | xargs)
+
+if [ -z "$file_id" ]; then
+    echo "Failed to insert file entry into database"
+    exit 1
+fi
+
+# Insert entry in sda.file_event_log
+docker run --rm --name client --network testing_default \
+    neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.file_event_log (file_id, event) \
+        VALUES ('$file_id', 'ready');"
+
+# Insert entries in sda.checksums
+docker run --rm --name client --network testing_default \
+	neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.checksums (file_id, checksum, type, source) \
+        VALUES ('$file_id', '06bb0a514b26497b4b41b30c547ad51d059d57fb7523eb3763cfc82fdb4d8fb7', 'SHA256', 'UNENCRYPTED');"
+
+docker run --rm --name client --network testing_default \
+	neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.checksums (file_id, checksum, type, source) \
+        VALUES ('$file_id', '5e9c767958cc3f6e8d16512b8b8dcab855ad1e04e05798b86f50ef600e137578', 'SHA256', 'UPLOADED');"
+
+docker run --rm --name client --network testing_default \
+	neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.checksums (file_id, checksum, type, source) \
+        VALUES ('$file_id', '74820dbcf9d30f8ccd1ea59c17d5ec8a714aabc065ae04e46ad82fcf300a731e', 'SHA256', 'ARCHIVED');"
+
+# Insert dataset in sda.datasets
+dataset_id=$(docker run --rm --name client --network testing_default \
+    neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.datasets (stable_id) VALUES ('https://doi.example/ty009.sfrrss/600.45asasga') \
+        ON CONFLICT (stable_id) DO UPDATE \
+        SET stable_id=excluded.stable_id RETURNING id;")
+
+if [ -z "$dataset_id" ]; then
+    echo "Failed to insert dataset entry into database"
+    exit 1
+fi
+
+# Add file to dataset
+docker run --rm --name client --network testing_default \
+    neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.file_dataset (file_id, dataset_id) \
+        VALUES ('$file_id', $dataset_id);"
+
+# Add file to archive
+s3cmd -c directS3 put archive_data/4293c9a7-dc50-46db-b79a-27ddc0dad1c6 s3://archive/4293c9a7-dc50-46db-b79a-27ddc0dad1c6
+
+# Get the correct token form mockoidc
+token=$(curl "http://localhost:8002/tokens" | jq -r  '.[0]')
+
+# Create s3cmd-download.conf file for download
+cp s3cmd-template.conf s3cmd-download.conf
+echo "access_token=$token" >> s3cmd-download.conf
 
 docker ps
