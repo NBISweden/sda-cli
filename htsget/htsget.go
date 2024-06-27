@@ -23,10 +23,10 @@ var Usage = `
 USAGE: %s htsget [-dataset <datasetID>] [-filename <filename>] (-reference <referenceName>) [-htsgethost <htsget-hostname>] [-pubkey <public-key-file>] (-output <file>) (--force-overwrite)
 
 htsget:
-    Htsget downloads files from the Sensitive Data Archive (SDA), using the
+	Htsget downloads files from the Sensitive Data Archive (SDA), using the
 	htsget server. A dataset and a filename must be provided in order to 
 	download the file. The files will be downloaded in the current
-    directory, if output is not defined.
+	directory, if output is not defined.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
@@ -146,7 +146,7 @@ func Htsget(args []string) error {
 func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error) {
 
 	// Create the directory for the file
-	var filePath, filenameToUse string
+	var filePath string
 	if err != nil {
 		return fmt.Errorf("failed to get current path, reason: %v", err)
 	}
@@ -157,10 +157,21 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 			return fmt.Errorf("failed to create file path, reason: %v", err)
 		}
 	}
-	filenameToUse = *fileName + ".c4gh"
+	filenameToUse := *fileName
+	// If output is specified, use it directly without checking for encrypted data
 	if *outPut != "" {
 		filenameToUse = *outPut
+	} else {
+		// Check if we have encrypted data to use the right file extension
+		for index := range htsgeURLs.Htsget.Urls {
+			if strings.Contains(htsgeURLs.Htsget.Urls[index].URL, "base64") {
+				filenameToUse = *fileName + ".c4gh"
+
+				break
+			}
+		}
 	}
+
 	if helpers.FileExists(filenameToUse) && !*forceOverwrite {
 		return fmt.Errorf("local file already exists, use --force-overwrite to overwrite")
 	}
