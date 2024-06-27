@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -30,7 +31,11 @@ func (suite *TestSuite) MissingArgument() {
 func (suite *TestSuite) TestHtsgetMissingConfig() {
 	os.Args = []string{"htsget", "-config", "nonexistent.conf", "-dataset", "DATASET0001", "-filename", "htsnexus_test_NA12878", "-host", "somehost", "-pubkey", "somekey"}
 	err := Htsget(os.Args)
-	assert.ErrorContains(suite.T(), err, "no such file or directory")
+	msg := "no such file or directory"
+	if runtime.GOOS == "windows" {
+		msg = "open nonexistent.conf: The system cannot find the file specified."
+	}
+	assert.ErrorContains(suite.T(), err, msg)
 }
 
 func (suite *TestSuite) TestHtsgetMissingPubKey() {
