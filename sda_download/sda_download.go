@@ -25,13 +25,13 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s sda-download -config <s3config-file> -dataset <datasetID> -url <uri> (--public-key <public-key-file>) (-outdir <dir>) [filepath(s)]
+USAGE: %s sda-download -config <s3config-file> -dataset <datasetID> -url <uri> (--pubkey <public-key-file>) (-outdir <dir>) [filepath(s)]
 
 sda-download:
 	Downloads files from the Sensitive Data Archive (SDA) by using APIs from the given url. The user
 	must have been granted access to the datasets (visas) that are to be downloaded.
 	The files will be downloaded in the current directory, if outdir is not defined.
-	When the -public-key flag is used, the downloaded files will be server-side encrypted with the given public key.
+	When the -pubkey flag is used, the downloaded files will be server-side encrypted with the given public key.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
@@ -56,7 +56,7 @@ var URL = Args.String("url", "", "The url of the sda-download server.")
 
 var outDir = Args.String("outdir", "", "Directory for downloaded files.")
 
-var pubKeyPath = Args.String("public-key", "",
+var pubKeyPath = Args.String("pubkey", "",
 	"Public key file to use for encryption of files to download.")
 
 // necessary for mocking in testing

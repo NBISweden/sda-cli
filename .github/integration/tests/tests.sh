@@ -347,7 +347,7 @@ else
     echo "Failed to create a user key pair for downloading encrypted files"
     exit 1
 fi
-./sda-cli sda-download -public-key user_key.pub.pem -config testing/s3cmd-download.conf -dataset https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh
+./sda-cli sda-download -pubkey user_key.pub.pem -config testing/s3cmd-download.conf -dataset https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh
 
 # check if file exists in the path
 if [ ! -f "test-download/main/subfolder/dummy_data.c4gh" ]; then
