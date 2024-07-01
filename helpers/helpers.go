@@ -124,7 +124,7 @@ func ParseS3ErrorResponse(respBody io.Reader) (string, error) {
 // Removes all positional arguments from args, and returns them.
 // This function assumes that all flags have exactly one value.
 func getPositional(args []string) ([]string, []string) {
-	argList := []string{"-r", "--r", "--force-overwrite", "-force-overwrite", "--force-unencrypted", "-force-unencrypted"}
+	argList := []string{"-r", "--r", "--force-overwrite", "-force-overwrite", "--force-unencrypted", "-force-unencrypted", "--dataset", "-dataset"}
 	i := 1
 	var positional []string
 	for i < len(args) {

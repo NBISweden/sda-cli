@@ -23,7 +23,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s sda-download -config <s3config-file> -dataset <datasetID> -url <uri> (-outdir <dir>) ([filepath(s)])
+USAGE: %s sda-download -config <s3config-file> -datasetID <datasetID> -url <uri> (-outdir <dir>) ([filepath(s)] or --dataset)
 
 sda-download:
 	Downloads files from the Sensitive Data Archive (SDA) by using APIs from the given url. The user
@@ -34,7 +34,7 @@ sda-download:
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help
 var ArgHelp = `
-	[dataset]
+	[datasetID]
 		The ID of the dataset that the file is part of.
 	[uri]
 		All flagless arguments will be used as sda-download uri.
@@ -48,11 +48,13 @@ var Args = flag.NewFlagSet("sda-download", flag.ExitOnError)
 
 var configPath = Args.String("config", "", "S3 config file to use for downloading.")
 
-var datasetID = Args.String("dataset", "", "Dataset ID for the file to download")
+var datasetID = Args.String("datasetID", "", "Dataset ID for the file to download")
 
 var URL = Args.String("url", "", "The url of the sda-download server")
 
 var outDir = Args.String("outdir", "", "Directory for downloaded files.")
+
+var datasetdownload = Args.Bool("dataset", false, "Download all the files of the dataset")
 
 // necessary for mocking in testing
 var getResponseBody = getBody
@@ -86,6 +88,11 @@ func SdaDownload(args []string) error {
 		return fmt.Errorf("missing required arguments, dataset, config and url are required")
 	}
 
+	// Check that file(s) are not missing if the --dataset flag is not set
+	if len(Args.Args()) == 0 && !*datasetdownload {
+		return fmt.Errorf("no files provided for download")
+	}
+
 	// Get the configuration file or the .sda-cli-session
 	config, err := helpers.GetAuth(*configPath)
 	if err != nil {
@@ -98,10 +105,10 @@ func SdaDownload(args []string) error {
 		return err
 	}
 
-	// Check if arguments are provided
-	// If not, download all files in the dataset
-	// If arguments are provided, download the files that are provided
-	if len(Args.Args()) == 0 {
+	// Check if dataset flag is set
+	// If it is, download all files in the dataset
+	// If it is not, download the files that are provided
+	if *datasetdownload {
 		err = datasetCase(config.AccessToken)
 		if err != nil {
 			return err
