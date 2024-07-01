@@ -218,19 +218,19 @@ For downloading files the user also needs to know the download service URL and t
 
 For downloading one specific file the user needs to provide the path of this file by running the command below:
 ```bash
-./sda-cli sda-download -config <configuration_file> -dataset <datasetID> -url <download-service-URL> <filepath>
+./sda-cli sda-download -config <configuration_file> -datasetID <datasetID> -url <download-service-URL> <filepath>
 ```
 where `<configuration_file>` the file downloaded in the [previous step](#download-the-configuration-file), `<dataset_id>` the ID of the dataset and `<filepath>` the path of the file in the dataset.
 The tool also allows for downloading multiple files at once, by listing their filepaths separated with space and it also allows for selecting a folder where the files will be downloaded, using the `outdir` argument:
 ```bash
-./sda-cli sda-download -config <configuration_file> -dataset <datasetID> -url <download-service-url> -outdir <outdir> <filepath_1_to_download> <filepath_2_to_download> ...
+./sda-cli sda-download -config <configuration_file> -datasetID <datasetID> -url <download-service-url> -outdir <outdir> <filepath_1_to_download> <filepath_2_to_download> ...
 ```
 
 #### Download all the files of the dataset
 
-For downloading the whole dataset the user does NOT need to provide any filepaths:
+For downloading the whole dataset the user needs add the `--dataset` flag and NOT providing any filepaths:
 ```bash
-./sda-cli sda-download -config <configuration_file> -dataset <datasetID> -url <download-service-url> -outdir <outdir> 
+./sda-cli sda-download -config <configuration_file> -dataset <datasetID> -url <download-service-url> -outdir <outdir> --dataset 
 ```
 where the dataset will be downloaded in the `<outdir>` directory be keeping the original folder structure of the dataset.
 
