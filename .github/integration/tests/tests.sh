@@ -322,7 +322,7 @@ fi
 rm -r downloads
 
 # Download file by using the sda download service
-./sda-cli sda-download -config testing/s3cmd-download.conf -dataset https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh
+./sda-cli sda-download -config testing/s3cmd-download.conf -datasetID https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh
 
 # Check if file exists in the path
 if [ ! -f "test-download/main/subfolder/dummy_data" ]; then
@@ -340,7 +340,7 @@ fi
 rm -r test-download
 
 # Download whole dataset by using the sda-download feature
-./sda-cli sda-download -config testing/s3cmd-download.conf -dataset https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-dataset 
+./sda-cli sda-download -config testing/s3cmd-download.conf -datasetID https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-dataset --dataset 
 
 filepaths="download-dataset/main/subfolder/dummy_data download-dataset/main/subfolder2/dummy_data2 download-dataset/main/subfolder2/random/dummy_data3"
 
