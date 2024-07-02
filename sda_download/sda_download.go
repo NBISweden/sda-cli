@@ -126,7 +126,7 @@ func SdaDownload(args []string) error {
 	for _, filePath := range files {
 		fileIDURL, err := getFileIDURL(*URL, config.AccessToken, pubKeyBase64, *datasetID, filePath)
 		if err != nil {
-			return fmt.Errorf("failed to get URL for the given file, reason: %v", err)
+			return err
 		}
 
 		// Check if the file path contains a userID and if it does,
