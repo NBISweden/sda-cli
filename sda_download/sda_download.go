@@ -137,7 +137,7 @@ func SdaDownload(args []string) error {
 
 func datasetCase(token string) error {
 	fmt.Println("Downloading all files in the dataset")
-	files, err := getFilesInfo(*URL, *datasetID, token)
+	files, err := getFilesInfo(*URL, *datasetID, "", token)
 	if err != nil {
 		return err
 	}
@@ -145,7 +145,7 @@ func datasetCase(token string) error {
 	for _, file := range files {
 		// Download URL for the file
 		fileURL := *URL + "/files/" + file.FileID
-		err = downloadFile(fileURL, token, file.FilePath)
+		err = downloadFile(fileURL, token, "", file.FilePath)
 		if err != nil {
 			return err
 		}
@@ -159,8 +159,8 @@ func fileCase(token string) error {
 	// Get the files from the arguments
 	var files []string
 	files = append(files, Args.Args()...)
-  
-  *pubKeyPath = strings.TrimSpace(*pubKeyPath)
+
+	*pubKeyPath = strings.TrimSpace(*pubKeyPath)
 	var pubKeyBase64 string
 	if *pubKeyPath != "" {
 		// Read the public key
@@ -170,7 +170,7 @@ func fileCase(token string) error {
 		}
 		pubKeyBase64 = base64.StdEncoding.EncodeToString(pubKey)
 	}
-  
+
 	// Loop through the files and download them
 	for _, filePath := range files {
 		fileIDURL, err := getFileIDURL(*URL, token, pubKeyBase64, *datasetID, filePath)
@@ -282,7 +282,15 @@ func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (strin
 		return "", fmt.Errorf("File not found in dataset %s", filename)
 	}
 
-	return baseURL + "/files/" + datasetFiles[idx].FileID, nil
+	var url string
+	// If no public key is provided, retrieve the unencrypted file
+	if pubKeyBase64 == "" {
+		url = baseURL + "/files/" + datasetFiles[idx].FileID
+	} else {
+		url = baseURL + "/s3-encrypted/" + dataset + "/" + filename
+	}
+
+	return url, nil
 }
 
 // getFilesInfo gets the files of the dataset by using the dataset ID
@@ -304,11 +312,6 @@ func getFilesInfo(baseURL, dataset, pubKeyBase64, token string) ([]File, error) 
 	err = json.Unmarshal(allFiles, &files)
 	if err != nil {
 		return []File{}, fmt.Errorf("failed to parse file list JSON, reason: %v", err)
-	}
-	if pubKeyBase64 == "" { // If no public key is provided, retrieve the unencrypted file
-		fileURL = baseURL + "/files/" + files[idx].FileID
-	} else { // If a public key is provided, retrieve from the encrypted endpoint
-		fileURL = baseURL + "/s3-encrypted/" + dataset + "/" + filename
 	}
 
 	return files, nil
