@@ -81,8 +81,8 @@ func (suite *TestSuite) TestGetBody() {
 	}))
 	defer server.Close()
 
-	// Make a request to the test server
-	body, err := getBody(server.URL, "test-token")
+	// Make a request to the test server with an empty public key
+	body, err := getBody(server.URL, "test-token", "")
 	if err != nil {
 		suite.T().Errorf("getBody returned an error: %v", err)
 	}
@@ -92,12 +92,24 @@ func (suite *TestSuite) TestGetBody() {
 	if string(body) != expectedBody {
 		suite.T().Errorf("getBody returned incorrect response body, got: %s, want: %s", string(body), expectedBody)
 	}
+
+	// Make a request to the test server using a public key
+	body, err = getBody(server.URL, "test-token", "test-public-key")
+	if err != nil {
+		suite.T().Errorf("getBody returned an error: %v", err)
+	}
+
+	// Check the response body
+	expectedBody = "test response"
+	if string(body) != expectedBody {
+		suite.T().Errorf("getBody returned incorrect response body, got: %s, want: %s", string(body), expectedBody)
+	}
 }
 
 func (suite *TestSuite) TestDownloadUrl() {
 	// Mock getBody function
 	defer func() { getResponseBody = getBody }()
-	getResponseBody = func(_, _ string) ([]byte, error) {
+	getResponseBody = func(_, _, _ string) ([]byte, error) {
 		return []byte(`[
             {
                 "fileId": "file1id",
@@ -115,29 +127,57 @@ func (suite *TestSuite) TestDownloadUrl() {
 	filepath := "path/to/file1"
 	expectedURL := "https://some/url/files/file1id"
 
+	//-----------------------------------------------
+	// Test with an empty public key
+
 	// Test with valid base_url, token, dataset, and filename
-	url, err := getFileIDURL(baseURL, token, datasetID, filepath)
+	url, err := getFileIDURL(baseURL, token, "", datasetID, filepath)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expectedURL, url)
 
 	// Test with url as dataset
 	datasetID = "https://doi.example/another/url/001"
-	_, err = getFileIDURL(baseURL, token, datasetID, filepath)
+	_, err = getFileIDURL(baseURL, token, "", datasetID, filepath)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expectedURL, url)
 
 	// Test with filename not in response
 	filepath = "path/to/file2"
-	_, err = getFileIDURL(baseURL, token, datasetID, filepath)
+	_, err = getFileIDURL(baseURL, token, "", datasetID, filepath)
 	assert.Error(suite.T(), err)
 
 	// Test with fileID
 	filepath = "file1id"
-	_, err = getFileIDURL(baseURL, token, datasetID, filepath)
+	_, err = getFileIDURL(baseURL, token, "", datasetID, filepath)
 	assert.NoError(suite.T(), err)
 
 	// Testr with bad URL
-	_, err = getFileIDURL("some/url", token, datasetID, filepath)
+	_, err = getFileIDURL("some/url", token, "", dataset, filepath)
+	assert.Error(suite.T(), err)
+
+	//-----------------------------------------------
+	// Test using a nonempty public key
+	// Test with valid base_url, token, dataset, and filename
+	expectedURL = baseURL + "/s3-encrypted/" + dataset + "/" + filepath
+	pubKey := "test-public-key"
+	url, err = getFileIDURL(baseURL, token, pubKey, dataset, filepath)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), expectedURL, url)
+
+	// Test with url as dataset
+	dataset = "https://doi.example/another/url/001"
+	expectedURL = baseURL + "/s3-encrypted/" + dataset + "/" + filepath
+	url, err = getFileIDURL(baseURL, token, pubKey, dataset, filepath)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), expectedURL, url)
+
+	// Test with filename not in response
+	filepath = "path/to/file2"
+	_, err = getFileIDURL(baseURL, token, pubKey, dataset, filepath)
+	assert.Error(suite.T(), err)
+
+	// Testr with bad URL
+	_, err = getFileIDURL("some/url", token, pubKey, datasetID, filepath)
 	assert.Error(suite.T(), err)
 }
 
@@ -159,8 +199,8 @@ func (suite *TestSuite) TestDownloadFile() {
 	}))
 	defer server.Close()
 
-	// Call the downloadFile function
-	err = downloadFile(server.URL, "test-token", tempFile)
+	// Call the downloadFile function without a public key
+	err = downloadFile(server.URL, "test-token", "", tempFile)
 	require.NoError(suite.T(), err)
 
 	// Read the downloaded file
@@ -169,6 +209,18 @@ func (suite *TestSuite) TestDownloadFile() {
 
 	// Check if the downloaded content matches the expected content
 	expectedContent := "dummy response"
+	assert.Equal(suite.T(), expectedContent, string(downloadedContent))
+
+	// Call the downloadFile function with a public key
+	err = downloadFile(server.URL, "test-token", "test-public-key", tempFile)
+	require.NoError(suite.T(), err)
+
+	// Read the downloaded file
+	downloadedContent, err = os.ReadFile(tempFile)
+	require.NoError(suite.T(), err)
+
+	// Check if the downloaded content matches the expected content
+	expectedContent = "dummy response"
 	assert.Equal(suite.T(), expectedContent, string(downloadedContent))
 }
 

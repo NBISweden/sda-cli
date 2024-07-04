@@ -35,7 +35,7 @@ user=test_dummy.org
 dd if=/dev/urandom of=data_file count=1 bs=1M
 
 # Create key pair
-if ( echo "" | ./sda-cli createKey sda_key ) ; then
+if ( yes "" | ./sda-cli createKey sda_key ) ; then
     echo "Created key pair for encryption"
 else
     echo "Failed to create key pair for encryption"
@@ -182,7 +182,7 @@ fi
 # Create another couple of key-pairs
 for c in 1 2
 do
-    if ( echo "" | ./sda-cli createKey sda_key$c ) ; then
+    if ( yes "" | ./sda-cli createKey sda_key$c ) ; then
         echo "Created key pair for encryption"
     else
         echo "Failed to create key pair for encryption"
@@ -354,5 +354,39 @@ done
 
 rm -r download-dataset
 
+# Download encrypted file by using the sda download service
+# Create a user key pair
+if ( yes "" | ./sda-cli createKey user_key ) ; then
+    echo "Created a user key pair for downloading encrypted files"
+else
+    echo "Failed to create a user key pair for downloading encrypted files"
+    exit 1
+fi
+./sda-cli sda-download -pubkey user_key.pub.pem -config testing/s3cmd-download.conf -dataset https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh
+
+# check if file exists in the path
+if [ ! -f "test-download/main/subfolder/dummy_data.c4gh" ]; then
+    echo "Downloaded file not found"
+    exit 1
+fi
+
+# decrypt the downloaded file
+C4GH_PASSWORD="" ./sda-cli decrypt -key user_key.sec.pem test-download/main/subfolder/dummy_data.c4gh 
+
+if [ -f test-download/main/subfolder/dummy_data  ]; then
+    echo "Decrypting downloaded file succeeded"
+else
+    echo "Failed to decrypt downloaded file"
+    exit 1
+fi
+
+# check the first line of that file
+first_line=$(head -n 1 test-download/main/subfolder/dummy_data)
+if [[ $first_line != *"THIS FILE IS JUST DUMMY DATA"* ]]; then
+    echo "First line does not contain the expected string"
+    exit 1
+fi
+
+rm -r test-download
 
 echo "Integration test finished successfully"

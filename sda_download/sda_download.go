@@ -1,6 +1,7 @@
 package sdadownload
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -23,12 +24,13 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s sda-download -config <s3config-file> -dataset-id <datasetID> -url <uri> (-outdir <dir>) ([filepath(s)] or --dataset)
+USAGE: %s sda-download -config <s3config-file> -dataset-id <datasetID> -url <uri> (--pubkey <public-key-file>) (-outdir <dir>) ([filepath(s)] or --dataset)
 
 sda-download:
 	Downloads files from the Sensitive Data Archive (SDA) by using APIs from the given url. The user
 	must have been granted access to the datasets (visas) that are to be downloaded.
 	The files will be downloaded in the current directory, if outdir is not defined.
+	When the -pubkey flag is used, the downloaded files will be server-side encrypted with the given public key.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
@@ -50,11 +52,14 @@ var configPath = Args.String("config", "", "S3 config file to use for downloadin
 
 var datasetID = Args.String("dataset-id", "", "Dataset ID for the file to download")
 
-var URL = Args.String("url", "", "The url of the sda-download server")
+var URL = Args.String("url", "", "The url of the sda-download server.")
 
 var outDir = Args.String("outdir", "", "Directory for downloaded files.")
 
 var datasetdownload = Args.Bool("dataset", false, "Download all the files of the dataset")
+
+var pubKeyPath = Args.String("pubkey", "",
+	"Public key file to use for encryption of files to download.")
 
 // necessary for mocking in testing
 var getResponseBody = getBody
@@ -154,14 +159,26 @@ func fileCase(token string) error {
 	// Get the files from the arguments
 	var files []string
 	files = append(files, Args.Args()...)
+  
+  *pubKeyPath = strings.TrimSpace(*pubKeyPath)
+	var pubKeyBase64 string
+	if *pubKeyPath != "" {
+		// Read the public key
+		pubKey, err := os.ReadFile(*pubKeyPath)
+		if err != nil {
+			return fmt.Errorf("failed to read public key, reason: %v", err)
+		}
+		pubKeyBase64 = base64.StdEncoding.EncodeToString(pubKey)
+	}
+  
 	// Loop through the files and download them
 	for _, filePath := range files {
-		fileIDURL, err := getFileIDURL(*URL, token, *datasetID, filePath)
+		fileIDURL, err := getFileIDURL(*URL, token, pubKeyBase64, *datasetID, filePath)
 		if err != nil {
 			return err
 		}
 
-		err = downloadFile(fileIDURL, token, filePath)
+		err = downloadFile(fileIDURL, token, pubKeyBase64, filePath)
 		if err != nil {
 			return err
 		}
@@ -171,7 +188,7 @@ func fileCase(token string) error {
 }
 
 // downloadFile downloads the file by using the download URL
-func downloadFile(uri, token, filePath string) error {
+func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	// Check if the file path contains a userID and if it does,
 	// do not keep it in the file path
 	filePathSplit := strings.Split(filePath, "/")
@@ -188,8 +205,9 @@ func downloadFile(uri, token, filePath string) error {
 	}
 
 	filePath = strings.TrimSuffix(outFilename, ".c4gh")
+
 	// Get the file body
-	body, err := getResponseBody(uri, token)
+	body, err := getResponseBody(uri, token, pubKeyBase64)
 	if err != nil {
 		return fmt.Errorf("failed to get file for download, reason: %v", err)
 	}
@@ -201,6 +219,9 @@ func downloadFile(uri, token, filePath string) error {
 		return fmt.Errorf("failed to create directory, reason: %v", err)
 	}
 
+	if pubKeyBase64 != "" {
+		filePath += ".c4gh"
+	}
 	outfile, err := os.Create(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to create file, reason: %v", err)
@@ -236,9 +257,9 @@ func downloadFile(uri, token, filePath string) error {
 
 // getFileIDURL gets the datset files, parses the JSON response to get the file ID
 // and returns the download URL for the file
-func getFileIDURL(baseURL, token, dataset, filename string) (string, error) {
+func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (string, error) {
 	// Get the files of the dataset
-	datasetFiles, err := getFilesInfo(baseURL, dataset, token)
+	datasetFiles, err := getFilesInfo(baseURL, dataset, pubKeyBase64, token)
 	if err != nil {
 		return "", err
 	}
@@ -265,7 +286,7 @@ func getFileIDURL(baseURL, token, dataset, filename string) (string, error) {
 }
 
 // getFilesInfo gets the files of the dataset by using the dataset ID
-func getFilesInfo(baseURL, dataset, token string) ([]File, error) {
+func getFilesInfo(baseURL, dataset, pubKeyBase64, token string) ([]File, error) {
 	// Sanitize the base_url
 	u, err := url.ParseRequestURI(baseURL)
 	if err != nil || u.Scheme == "" {
@@ -274,7 +295,7 @@ func getFilesInfo(baseURL, dataset, token string) ([]File, error) {
 	// Make the url for listing files
 	filesURL := baseURL + "/metadata/datasets/" + dataset + "/files"
 	// Get the response body from the files API
-	allFiles, err := getResponseBody(filesURL, token)
+	allFiles, err := getResponseBody(filesURL, token, pubKeyBase64)
 	if err != nil {
 		return []File{}, fmt.Errorf("failed to get files, reason: %v", err)
 	}
@@ -284,12 +305,17 @@ func getFilesInfo(baseURL, dataset, token string) ([]File, error) {
 	if err != nil {
 		return []File{}, fmt.Errorf("failed to parse file list JSON, reason: %v", err)
 	}
+	if pubKeyBase64 == "" { // If no public key is provided, retrieve the unencrypted file
+		fileURL = baseURL + "/files/" + files[idx].FileID
+	} else { // If a public key is provided, retrieve from the encrypted endpoint
+		fileURL = baseURL + "/s3-encrypted/" + dataset + "/" + filename
+	}
 
 	return files, nil
 }
 
 // getBody gets the body of the response from the URL
-func getBody(url, token string) ([]byte, error) {
+func getBody(url, token, pubKeyBase64 string) ([]byte, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request, reason: %v", err)
@@ -298,6 +324,9 @@ func getBody(url, token string) ([]byte, error) {
 	// Add headers
 	req.Header.Add("Authorization", "Bearer "+token)
 	req.Header.Add("Content-Type", "application/json")
+	if pubKeyBase64 != "" {
+		req.Header.Add("Client-Public-Key", pubKeyBase64)
+	}
 
 	// Send the request
 	client := &http.Client{}

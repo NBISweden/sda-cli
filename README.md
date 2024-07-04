@@ -234,6 +234,14 @@ For downloading the whole dataset the user needs add the `--dataset` flag and NO
 ```
 where the dataset will be downloaded in the `<outdir>` directory be keeping the original folder structure of the dataset.
 
+#### Download encrypted files using the download API
+
+When a [public key](#create-keys) is provided, you can download files that are encrypted on the server-side with that public key. The command is similar to downloading the unencrypted files except that a public key is provided through the `-pubkey` flag. For example:
+```bash
+./sda-cli sda-download -pubkey <public-key-file> -config <configuration_file> -dataset <datasetID> -url <download-service-url> -outdir <outdir> <filepath_1_to_download> <filepath_2_to_download> ...
+```
+After a successful download, the encrypted files can be [decrypted](#decrypt-file) using the private key corresponding to the provided public key.
+
 ## Decrypt file
 
 Given that the instructions in the [download section](#download) have been followed, the key pair and the data files should be stored in some location. The last step is to decrypt the files in order to access their content. That can be achieved using the following command:
@@ -260,6 +268,16 @@ You can get the current version of the sda-cli by running:
 ./sda-cli version
 ```
 
+## Htsget
+
+You can download a (partial) file using the htsget server. You can define the name of the file you want to save the result to by using the `output`  variable. If `output` is not defined, the file will keep it's original name. If the file already exists, it will not be over-written unless you use the `--force-overwrite` flag. `filename`, `host`, and `key` are required. `reference` refers to the part of the file you wish to download.
+```bash
+htsget -dataset <datasetID> -filename <filename> -reference <reference-number> -host <htsget-hostname> -pubkey <public-key-file> -output <file>
+```
+for example:
+```
+./sda-cli htsget -config testing/s3cmd.conf -dataset DATASET0001 -filename htsnexus_test_NA12878 -reference 11 -host http://localhost:8088 -pubkey testing/c4gh.pub.pem -output ~/tmp/result.c4gh --force-overwrite
+```
 
 # Developers' section
 This section contains the information required to install, modify and run the `sda-cli` tool.
