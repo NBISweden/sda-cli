@@ -23,7 +23,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s sda-download -config <s3config-file> -datasetID <datasetID> -url <uri> (-outdir <dir>) ([filepath(s)] or --dataset)
+USAGE: %s sda-download -config <s3config-file> -dataset-id <datasetID> -url <uri> (-outdir <dir>) ([filepath(s)] or --dataset)
 
 sda-download:
 	Downloads files from the Sensitive Data Archive (SDA) by using APIs from the given url. The user
@@ -48,7 +48,7 @@ var Args = flag.NewFlagSet("sda-download", flag.ExitOnError)
 
 var configPath = Args.String("config", "", "S3 config file to use for downloading.")
 
-var datasetID = Args.String("datasetID", "", "Dataset ID for the file to download")
+var datasetID = Args.String("dataset-id", "", "Dataset ID for the file to download")
 
 var URL = Args.String("url", "", "The url of the sda-download server")
 
@@ -93,6 +93,13 @@ func SdaDownload(args []string) error {
 		return fmt.Errorf("no files provided for download")
 	}
 
+	// Check if --dataset flag is set and files are provided
+	if *datasetdownload && len(Args.Args()) > 0 {
+		return fmt.Errorf(
+			"files provided with --dataset flag, add either the flag or the file(s), not both",
+		)
+	}
+
 	// Get the configuration file or the .sda-cli-session
 	config, err := helpers.GetAuth(*configPath)
 	if err != nil {
@@ -124,7 +131,7 @@ func SdaDownload(args []string) error {
 }
 
 func datasetCase(token string) error {
-	fmt.Println("No files provided, downloading all files in the dataset")
+	fmt.Println("Downloading all files in the dataset")
 	files, err := getFilesInfo(*URL, *datasetID, token)
 	if err != nil {
 		return err
@@ -239,9 +246,15 @@ func getFileIDURL(baseURL, token, dataset, filename string) (string, error) {
 	var idx int
 	switch {
 	case strings.Contains(filename, "/"):
-		idx = slices.IndexFunc(datasetFiles, func(f File) bool { return strings.Contains(f.FilePath, filename) })
+		idx = slices.IndexFunc(
+			datasetFiles,
+			func(f File) bool { return strings.Contains(f.FilePath, filename) },
+		)
 	default:
-		idx = slices.IndexFunc(datasetFiles, func(f File) bool { return strings.Contains(f.FileID, filename) })
+		idx = slices.IndexFunc(
+			datasetFiles,
+			func(f File) bool { return strings.Contains(f.FileID, filename) },
+		)
 	}
 
 	if idx == -1 {
