@@ -65,7 +65,7 @@ func (suite *TestSuite) TestInvalidUrl() {
 
 	confPath := createConfigFile("s3cmd.conf", suite.accessToken)
 
-	os.Args = []string{"sda-download", "-datasetID", "TES01", "-config", confPath.Name(), "-url", "https://some/url", "file1", "file2"}
+	os.Args = []string{"sda-download", "-dataset-id", "TES01", "-config", confPath.Name(), "-url", "https://some/url", "file1", "file2"}
 
 	err := SdaDownload(os.Args)
 	assert.Contains(suite.T(), err.Error(), "failed to get files, reason: failed to get response, reason: Get \"https://some/url/metadata/datasets/TES01/files\": dial tcp: lookup some")
