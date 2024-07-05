@@ -212,15 +212,27 @@ The tool also allows for selecting a folder where the files will be downloaded, 
 ### Download using the download API
 
 The download API allows for downloading files from the archive and it requires the user to have access to the dataset, therefore a [configuration file](#download-the-configuration-file) needs to be downloaded before starting the downloading of the files.
-For downloading files the user also needs to know the download service URL, the dataset ID and the path of the file. Given those four arguments files can be downloaded using the following command:
+For downloading files the user also needs to know the download service URL and the dataset ID. The user has the option to download either the whole dataset or specific files of the dataset by providing the paths of the files.
+
+#### Download specific files of the dataset
+
+For downloading one specific file the user needs to provide the path of this file by running the command below:
 ```bash
-./sda-cli sda-download -config <configuration_file> -dataset <datasetID> -url <download-service-URL> <filepath_1_to_download> <filepath_2_to_download> ...
+./sda-cli sda-download -config <configuration_file> -datasetID <datasetID> -url <download-service-URL> <filepath>
 ```
 where `<configuration_file>` the file downloaded in the [previous step](#download-the-configuration-file), `<dataset_id>` the ID of the dataset and `<filepath>` the path of the file in the dataset.
 The tool also allows for downloading multiple files at once, by listing their filepaths separated with space and it also allows for selecting a folder where the files will be downloaded, using the `outdir` argument:
 ```bash
-./sda-cli sda-download -config <configuration_file> -dataset <datasetID> -url <download-service-url> -outdir <outdir> <filepath_1_to_download> <filepath_2_to_download> ...
+./sda-cli sda-download -config <configuration_file> -datasetID <datasetID> -url <download-service-url> -outdir <outdir> <filepath_1_to_download> <filepath_2_to_download> ...
 ```
+
+#### Download all the files of the dataset
+
+For downloading the whole dataset the user needs add the `--dataset` flag and NOT providing any filepaths:
+```bash
+./sda-cli sda-download -config <configuration_file> -dataset <datasetID> -url <download-service-url> -outdir <outdir> --dataset 
+```
+where the dataset will be downloaded in the `<outdir>` directory be keeping the original folder structure of the dataset.
 
 #### Download encrypted files using the download API
 

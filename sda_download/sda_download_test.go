@@ -21,7 +21,7 @@ type TestSuite struct {
 
 func createConfigFile(fileName, token string) os.File {
 	// Create conf file for sda-cli
-	var confFile = fmt.Sprintf(`
+	confFile := fmt.Sprintf(`
 	access_token = %[1]s
 	host_base = inbox.dummy.org
 	encoding = UTF-8
@@ -61,24 +61,27 @@ func (suite *TestSuite) SetupTest() {
 	suite.accessToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtleXN0b3JlLUNIQU5HRS1NRSJ9.eyJqdGkiOiJWTWpfNjhhcEMxR2FJbXRZdFExQ0ciLCJzdWIiOiJkdW1teSIsImlzcyI6Imh0dHA6Ly9vaWRjOjkwOTAiLCJpYXQiOjE3MDc3NjMyODksImV4cCI6MTg2NTU0NzkxOSwic2NvcGUiOiJvcGVuaWQgZ2E0Z2hfcGFzc3BvcnRfdjEgcHJvZmlsZSBlbWFpbCIsImF1ZCI6IlhDNTZFTDExeHgifQ.ZFfIAOGeM2I5cvqr1qJV74qU65appYjpNJVWevGHjGA5Xk_qoRMFJXmG6AiQnYdMKnJ58sYGNjWgs2_RGyw5NyM3-pgP7EKHdWU4PrDOU84Kosg4IPMSFxbBRAEjR5X04YX_CLYW2MFk_OyM9TIln522_JBVT_jA5WTTHSmBRHntVArYYHvQdF-oFRiqL8JXWlsUBh3tqQ33sZdqd9g64YhTk9a5lEC42gn5Hg9Hm_qvkl5orzEqIg7x9z5706IBE4Zypco5ohrAKsEbA8EKbEBb0jigGgCslQNde2owUyKIkvZYmxHA78X5xpymMp9K--PgbkyMS9GtA-YwOHPs-w"
 }
 
-func (suite *TestSuite) TestNoFiles() {
-
-	confPath := createConfigFile("s3cmd-download.conf", suite.accessToken)
-
-	os.Args = []string{"sda-download", "-dataset", "TES01", "-config", confPath.Name(), "-url", "https://some/url"}
-
-	err := SdaDownload(os.Args)
-	assert.EqualError(suite.T(), err, "no files to download")
-}
-
 func (suite *TestSuite) TestInvalidUrl() {
-
 	confPath := createConfigFile("s3cmd.conf", suite.accessToken)
 
-	os.Args = []string{"sda-download", "-dataset", "TES01", "-config", confPath.Name(), "-url", "https://some/url", "file1", "file2"}
+	os.Args = []string{
+		"sda-download",
+		"-dataset-id",
+		"TES01",
+		"-config",
+		confPath.Name(),
+		"-url",
+		"https://some/url",
+		"file1",
+		"file2",
+	}
 
 	err := SdaDownload(os.Args)
-	assert.Contains(suite.T(), err.Error(), "failed to get files, reason: failed to get response, reason: Get \"https://some/url/metadata/datasets/TES01/files\": dial tcp: lookup some")
+	assert.Contains(
+		suite.T(),
+		err.Error(),
+		"failed to get files, reason: failed to get response, reason: Get \"https://some/url/metadata/datasets/TES01/files\": dial tcp: lookup some",
+	)
 }
 
 func (suite *TestSuite) TestGetBody() {
@@ -100,7 +103,8 @@ func (suite *TestSuite) TestGetBody() {
 	// Check the response body
 	expectedBody := "test response"
 	if string(body) != expectedBody {
-		suite.T().Errorf("getBody returned incorrect response body, got: %s, want: %s", string(body), expectedBody)
+		suite.T().
+			Errorf("getBody returned incorrect response body, got: %s, want: %s", string(body), expectedBody)
 	}
 
 	// Make a request to the test server using a public key
@@ -112,7 +116,8 @@ func (suite *TestSuite) TestGetBody() {
 	// Check the response body
 	expectedBody = "test response"
 	if string(body) != expectedBody {
-		suite.T().Errorf("getBody returned incorrect response body, got: %s, want: %s", string(body), expectedBody)
+		suite.T().
+			Errorf("getBody returned incorrect response body, got: %s, want: %s", string(body), expectedBody)
 	}
 }
 
@@ -133,7 +138,7 @@ func (suite *TestSuite) TestDownloadUrl() {
 
 	baseURL := "https://some/url"
 	token := suite.accessToken
-	dataset := "test-dataset"
+	datasetID := "test-dataset"
 	filepath := "path/to/file1"
 	expectedURL := "https://some/url/files/file1id"
 
@@ -141,53 +146,53 @@ func (suite *TestSuite) TestDownloadUrl() {
 	// Test with an empty public key
 
 	// Test with valid base_url, token, dataset, and filename
-	url, err := getFileIDURL(baseURL, token, "", dataset, filepath)
+	url, err := getFileIDURL(baseURL, token, "", datasetID, filepath)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expectedURL, url)
 
 	// Test with url as dataset
-	dataset = "https://doi.example/another/url/001"
-	_, err = getFileIDURL(baseURL, token, "", dataset, filepath)
+	datasetID = "https://doi.example/another/url/001"
+	_, err = getFileIDURL(baseURL, token, "", datasetID, filepath)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expectedURL, url)
 
 	// Test with filename not in response
 	filepath = "path/to/file2"
-	_, err = getFileIDURL(baseURL, token, "", dataset, filepath)
+	_, err = getFileIDURL(baseURL, token, "", datasetID, filepath)
 	assert.Error(suite.T(), err)
 
 	// Test with fileID
 	filepath = "file1id"
-	_, err = getFileIDURL(baseURL, token, "", dataset, filepath)
+	_, err = getFileIDURL(baseURL, token, "", datasetID, filepath)
 	assert.NoError(suite.T(), err)
 
 	// Testr with bad URL
-	_, err = getFileIDURL("some/url", token, "", dataset, filepath)
+	_, err = getFileIDURL("some/url", token, "", datasetID, filepath)
 	assert.Error(suite.T(), err)
 
 	//-----------------------------------------------
 	// Test using a nonempty public key
 	// Test with valid base_url, token, dataset, and filename
-	expectedURL = baseURL + "/s3-encrypted/" + dataset + "/" + filepath
+	expectedURL = baseURL + "/s3-encrypted/" + datasetID + "/" + filepath
 	pubKey := "test-public-key"
-	url, err = getFileIDURL(baseURL, token, pubKey, dataset, filepath)
+	url, err = getFileIDURL(baseURL, token, pubKey, datasetID, filepath)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expectedURL, url)
 
 	// Test with url as dataset
-	dataset = "https://doi.example/another/url/001"
-	expectedURL = baseURL + "/s3-encrypted/" + dataset + "/" + filepath
-	url, err = getFileIDURL(baseURL, token, pubKey, dataset, filepath)
+	datasetID = "https://doi.example/another/url/001"
+	expectedURL = baseURL + "/s3-encrypted/" + datasetID + "/" + filepath
+	url, err = getFileIDURL(baseURL, token, pubKey, datasetID, filepath)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expectedURL, url)
 
 	// Test with filename not in response
 	filepath = "path/to/file2"
-	_, err = getFileIDURL(baseURL, token, pubKey, dataset, filepath)
+	_, err = getFileIDURL(baseURL, token, pubKey, datasetID, filepath)
 	assert.Error(suite.T(), err)
 
 	// Testr with bad URL
-	_, err = getFileIDURL("some/url", token, pubKey, dataset, filepath)
+	_, err = getFileIDURL("some/url", token, pubKey, datasetID, filepath)
 	assert.Error(suite.T(), err)
 }
 
@@ -232,4 +237,45 @@ func (suite *TestSuite) TestDownloadFile() {
 	// Check if the downloaded content matches the expected content
 	expectedContent = "dummy response"
 	assert.Equal(suite.T(), expectedContent, string(downloadedContent))
+}
+
+func (suite *TestSuite) TestGetFilesInfo() {
+	// Mock getBody function
+	defer func() { getResponseBody = getBody }()
+	getResponseBody = func(_, _, _ string) ([]byte, error) {
+		return []byte(`[
+            {
+                "fileId": "file1id",
+				"datasetId": "TES01",
+				"displayFileName": "file1",
+                "filePath": "path/to/file1",
+				"fileName": "4293c9a7-re60-46ac-b79a-40ddc0ddd1c6"
+            },
+			{
+                "fileId": "file2id",
+				"datasetId": "TES01",
+				"displayFileName": "file2",
+                "filePath": "path/to/file2",
+				"fileName": "4b40bd16-9eba-4992-af39-a7f824e612e2"
+            }
+        ]`), nil
+	}
+
+	// Test
+	token := suite.accessToken
+	baseURL := "https://some/url"
+	datasetID := "test-dataset"
+	files, err := getFilesInfo(baseURL, datasetID, "", token)
+	require.NoError(suite.T(), err)
+	require.Len(suite.T(), files, 2)
+	assert.Equal(suite.T(), "file1id", files[0].FileID)
+	assert.Equal(suite.T(), "file1", files[0].DisplayFileName)
+	assert.Equal(suite.T(), "path/to/file1", files[0].FilePath)
+	assert.Equal(suite.T(), "4293c9a7-re60-46ac-b79a-40ddc0ddd1c6", files[0].FileName)
+	assert.Equal(suite.T(), "TES01", files[0].DatasetID)
+	assert.Equal(suite.T(), "file2id", files[1].FileID)
+	assert.Equal(suite.T(), "file2", files[1].DisplayFileName)
+	assert.Equal(suite.T(), "path/to/file2", files[1].FilePath)
+	assert.Equal(suite.T(), "4b40bd16-9eba-4992-af39-a7f824e612e2", files[1].FileName)
+	assert.Equal(suite.T(), "TES01", files[1].DatasetID)
 }
