@@ -24,14 +24,16 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s sda-download -config <s3config-file> -dataset-id <datasetID> -url <uri> (--pubkey <public-key-file>) (-outdir <dir>) ([filepath(s)] or --dataset)
+USAGE: %s sda-download -config <s3config-file> -dataset-id <datasetID> -url <uri> (--pubkey <public-key-file>) (-outdir <dir>) ([filepath(s)] or --dataset or --recursive <dirpath>)
 
 sda-download:
 	Downloads files from the Sensitive Data Archive (SDA) by using APIs from the given url. The user
 	must have been granted access to the datasets (visas) that are to be downloaded.
 	The files will be downloaded in the current directory, if outdir is not defined.
 	When the -pubkey flag is used, the downloaded files will be server-side encrypted with the given public key.
-`
+    If the --dataset flag is used, all files in the dataset will be downloaded.
+    If the --recursive flag is used, all files in the directory will be downloaded.
+    `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help
@@ -42,7 +44,9 @@ var ArgHelp = `
 		All flagless arguments will be used as sda-download uri.
 	[filepath(s)]
 		The filepath of the file to download. If no filepath is provided
-        then the whole dataset will be downloaded.`
+        then the whole dataset will be downloaded.
+    [dirpath]
+        The directory path to download all files recursively.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
@@ -50,16 +54,18 @@ var Args = flag.NewFlagSet("sda-download", flag.ExitOnError)
 
 var configPath = Args.String("config", "", "S3 config file to use for downloading.")
 
-var datasetID = Args.String("dataset-id", "", "Dataset ID for the file to download")
+var datasetID = Args.String("dataset-id", "", "Dataset ID for the file to download.")
 
 var URL = Args.String("url", "", "The url of the sda-download server.")
 
 var outDir = Args.String("outdir", "", "Directory for downloaded files.")
 
-var datasetdownload = Args.Bool("dataset", false, "Download all the files of the dataset")
+var datasetdownload = Args.Bool("dataset", false, "Download all the files of the dataset.")
 
 var pubKeyPath = Args.String("pubkey", "",
 	"Public key file to use for encryption of files to download.")
+
+var recursiveDownload = Args.Bool("recursive", false, "Download content of the folder.")
 
 // necessary for mocking in testing
 var getResponseBody = getBody
@@ -93,9 +99,18 @@ func SdaDownload(args []string) error {
 		return fmt.Errorf("missing required arguments, dataset, config and url are required")
 	}
 
+	// Check if both --recursive and --dataset flags are set
+	if *recursiveDownload && *datasetdownload {
+		return fmt.Errorf("both --recursive and --dataset flags are set, choose one of them")
+	}
+
 	// Check that file(s) are not missing if the --dataset flag is not set
 	if len(Args.Args()) == 0 && !*datasetdownload {
-		return fmt.Errorf("no files provided for download")
+		if !*recursiveDownload {
+			return fmt.Errorf("no files provided for download")
+		} else {
+			return fmt.Errorf("no folders provided for recursive download")
+		}
 	}
 
 	// Check if --dataset flag is set and files are provided
