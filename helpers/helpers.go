@@ -67,7 +67,6 @@ func FileIsReadable(filename string) bool {
 // FormatSubcommandUsage moves the lines in the standard usage strings around so
 // that the usage string is indented under the help text instead of above it.
 func FormatSubcommandUsage(usageString string) string {
-
 	// check that there's a formatting thing for os.Args[0]
 	if !strings.Contains(usageString, "%s") && !strings.Contains(usageString, "%v") {
 		return usageString
@@ -102,7 +101,6 @@ func PromptPassword(message string) (password string, err error) {
 // ParseS3ErrorResponse checks if reader stream is xml encoded and if yes unmarshals
 // the xml response and returns it.
 func ParseS3ErrorResponse(respBody io.Reader) (string, error) {
-
 	respMsg, err := io.ReadAll(respBody)
 	if err != nil {
 		return "", fmt.Errorf("failed to read from response body, reason: %v", err)
@@ -124,7 +122,15 @@ func ParseS3ErrorResponse(respBody io.Reader) (string, error) {
 // Removes all positional arguments from args, and returns them.
 // This function assumes that all flags have exactly one value.
 func getPositional(args []string) ([]string, []string) {
-	argList := []string{"-r", "--r", "--force-overwrite", "-force-overwrite", "--force-unencrypted", "-force-unencrypted", "--dataset", "-dataset"}
+	argList := []string{
+		"-r",
+		"--r",
+		"--force-overwrite",
+		"-force-overwrite",
+		"--force-unencrypted",
+		"-force-unencrypted",
+		"--dataset",
+	}
 	i := 1
 	var positional []string
 	for i < len(args) {
@@ -235,7 +241,6 @@ type Config struct {
 
 // LoadConfigFile loads ini configuration file to the Config struct
 func LoadConfigFile(path string) (*Config, error) {
-
 	config := &Config{}
 
 	cfg, err := ini.Load(path)
@@ -281,7 +286,6 @@ func LoadConfigFile(path string) (*Config, error) {
 
 // GetAuth calls LoadConfig if we have a config file, otherwise try to load .sda-cli-session
 func GetAuth(path string) (*Config, error) {
-
 	if path != "" {
 		return LoadConfigFile(path)
 	}
@@ -321,7 +325,6 @@ func GetPublicKeyFromSession() (string, error) {
 	}
 
 	return pubFile, nil
-
 }
 
 // Create public key file
@@ -354,7 +357,6 @@ func CreatePubFile(publicKey string, filename string) (string, error) {
 
 // CheckTokenExpiration is used to determine whether the token is expiring in less than a day
 func CheckTokenExpiration(accessToken string) error {
-
 	// Parse jwt token with unverifies, since we don't need to check the signatures here
 	token, _, err := new(jwt.Parser).ParseUnverified(accessToken, jwt.MapClaims{})
 	if err != nil {
@@ -394,10 +396,18 @@ func CheckTokenExpiration(accessToken string) error {
 	case untilExp < 0:
 		return fmt.Errorf("the provided access token has expired, please renew it")
 	case untilExp > 0 && untilExp < 24*time.Hour:
-		fmt.Fprintln(os.Stderr, "The provided access token expires in", time.Until(expiration).Truncate(time.Second))
+		fmt.Fprintln(
+			os.Stderr,
+			"The provided access token expires in",
+			time.Until(expiration).Truncate(time.Second),
+		)
 		fmt.Fprintln(os.Stderr, "Consider renewing the token.")
 	default:
-		fmt.Fprintln(os.Stderr, "The provided access token expires in", time.Until(expiration).Truncate(time.Second))
+		fmt.Fprintln(
+			os.Stderr,
+			"The provided access token expires in",
+			time.Until(expiration).Truncate(time.Second),
+		)
 	}
 
 	return nil
@@ -407,8 +417,12 @@ func ListFiles(config Config, prefix string) (result *s3.ListObjectsV2Output, er
 	sess := session.Must(session.NewSession(&aws.Config{
 		// The region for the backend is always the specified one
 		// and not present in the configuration from auth - hardcoded
-		Region:           aws.String("us-west-2"),
-		Credentials:      credentials.NewStaticCredentials(config.AccessKey, config.SecretKey, config.AccessToken),
+		Region: aws.String("us-west-2"),
+		Credentials: credentials.NewStaticCredentials(
+			config.AccessKey,
+			config.SecretKey,
+			config.AccessToken,
+		),
 		Endpoint:         aws.String(config.HostBase),
 		DisableSSL:       aws.Bool(!config.UseHTTPS),
 		S3ForcePathStyle: aws.Bool(true),
@@ -420,7 +434,6 @@ func ListFiles(config Config, prefix string) (result *s3.ListObjectsV2Output, er
 		Bucket: aws.String(config.AccessKey + "/"),
 		Prefix: aws.String(config.AccessKey + "/" + prefix),
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to list objects, reason: %v", err)
 	}
@@ -433,7 +446,11 @@ func CheckValidChars(filename string) error {
 	re := regexp.MustCompile(`[\\:\*\?"<>\|\x00-\x1F\x7F]`)
 	dissallowedChars := re.FindAllString(filename, -1)
 	if dissallowedChars != nil {
-		return fmt.Errorf("filepath %v contains disallowed characters: %+v", filename, strings.Join(dissallowedChars, ", "))
+		return fmt.Errorf(
+			"filepath %v contains disallowed characters: %+v",
+			filename,
+			strings.Join(dissallowedChars, ", "),
+		)
 	}
 
 	return nil
