@@ -143,6 +143,11 @@ func SdaDownload(args []string) error {
 		if err != nil {
 			return err
 		}
+	case *recursiveDownload:
+		err = recursiveCase(config.AccessToken)
+		if err != nil {
+			return err
+		}
 	default:
 		err = fileCase(config.AccessToken)
 		if err != nil {
@@ -166,6 +171,35 @@ func datasetCase(token string) error {
 		err = downloadFile(fileURL, token, "", file.FilePath)
 		if err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+func recursiveCase(token string) error {
+	fmt.Println("Downloading content of the path(s)")
+	// get all the files of the dataset
+	files, err := getFilesInfo(*URL, *datasetID, "", token)
+	if err != nil {
+		return err
+	}
+	dirPaths := Args.Args()
+	// Loop over all the files of the dataset and
+	// check if the provided path is part of their filepath.
+	// If it is then download the file
+	for _, file := range files {
+		for _, dirPath := range dirPaths {
+			if !strings.HasSuffix(dirPath, "/") {
+				dirPath += "/"
+			}
+			if strings.Contains(file.FilePath, dirPath) {
+				fileURL := *URL + "/files/" + file.FileID
+				err = downloadFile(fileURL, token, "", file.FilePath)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
