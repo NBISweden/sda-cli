@@ -132,15 +132,18 @@ func SdaDownload(args []string) error {
 		return err
 	}
 
-	// Check if dataset flag is set
-	// If it is, download all files in the dataset
-	// If it is not, download the files that are provided
-	if *datasetdownload {
+	switch {
+	// Case where the user is setting the --dataset flag
+	// then download all the files in the dataset.
+	// Case where the user is setting the --recursive flag
+	// then download the content of the path
+	// Default case, download the provided files.
+	case *datasetdownload:
 		err = datasetCase(config.AccessToken)
 		if err != nil {
 			return err
 		}
-	} else {
+	default:
 		err = fileCase(config.AccessToken)
 		if err != nil {
 			return err
