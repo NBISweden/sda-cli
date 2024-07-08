@@ -184,15 +184,21 @@ func recursiveCase(token string) error {
 	if err != nil {
 		return err
 	}
-	dirPaths := Args.Args()
+	// check all the provided paths and add a slash
+	// to each one of them if does not exist and
+	// append them in a slice
+	var dirPaths []string
+	for _, path := range Args.Args() {
+		if !strings.HasSuffix(path, "/") {
+			path += "/"
+		}
+		dirPaths = append(dirPaths, path)
+	}
 	// Loop over all the files of the dataset and
 	// check if the provided path is part of their filepath.
 	// If it is then download the file
 	for _, file := range files {
 		for _, dirPath := range dirPaths {
-			if !strings.HasSuffix(dirPath, "/") {
-				dirPath += "/"
-			}
 			if strings.Contains(file.FilePath, dirPath) {
 				fileURL := *URL + "/files/" + file.FileID
 				err = downloadFile(fileURL, token, "", file.FilePath)
