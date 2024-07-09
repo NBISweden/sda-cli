@@ -109,9 +109,9 @@ func SdaDownload(args []string) error {
 	if len(Args.Args()) == 0 && !*datasetdownload {
 		if !*recursiveDownload {
 			return fmt.Errorf("no files provided for download")
-		} else {
-			return fmt.Errorf("no folders provided for recursive download")
 		}
+
+		return fmt.Errorf("no folders provided for recursive download")
 	}
 
 	// Check if --dataset flag is set and files are provided
