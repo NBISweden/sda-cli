@@ -3,6 +3,7 @@ package sdadownload
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -194,18 +195,35 @@ func recursiveCase(token string) error {
 		}
 		dirPaths = append(dirPaths, path)
 	}
+	var missingPaths []string
 	// Loop over all the files of the dataset and
 	// check if the provided path is part of their filepath.
 	// If it is then download the file
-	for _, file := range files {
-		for _, dirPath := range dirPaths {
+	for _, dirPath := range dirPaths {
+		pathExists := false
+		for _, file := range files {
 			if strings.Contains(file.FilePath, dirPath) {
+				pathExists = true
 				fileURL := *URL + "/files/" + file.FileID
 				err = downloadFile(fileURL, token, "", file.FilePath)
 				if err != nil {
 					return err
 				}
 			}
+		}
+		// If dirPath does not exist add in the list
+		if !pathExists {
+			missingPaths = append(missingPaths, dirPath)
+		}
+	}
+	// If all the given paths do not exist then return an error
+	if len(missingPaths) == len(dirPaths) {
+		return errors.New("given path(s) do not exist")
+	}
+	// If some of the give paths do not exist then just return a message
+	if len(missingPaths) > 0 {
+		for _, missingPath := range missingPaths {
+			fmt.Println("Non existing path: ", missingPath)
 		}
 	}
 
