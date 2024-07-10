@@ -343,6 +343,10 @@ func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (strin
 	var idx int
 	switch {
 	case strings.Contains(filename, "/"):
+		// If filename does not have a crypt4gh suffix, add one
+		if !strings.HasSuffix(filename, ".c4gh") {
+			filename += ".c4gh"
+		}
 		idx = slices.IndexFunc(
 			datasetFiles,
 			func(f File) bool { return strings.Contains(f.FilePath, filename) },
