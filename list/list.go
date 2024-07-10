@@ -54,10 +54,6 @@ func List(args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed parsing arguments, reason: %v", err)
 	}
-	fmt.Println("### args: ", args)
-	fmt.Println("### Args.Args(): ", Args.Args())
-	fmt.Println("datasets: ", *datasets)
-	fmt.Println("dataset: ", *dataset)
 
 	prefix := ""
 	if len(Args.Args()) == 1 {
@@ -126,10 +122,9 @@ func ListDatasets(token string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(datasets)
 	// Loop through the datasets and list them
-	for range datasets {
-		fmt.Printf("%s \n", datasets)
+	for _, dataset := range datasets {
+		fmt.Printf("%s \n", dataset)
 	}
 
 	return nil
