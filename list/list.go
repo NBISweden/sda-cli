@@ -72,7 +72,7 @@ func List(args []string) error {
 	}
 	// case datasets
 	if *datasets {
-		err := ListDatasets(config.AccessToken)
+		err := Datasets(config.AccessToken)
 		if err != nil {
 			return err
 		}
@@ -82,7 +82,7 @@ func List(args []string) error {
 
 	// case dataset
 	if *dataset != "" {
-		err := ListDatasetFiles(config.AccessToken)
+		err := DatasetFiles(config.AccessToken)
 		if err != nil {
 			return err
 		}
@@ -103,12 +103,11 @@ func List(args []string) error {
 	return nil
 }
 
-func ListDatasetFiles(token string) error {
+func DatasetFiles(token string) error {
 	files, err := sdaDownload.GetFilesInfo(*URL, *dataset, "", token)
 	if err != nil {
 		return err
 	}
-	fmt.Println(files)
 	// Loop through the files and list them
 	for _, file := range files {
 		fmt.Printf("%s \t %d \n", file.DisplayFileName, file.DecryptedFileSize)
@@ -117,7 +116,7 @@ func ListDatasetFiles(token string) error {
 	return nil
 }
 
-func ListDatasets(token string) error {
+func Datasets(token string) error {
 	datasets, err := sdaDownload.GetDatasets(*URL, token)
 	if err != nil {
 		return err

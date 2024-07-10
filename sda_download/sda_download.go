@@ -141,7 +141,6 @@ func datasetCase(token string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("### files: ", files)
 	// Loop through the files and download them
 	for _, file := range files {
 		// Download URL for the file

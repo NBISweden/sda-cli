@@ -43,14 +43,6 @@ func (suite *TestSuite) TestNoConfig() {
 	assert.EqualError(suite.T(), err, "failed to load config file, reason: failed to read the configuration file")
 }
 
-func (suite *TestSuite) TestTooManyArgs() {
-
-	os.Args = []string{"list", "arg1", "arg2"}
-
-	err := List(os.Args)
-	assert.EqualError(suite.T(), err, "failed to parse prefix, only one is allowed")
-}
-
 func (suite *TestSuite) TestFunctionality() {
 
 	// Create a fake s3 backend

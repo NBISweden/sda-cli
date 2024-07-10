@@ -339,6 +339,26 @@ fi
 
 rm -r test-download
 
+# Check listing files in a dataset
+output=$(./sda-cli list -config testing/s3cmd-download.conf -dataset https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080)
+expected="dummy_data.c4gh 1048605 dummy_data2.c4gh 1048605 dummy_data3.c4gh 1048605"
+if [[ "${output//[$' \t\n\r']/}" == "${expected//[$' \t\n\r']/}" ]];  then
+    echo "Successfully listed files in dataset"
+else
+    echo "Failed to list files in dataset"
+    exit 1
+fi
+
+# Check listing datasets
+output=$(./sda-cli list -config testing/s3cmd-download.conf --datasets -url http://localhost:8080)
+expected="https://doi.example/ty009.sfrrss/600.45asasga"
+if [[ $output == *"$expected"* ]]; then
+    echo "Successfully listed datasets"
+else
+    echo "Failed to list datasets"
+    exit 1
+fi
+
 # Download whole dataset by using the sda-download feature
 ./sda-cli sda-download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-dataset --dataset 
 
