@@ -130,7 +130,7 @@ func (suite *TestSuite) TestDownloadUrl() {
                 "fileId": "file1id",
 				"datasetId": "TES01",
 				"displayName": "file1",
-                "filePath": "path/to/file1",
+                "filePath": "path/to/file1.c4gh",
 				"fileName": "4293c9a7-re60-46ac-b79a-40ddc0ddd1c6"
             }
         ]`), nil
