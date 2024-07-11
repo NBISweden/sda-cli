@@ -131,6 +131,7 @@ func getPositional(args []string) ([]string, []string) {
 		"-force-unencrypted",
 		"--dataset",
 		"--datasets",
+		"--recursive",
 	}
 	i := 1
 	var positional []string

@@ -3,6 +3,7 @@ package sdadownload
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -24,14 +25,16 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s sda-download -config <s3config-file> -dataset-id <datasetID> -url <uri> (--pubkey <public-key-file>) (-outdir <dir>) ([filepath(s)] or --dataset)
+USAGE: %s sda-download -config <s3config-file> -dataset-id <datasetID> -url <uri> (--pubkey <public-key-file>) (-outdir <dir>) ([filepath(s)] or --dataset or --recursive <dirpath>)
 
 sda-download:
 	Downloads files from the Sensitive Data Archive (SDA) by using APIs from the given url. The user
 	must have been granted access to the datasets (visas) that are to be downloaded.
 	The files will be downloaded in the current directory, if outdir is not defined.
 	When the -pubkey flag is used, the downloaded files will be server-side encrypted with the given public key.
-`
+    If the --dataset flag is used, all files in the dataset will be downloaded.
+    If the --recursive flag is used, all files in the directory will be downloaded.
+    `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help
@@ -42,7 +45,9 @@ var ArgHelp = `
 		All flagless arguments will be used as sda-download uri.
 	[filepath(s)]
 		The filepath of the file to download. If no filepath is provided
-        then the whole dataset will be downloaded.`
+        then the whole dataset will be downloaded.
+    [dirpath]
+        The directory path to download all files recursively.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
@@ -50,16 +55,18 @@ var Args = flag.NewFlagSet("sda-download", flag.ExitOnError)
 
 var configPath = Args.String("config", "", "S3 config file to use for downloading.")
 
-var datasetID = Args.String("dataset-id", "", "Dataset ID for the file to download")
+var datasetID = Args.String("dataset-id", "", "Dataset ID for the file to download.")
 
 var URL = Args.String("url", "", "The url of the sda-download server.")
 
 var outDir = Args.String("outdir", "", "Directory for downloaded files.")
 
-var datasetdownload = Args.Bool("dataset", false, "Download all the files of the dataset")
+var datasetdownload = Args.Bool("dataset", false, "Download all the files of the dataset.")
 
 var pubKeyPath = Args.String("pubkey", "",
 	"Public key file to use for encryption of files to download.")
+
+var recursiveDownload = Args.Bool("recursive", false, "Download content of the folder.")
 
 // necessary for mocking in testing
 var getResponseBody = getBody
@@ -93,9 +100,18 @@ func SdaDownload(args []string) error {
 		return fmt.Errorf("missing required arguments, dataset, config and url are required")
 	}
 
+	// Check if both --recursive and --dataset flags are set
+	if *recursiveDownload && *datasetdownload {
+		return fmt.Errorf("both --recursive and --dataset flags are set, choose one of them")
+	}
+
 	// Check that file(s) are not missing if the --dataset flag is not set
 	if len(Args.Args()) == 0 && !*datasetdownload {
-		return fmt.Errorf("no files provided for download")
+		if !*recursiveDownload {
+			return fmt.Errorf("no files provided for download")
+		}
+
+		return fmt.Errorf("no folders provided for recursive download")
 	}
 
 	// Check if --dataset flag is set and files are provided
@@ -117,15 +133,23 @@ func SdaDownload(args []string) error {
 		return err
 	}
 
-	// Check if dataset flag is set
-	// If it is, download all files in the dataset
-	// If it is not, download the files that are provided
-	if *datasetdownload {
+	switch {
+	// Case where the user is setting the --dataset flag
+	// then download all the files in the dataset.
+	// Case where the user is setting the --recursive flag
+	// then download the content of the path
+	// Default case, download the provided files.
+	case *datasetdownload:
 		err = datasetCase(config.AccessToken)
 		if err != nil {
 			return err
 		}
-	} else {
+	case *recursiveDownload:
+		err = recursiveCase(config.AccessToken)
+		if err != nil {
+			return err
+		}
+	default:
 		err = fileCase(config.AccessToken)
 		if err != nil {
 			return err
@@ -148,6 +172,58 @@ func datasetCase(token string) error {
 		err = downloadFile(fileURL, token, "", file.FilePath)
 		if err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+func recursiveCase(token string) error {
+	fmt.Println("Downloading content of the path(s)")
+	// get all the files of the dataset
+	files, err := GetFilesInfo(*URL, *datasetID, "", token)
+	if err != nil {
+		return err
+	}
+	// check all the provided paths and add a slash
+	// to each one of them if does not exist and
+	// append them in a slice
+	var dirPaths []string
+	for _, path := range Args.Args() {
+		if !strings.HasSuffix(path, "/") {
+			path += "/"
+		}
+		dirPaths = append(dirPaths, path)
+	}
+	var missingPaths []string
+	// Loop over all the files of the dataset and
+	// check if the provided path is part of their filepath.
+	// If it is then download the file
+	for _, dirPath := range dirPaths {
+		pathExists := false
+		for _, file := range files {
+			if strings.Contains(file.FilePath, dirPath) {
+				pathExists = true
+				fileURL := *URL + "/files/" + file.FileID
+				err = downloadFile(fileURL, token, "", file.FilePath)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		// If dirPath does not exist add in the list
+		if !pathExists {
+			missingPaths = append(missingPaths, dirPath)
+		}
+	}
+	// If all the given paths do not exist then return an error
+	if len(missingPaths) == len(dirPaths) {
+		return errors.New("given path(s) do not exist")
+	}
+	// If some of the give paths do not exist then just return a message
+	if len(missingPaths) > 0 {
+		for _, missingPath := range missingPaths {
+			fmt.Println("Non existing path: ", missingPath)
 		}
 	}
 
@@ -268,6 +344,10 @@ func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (strin
 	var idx int
 	switch {
 	case strings.Contains(filename, "/"):
+		// If filename does not have a crypt4gh suffix, add one
+		if !strings.HasSuffix(filename, ".c4gh") {
+			filename += ".c4gh"
+		}
 		idx = slices.IndexFunc(
 			datasetFiles,
 			func(f File) bool { return strings.Contains(f.FilePath, filename) },

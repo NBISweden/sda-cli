@@ -409,4 +409,20 @@ fi
 
 rm -r test-download
 
+# Download recursively a folder
+echo "Downloading content of folder"
+./sda-cli sda-download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-folder --recursive main/subfolder2
+
+folderpaths="download-folder/main/subfolder2/dummy_data2 download-folder/main/subfolder2/random/dummy_data3"
+
+# Check if the content of the folder has been downloaded
+for folderpath in $folderpaths; do
+    if [ ! -f "$folderpath" ]; then
+        echo "Content of folder $folderpath is missing"
+        exit 1
+    fi
+done
+
+rm -r download-folder 
+
 echo "Integration test finished successfully"
