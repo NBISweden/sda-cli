@@ -425,4 +425,22 @@ done
 
 rm -r download-folder 
 
+# Download file by providing the file id
+./sda-cli sda-download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-fileid urn:neic:001-001
+
+# Check if file exists in the path
+if [ ! -f "download-fileid/main/subfolder/dummy_data" ]; then
+    echo "Downloaded file by using the file id not found"
+    exit 1
+fi
+
+# Check the first line of the file
+first_line_id=$(head -n 1 download-fileid/main/subfolder/dummy_data)
+if [[ $first_line_id != *"THIS FILE IS JUST DUMMY DATA"* ]]; then
+    echo "This is not the file with the given file id"
+    exit 1
+fi
+
+rm -r download-fileid
+
 echo "Integration test finished successfully"
