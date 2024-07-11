@@ -148,7 +148,7 @@ will upload all contents of `<folder_to_upload>` to `<new_folder_name>` recursiv
 
 ### Encrypt on upload
 
-It is possible to combine the encryption and upload steps into with the use of the flag `--encrypt-with-key` followed by the path of the crypt4gh public key to be used for encryption. In this case, the input list of file arguments can only contain _unencrypted_ source files. For example the following,
+It is possible to combine the encryption and upload steps with the use of the flag `--encrypt-with-key` followed by the path of the crypt4gh public key to be used for encryption. In this case, the input list of file arguments can only contain _unencrypted_ source files. For example the following,
 
 ```bash
 ./sda-cli upload -config <configuration_file> --encrypt-with-key <public_key> <unencrypted_file_to_upload>
