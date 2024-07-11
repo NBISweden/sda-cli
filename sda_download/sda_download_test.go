@@ -265,7 +265,7 @@ func (suite *TestSuite) TestGetFilesInfo() {
 	token := suite.accessToken
 	baseURL := "https://some/url"
 	datasetID := "test-dataset"
-	files, err := getFilesInfo(baseURL, datasetID, "", token)
+	files, err := GetFilesInfo(baseURL, datasetID, "", token)
 	require.NoError(suite.T(), err)
 	require.Len(suite.T(), files, 2)
 	assert.Equal(suite.T(), "file1id", files[0].FileID)
@@ -278,4 +278,20 @@ func (suite *TestSuite) TestGetFilesInfo() {
 	assert.Equal(suite.T(), "path/to/file2", files[1].FilePath)
 	assert.Equal(suite.T(), "4b40bd16-9eba-4992-af39-a7f824e612e2", files[1].FileName)
 	assert.Equal(suite.T(), "TES01", files[1].DatasetID)
+}
+
+func (suite *TestSuite) TestGetDatasets() {
+	// Mock getBody function
+	defer func() { getResponseBody = getBody }()
+	getResponseBody = func(_, _, _ string) ([]byte, error) {
+		return []byte(`["https://doi.example/ty009.sfrrss/600.45asasga"]`), nil
+	}
+
+	// Test
+	token := suite.accessToken
+	baseURL := "https://some/url"
+	datasets, err := GetDatasets(baseURL, token)
+	require.NoError(suite.T(), err)
+	// assert.Contains(suite.T(), datasets, "https://doi.example/ty009.sfrrss/600.45asasga")
+	assert.Equal(suite.T(), datasets, []string{"https://doi.example/ty009.sfrrss/600.45asasga"})
 }

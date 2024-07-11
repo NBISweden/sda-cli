@@ -1,13 +1,13 @@
 package list
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 
 	"strings"
 
 	"github.com/NBISweden/sda-cli/helpers"
+	sdaDownload "github.com/NBISweden/sda-cli/sda_download"
 	"github.com/inhies/go-bytesize"
 )
 
@@ -16,13 +16,16 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help list` command
 var Usage = `
-USAGE: %s list [-config <s3config-file>] [prefix]
+USAGE: %s list [-config <s3config-file>] [prefix] (-url <uri> --datasets) (-url <uri> --dataset <dataset-id>)
 
 list:
     Lists recursively all files under the user's folder in the Sensitive
     Data Archive (SDA).  If the [prefix] parameter is used, only the
     files under the specified path will be returned. If no config is
-	specified, the tool will look for a previous session.
+	specified, the tool will look for a previous session. The --datasets
+	flag will list all datasets in the user's folder, given the url of
+	the	htsgetserver. The --dataset flag will list all files in the
+	specified dataset and the dataset size.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
@@ -38,6 +41,12 @@ var Args = flag.NewFlagSet("list", flag.ExitOnError)
 var configPath = Args.String("config", "",
 	"S3 config file to use for listing.")
 
+var URL = Args.String("url", "", "The url of the sda-download server")
+
+var datasets = Args.Bool("datasets", false, "List all datasets in the user's folder.")
+
+var dataset = Args.String("dataset", "", "List all files in the specified dataset.")
+
 // List function lists the contents of an s3
 func List(args []string) error {
 	// Call ParseArgs to take care of all the flag parsing
@@ -47,9 +56,7 @@ func List(args []string) error {
 	}
 
 	prefix := ""
-	if len(Args.Args()) > 1 {
-		return errors.New("failed to parse prefix, only one is allowed")
-	} else if len(Args.Args()) == 1 {
+	if len(Args.Args()) == 1 {
 		prefix = Args.Args()[0]
 	}
 
@@ -63,6 +70,25 @@ func List(args []string) error {
 	if err != nil {
 		return err
 	}
+	// case datasets
+	if *datasets {
+		err := Datasets(config.AccessToken)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	// case dataset
+	if *dataset != "" {
+		err := DatasetFiles(config.AccessToken)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
 
 	result, err := helpers.ListFiles(*config, prefix)
 	if err != nil {
@@ -72,6 +98,32 @@ func List(args []string) error {
 	for i := range result.Contents {
 		file := *result.Contents[i].Key
 		fmt.Printf("%s \t %s \n", bytesize.New(float64((*result.Contents[i].Size))), file[strings.Index(file, "/")+1:])
+	}
+
+	return nil
+}
+
+func DatasetFiles(token string) error {
+	files, err := sdaDownload.GetFilesInfo(*URL, *dataset, "", token)
+	if err != nil {
+		return err
+	}
+	// Loop through the files and list them
+	for _, file := range files {
+		fmt.Printf("%s \t %d \n", file.DisplayFileName, file.DecryptedFileSize)
+	}
+
+	return nil
+}
+
+func Datasets(token string) error {
+	datasets, err := sdaDownload.GetDatasets(*URL, token)
+	if err != nil {
+		return err
+	}
+	// Loop through the datasets and list them
+	for _, dataset := range datasets {
+		fmt.Printf("%s \n", dataset)
 	}
 
 	return nil
