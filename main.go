@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"reflect"
 
 	createKey "github.com/NBISweden/sda-cli/create_key"
 	"github.com/NBISweden/sda-cli/datasetsize"
@@ -82,7 +83,8 @@ func main() {
 	case "version":
 		err = version.Version(Version)
 	case "gui":
-		err = zenGui.ZenityGui()
+		actions := reflect.ValueOf(Commands).MapKeys()
+		err = zenGui.ZenityGui(actions)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s", command)
 		os.Exit(1)
