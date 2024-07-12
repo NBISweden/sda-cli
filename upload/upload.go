@@ -65,7 +65,6 @@ var pubKeyPath = Args.String("encrypt-with-key", "",
 
 // Function uploadFiles uploads the files in the input list to the s3 bucket
 func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Config) error {
-
 	// check also here in case sth went wrong with input files
 	if len(files) == 0 {
 		return errors.New("no files to upload")
@@ -109,8 +108,12 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 	sess := session.Must(session.NewSession(&aws.Config{
 		// The region for the backend is always the specified one
 		// and not present in the configuration from auth - hardcoded
-		Region:           aws.String("us-west-2"),
-		Credentials:      credentials.NewStaticCredentials(config.AccessKey, config.SecretKey, config.AccessToken),
+		Region: aws.String("us-west-2"),
+		Credentials: credentials.NewStaticCredentials(
+			config.AccessKey,
+			config.SecretKey,
+			config.AccessToken,
+		),
 		Endpoint:         aws.String(config.HostBase),
 		DisableSSL:       aws.Bool(!config.UseHTTPS),
 		S3ForcePathStyle: aws.Bool(true),
@@ -141,7 +144,11 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 			return fmt.Errorf("listing uploaded files: %s", err.Error())
 		}
 		if len(fileExists.Contents) > 0 {
-			if aws.StringValue(fileExists.Contents[0].Key) == filepath.Clean(config.AccessKey+"/"+targetDir+"/"+outFiles[k]) {
+			if aws.StringValue(
+				fileExists.Contents[0].Key,
+			) == filepath.Clean(
+				config.AccessKey+"/"+targetDir+"/"+outFiles[k],
+			) {
 				fmt.Printf("File %s is already uploaded!\n", filepath.Base(filename))
 				if !*forceOverwrite {
 					fmt.Println("Quitting...")
@@ -239,7 +246,6 @@ func createFilePaths(dirPath string) ([]string, []string, error) {
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, nil, err
 	}
@@ -275,7 +281,8 @@ func Upload(args []string) error {
 	// Check that specified target directory is valid, i.e. not a filepath or a flag
 	info, err := os.Stat(*targetDir)
 
-	if (!os.IsNotExist(err) && !info.IsDir()) || (targetDirString != "" && targetDirString[0:1] == "-") {
+	if (!os.IsNotExist(err) && !info.IsDir()) ||
+		(targetDirString != "" && targetDirString[0:1] == "-") {
 		return errors.New(*targetDir + " is not a valid target directory")
 	}
 
