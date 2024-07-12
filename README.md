@@ -265,7 +265,7 @@ For downloading files the user also needs to know the download service URL and t
 
 #### Download specific files of the dataset (using filepaths or file ids)
 
-For downloading one specific file the user needs to provide the path or the id of this file by running the command below:
+For downloading one specific file the user needs to provide the path or the id (the id should **NOT** have "/") of this file by running the command below:
 
 ```bash
 ./sda-cli sda-download -config <configuration_file> -dataset-id <datasetID> -url <download-service-URL> [<filepath> or <fileid>]
