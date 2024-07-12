@@ -25,7 +25,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s sda-download -config <s3config-file> -dataset-id <datasetID> -url <uri> (--pubkey <public-key-file>) (-outdir <dir>) ([filepath(s)] or --dataset or --recursive <dirpath>)
+USAGE: %s sda-download -config <s3config-file> -dataset-id <datasetID> -url <uri> (--pubkey <public-key-file>) (-outdir <dir>) ([filepath(s) or fileid(s)] or --dataset or --recursive <dirpath>)
 
 sda-download:
 	Downloads files from the Sensitive Data Archive (SDA) by using APIs from the given url. The user
@@ -44,10 +44,11 @@ var ArgHelp = `
 	[uri]
 		All flagless arguments will be used as sda-download uri.
 	[filepath(s)]
-		The filepath of the file to download. If no filepath is provided
-        then the whole dataset will be downloaded.
-    [dirpath]
-        The directory path to download all files recursively.`
+		The filepath of the file to download.
+    	[fileid(s)]
+        	The file ID of the file to download.
+    	[dirpath]
+        	The directory path to download all files recursively.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
@@ -249,12 +250,12 @@ func fileCase(token string) error {
 
 	// Loop through the files and download them
 	for _, filePath := range files {
-		fileIDURL, err := getFileIDURL(*URL, token, pubKeyBase64, *datasetID, filePath)
+		fileIDURL, apiFilePath, err := getFileIDURL(*URL, token, pubKeyBase64, *datasetID, filePath)
 		if err != nil {
 			return err
 		}
 
-		err = downloadFile(fileIDURL, token, pubKeyBase64, filePath)
+		err = downloadFile(fileIDURL, token, pubKeyBase64, apiFilePath)
 		if err != nil {
 			return err
 		}
@@ -332,12 +333,12 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 }
 
 // getFileIDURL gets the datset files, parses the JSON response to get the file ID
-// and returns the download URL for the file
-func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (string, error) {
+// and returns the download URL for the file and the filepath from the API response
+func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (string, string, error) {
 	// Get the files of the dataset
 	datasetFiles, err := GetFilesInfo(baseURL, dataset, pubKeyBase64, token)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	// Get the file ID for the filename
@@ -360,7 +361,7 @@ func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (strin
 	}
 
 	if idx == -1 {
-		return "", fmt.Errorf("File not found in dataset %s", filename)
+		return "", "", fmt.Errorf("File not found in dataset %s", filename)
 	}
 
 	var url string
@@ -371,7 +372,7 @@ func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (strin
 		url = baseURL + "/s3-encrypted/" + dataset + "/" + filename
 	}
 
-	return url, nil
+	return url, datasetFiles[idx].FilePath, nil
 }
 
 func GetDatasets(baseURL, token string) ([]string, error) {

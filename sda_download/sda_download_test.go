@@ -146,28 +146,28 @@ func (suite *TestSuite) TestDownloadUrl() {
 	// Test with an empty public key
 
 	// Test with valid base_url, token, dataset, and filename
-	url, err := getFileIDURL(baseURL, token, "", datasetID, filepath)
+	url, _, err := getFileIDURL(baseURL, token, "", datasetID, filepath)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expectedURL, url)
 
 	// Test with url as dataset
 	datasetID = "https://doi.example/another/url/001"
-	_, err = getFileIDURL(baseURL, token, "", datasetID, filepath)
+	_, _, err = getFileIDURL(baseURL, token, "", datasetID, filepath)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expectedURL, url)
 
 	// Test with filename not in response
 	filepath = "path/to/file2"
-	_, err = getFileIDURL(baseURL, token, "", datasetID, filepath)
+	_, _, err = getFileIDURL(baseURL, token, "", datasetID, filepath)
 	assert.Error(suite.T(), err)
 
 	// Test with fileID
 	filepath = "file1id"
-	_, err = getFileIDURL(baseURL, token, "", datasetID, filepath)
+	_, _, err = getFileIDURL(baseURL, token, "", datasetID, filepath)
 	assert.NoError(suite.T(), err)
 
 	// Testr with bad URL
-	_, err = getFileIDURL("some/url", token, "", datasetID, filepath)
+	_, _, err = getFileIDURL("some/url", token, "", datasetID, filepath)
 	assert.Error(suite.T(), err)
 
 	//-----------------------------------------------
@@ -175,24 +175,24 @@ func (suite *TestSuite) TestDownloadUrl() {
 	// Test with valid base_url, token, dataset, and filename
 	expectedURL = baseURL + "/s3-encrypted/" + datasetID + "/" + filepath
 	pubKey := "test-public-key"
-	url, err = getFileIDURL(baseURL, token, pubKey, datasetID, filepath)
+	url, _, err = getFileIDURL(baseURL, token, pubKey, datasetID, filepath)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expectedURL, url)
 
 	// Test with url as dataset
 	datasetID = "https://doi.example/another/url/001"
 	expectedURL = baseURL + "/s3-encrypted/" + datasetID + "/" + filepath
-	url, err = getFileIDURL(baseURL, token, pubKey, datasetID, filepath)
+	url, _, err = getFileIDURL(baseURL, token, pubKey, datasetID, filepath)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expectedURL, url)
 
 	// Test with filename not in response
 	filepath = "path/to/file2"
-	_, err = getFileIDURL(baseURL, token, pubKey, datasetID, filepath)
+	_, _, err = getFileIDURL(baseURL, token, pubKey, datasetID, filepath)
 	assert.Error(suite.T(), err)
 
 	// Testr with bad URL
-	_, err = getFileIDURL("some/url", token, pubKey, datasetID, filepath)
+	_, _, err = getFileIDURL("some/url", token, pubKey, datasetID, filepath)
 	assert.Error(suite.T(), err)
 }
 

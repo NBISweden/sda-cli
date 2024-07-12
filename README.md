@@ -255,21 +255,35 @@ The tool also allows for selecting a folder where the files will be downloaded, 
 ### Download using the download API
 
 The download API allows for downloading files from the archive and it requires the user to have access to the dataset, therefore a [configuration file](#download-the-configuration-file) needs to be downloaded before starting the downloading of the files.
-For downloading files the user also needs to know the download service URL and the dataset ID. The user has the option to download either the whole dataset or specific files of the dataset by providing the paths of the files.
+For downloading files the user also needs to know the download service URL and the dataset ID. The user has several options for downloading:
 
-#### Download specific files of the dataset
+- specific files by using their paths
+- specific files by using their file ids
+- multiple files recursively
+- all the files of the dataset
+- specific encrypted files
 
-For downloading one specific file the user needs to provide the path of this file by running the command below:
+#### Download specific files of the dataset (using filepaths or file ids)
+
+For downloading one specific file the user needs to provide the path or the id (the id should **NOT** have "/") of this file by running the command below:
 
 ```bash
-./sda-cli sda-download -config <configuration_file> -dataset-id <datasetID> -url <download-service-URL> <filepath>
+./sda-cli sda-download -config <configuration_file> -dataset-id <datasetID> -url <download-service-URL> [<filepath> or <fileid>]
 ```
 
-where `<configuration_file>` the file downloaded in the [previous step](#download-the-configuration-file), `<dataset_id>` the ID of the dataset and `<filepath>` the path of the file in the dataset.
-The tool also allows for downloading multiple files at once, by listing their filepaths separated with space and it also allows for selecting a folder where the files will be downloaded, using the `outdir` argument:
+where `<configuration_file>` the file downloaded in the [previous step](#download-the-configuration-file), `<dataset_id>` the ID of the dataset and `<filepath>` the path of the file (or `<fileid>` the id of the file) in the dataset.
+The tool also allows for downloading multiple files at once, by listing their filepaths (or file ids) separated with space and it also allows for selecting a folder where the files will be downloaded, using the `outdir` argument:
 
 ```bash
-./sda-cli sda-download -config <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> <filepath_1_to_download> <filepath_2_to_download> ...
+./sda-cli sda-download -config <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> <path/to/file1> <other/path/to/file2> ... (or <fileID_1> <fileID_2> ...)
+```
+
+#### Download files recursively
+
+For downloading the content of a folder (including subfolders) the user need to add the `--recursive` flag followed by the path(s) of the folder(s):
+
+```bash
+./sda-cli sda-download -config <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> --recursive path/to/folder1 path/to/folder2 ...
 ```
 
 #### Download all the files of the dataset
@@ -291,14 +305,6 @@ When a [public key](#create-keys) is provided, you can download files that are e
 ```
 
 After a successful download, the encrypted files can be [decrypted](#decrypt-file) using the private key corresponding to the provided public key.
-
-#### Download files recursively
-
-For downloading the content of a folder (including subfolders) the user need to add the `--recursive` flag followed by the path(s) of the folder(s):
-
-```bash
-./sda-cli sda-download -config <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> --recursive path/to/folder1 path/to/folder2 ...
-```
 
 ## Decrypt file
 
