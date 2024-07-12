@@ -47,11 +47,11 @@ var Commands = map[string]commandInfo{
 	"login":        {login.Args, login.Usage, login.ArgHelp},
 	"sda-download": {sdaDownload.Args, sdaDownload.Usage, sdaDownload.ArgHelp},
 	"version":      {version.Args, version.Usage, version.ArgHelp},
+	"gui":          {},
 }
 
 // Main does argument parsing, then delegates to one of the sub modules
 func main() {
-
 	log.SetLevel(log.WarnLevel)
 	command, args := ParseArgs()
 
@@ -80,6 +80,8 @@ func main() {
 		err = sdaDownload.SdaDownload(args)
 	case "version":
 		err = version.Version(Version)
+	case "gui":
+		err = zenGui.ZenityGui()
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s", command)
 		os.Exit(1)
@@ -132,7 +134,6 @@ func ParseArgs() (string, []string) {
 			os.Exit(1)
 		}
 		os.Exit(0)
-
 	}
 
 	// The "list" command can have no arguments since it can use the
@@ -144,7 +145,7 @@ func ParseArgs() (string, []string) {
 	// If no arguments are provided to the subcommand, it's not
 	// going to be valid.  Print the subcommand help and exit with a
 	// non-zero exit status.
-	if len(os.Args) == 1 {
+	if len(os.Args) == 1 && command != "gui" {
 		_ = Help(command)
 		os.Exit(1)
 	}
