@@ -45,10 +45,10 @@ var ArgHelp = `
 		All flagless arguments will be used as sda-download uri.
 	[filepath(s)]
 		The filepath of the file to download.
-    [fileid(s)]
-        The file ID of the file to download.
-    [dirpath]
-        The directory path to download all files recursively.`
+    	[fileid(s)]
+        	The file ID of the file to download.
+    	[dirpath]
+        	The directory path to download all files recursively.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
