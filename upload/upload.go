@@ -202,7 +202,6 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 			return err
 		}
 		log.Infof("file uploaded to %s\n", string(aws.StringValue(&result.Location)))
-		fmt.Printf("file uploaded to %s\n", string(aws.StringValue(&result.Location)))
 		p.Shutdown()
 	}
 
