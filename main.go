@@ -10,6 +10,7 @@ import (
 	"github.com/NBISweden/sda-cli/decrypt"
 	"github.com/NBISweden/sda-cli/download"
 	"github.com/NBISweden/sda-cli/encrypt"
+	zenGui "github.com/NBISweden/sda-cli/gui"
 	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/NBISweden/sda-cli/htsget"
 	"github.com/NBISweden/sda-cli/list"
