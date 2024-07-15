@@ -2,6 +2,7 @@ package gui
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 
 	"github.com/ncruces/zenity"
@@ -28,4 +29,17 @@ func convertActions(actions []reflect.Value) []string {
 		stringActions = append(stringActions, action.Interface().(string))
 	}
 	return stringActions
+}
+
+// keyPath is a function for returning the crypt4gh public key path
+// by using the select file feature
+func keyPath() (string, error) {
+	defaultPath := os.Getenv("PWD")
+	pubKeyPath, err := zenity.SelectFile(zenity.Filename(defaultPath))
+	if err != nil {
+		fmt.Println("Error in select public key")
+		return "", err
+	}
+
+	return pubKeyPath, nil
 }
