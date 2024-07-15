@@ -57,3 +57,13 @@ func addFiles() ([]string, error) {
 
 	return filesPath, nil
 }
+
+// infoWindow is a function for creating an information window with a title and a text
+func infoWindow(windowTitle, windowText string) error {
+	err := zenity.Info(windowText, zenity.Title(windowTitle), zenity.NoIcon)
+	if err != nil {
+		fmt.Println("Error in displaying information message")
+		return err
+	}
+	return nil
+}
