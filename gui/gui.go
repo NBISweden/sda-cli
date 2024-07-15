@@ -5,22 +5,33 @@ import (
 	"os"
 	"reflect"
 
+	"github.com/NBISweden/sda-cli/encrypt"
 	"github.com/ncruces/zenity"
 )
 
-// Default path when a file selection window opens
-var defaultPath = os.Getenv("PWD")
+var (
+	defaultPath = os.Getenv("PWD")
+	args        []string
+)
 
 func ZenityGui(allActions []reflect.Value) error {
 	availableActions := convertActions(allActions)
 	// Create a list of the available actions
-	actions, err := zenity.List("Select an action", availableActions)
+	selectedAction, err := zenity.List("Select an action", availableActions)
 	if err != nil {
 		fmt.Println("Error in list: ", err)
 		return err
 	}
 
-	fmt.Println("Action: ", actions)
+	fmt.Println("Action: ", selectedAction)
+
+	switch selectedAction {
+	case "encrypt":
+		err = encryptCase()
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -29,6 +40,9 @@ func ZenityGui(allActions []reflect.Value) error {
 func convertActions(actions []reflect.Value) []string {
 	var stringActions []string
 	for _, action := range actions {
+		if action.String() == "gui" {
+			continue
+		}
 		stringActions = append(stringActions, action.Interface().(string))
 	}
 	return stringActions
