@@ -67,3 +67,49 @@ func infoWindow(windowTitle, windowText string) error {
 	}
 	return nil
 }
+
+// encryptCase is a function for collecting all the info needed to call the encrypt module
+// and encrypt files.
+// - Get the key path
+// - Get the file paths
+// - Create a slice with the args
+// - Encrypt the files
+// TODO add the feature of using multiple keys
+func encryptCase() error {
+	args = append(args, "encrypt")
+
+	err := infoWindow(
+		"Load crypt4gh public key",
+		"In the next step choose the crypt4gh public key which will be used for encrypting the files.",
+	)
+	if err != nil {
+		return err
+	}
+
+	publicKeyPath, err := keyPath()
+	if err != nil {
+		return err
+	}
+	args = append(args, "-key", publicKeyPath)
+
+	err = infoWindow(
+		"Ready to add files for encryption",
+		"The public key has been loaded. In the next step choose files to encrypt",
+	)
+	if err != nil {
+		return err
+	}
+
+	files, err := addFiles()
+	if err != nil {
+		return err
+	}
+	args = append(args, files...)
+
+	err = encrypt.Encrypt(args)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
