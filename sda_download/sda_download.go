@@ -15,6 +15,7 @@ import (
 	"slices"
 	"strings"
 
+	s3Download "github.com/NBISweden/sda-cli/download"
 	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
@@ -127,6 +128,13 @@ func SdaDownload(args []string) error {
 		)
 	}
 
+	// Check if --from-file flag is set and only one file is provided
+	if *fromFile && len(Args.Args()) != 1 {
+		return fmt.Errorf(
+			"one file should be provided with --from-file flag",
+		)
+	}
+
 	// Get the configuration file or the .sda-cli-session
 	config, err := helpers.GetAuth(*configPath)
 	if err != nil {
@@ -144,6 +152,8 @@ func SdaDownload(args []string) error {
 	// then download all the files in the dataset.
 	// Case where the user is setting the --recursive flag
 	// then download the content of the path
+	// Case where the user is setting the --from-file flag
+	// then download the files from the file list
 	// Default case, download the provided files.
 	case *datasetdownload:
 		err = datasetCase(config.AccessToken)
@@ -155,8 +165,13 @@ func SdaDownload(args []string) error {
 		if err != nil {
 			return err
 		}
+	case *fromFile:
+		err = fileCase(config.AccessToken, true)
+		if err != nil {
+			return err
+		}
 	default:
-		err = fileCase(config.AccessToken)
+		err = fileCase(config.AccessToken, false)
 		if err != nil {
 			return err
 		}
@@ -236,11 +251,21 @@ func recursiveCase(token string) error {
 	return nil
 }
 
-func fileCase(token string) error {
-	fmt.Println("Downloading files")
-	// Get the files from the arguments
+func fileCase(token string, fileList bool) error {
 	var files []string
-	files = append(files, Args.Args()...)
+	if fileList {
+		// get the files from the file list
+		fmt.Println("Downloading files from file list")
+		fileList, err := s3Download.GetURLsFile(Args.Args()[0])
+		if err != nil {
+			return err
+		}
+		files = append(files, fileList...)
+	} else {
+		// get the files from the arguments
+		fmt.Println("Downloading files")
+		files = append(files, Args.Args()...)
+	}
 
 	*pubKeyPath = strings.TrimSpace(*pubKeyPath)
 	var pubKeyBase64 string
