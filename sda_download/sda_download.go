@@ -25,7 +25,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s sda-download -config <s3config-file> -dataset-id <datasetID> -url <uri> (--pubkey <public-key-file>) (-outdir <dir>) ([filepath(s) or fileid(s)] or --dataset or --recursive <dirpath>)
+USAGE: %s sda-download -config <s3config-file> -dataset-id <datasetID> -url <uri> (--pubkey <public-key-file>) (-outdir <dir>) ([filepath(s) or fileid(s)] or --dataset or --recursive <dirpath>) or --from-file <list-filepath>
 
 sda-download:
 	Downloads files from the Sensitive Data Archive (SDA) by using APIs from the given url. The user
@@ -34,6 +34,7 @@ sda-download:
 	When the -pubkey flag is used, the downloaded files will be server-side encrypted with the given public key.
     If the --dataset flag is used, all files in the dataset will be downloaded.
     If the --recursive flag is used, all files in the directory will be downloaded.
+    If the --from-file flag is used, all the files that are in the file will be downloaded.
     `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
@@ -48,7 +49,9 @@ var ArgHelp = `
     	[fileid(s)]
         	The file ID of the file to download.
     	[dirpath]
-        	The directory path to download all files recursively.`
+        	The directory path to download all files recursively.
+        [list-filepath]
+            The path to the file that contains the list of files to download.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
@@ -68,6 +71,8 @@ var pubKeyPath = Args.String("pubkey", "",
 	"Public key file to use for encryption of files to download.")
 
 var recursiveDownload = Args.Bool("recursive", false, "Download content of the folder.")
+
+var fromFile = Args.Bool("from-file", false, "Download files from file list.")
 
 // necessary for mocking in testing
 var getResponseBody = getBody
