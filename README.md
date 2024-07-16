@@ -260,6 +260,7 @@ For downloading files the user also needs to know the download service URL and t
 - specific files by using their paths
 - specific files by using their file ids
 - multiple files recursively
+- multiple files by providing a text file with the paths of the files to download
 - all the files of the dataset
 - specific encrypted files
 
@@ -284,6 +285,15 @@ For downloading the content of a folder (including subfolders) the user need to 
 
 ```bash
 ./sda-cli sda-download -config <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> --recursive path/to/folder1 path/to/folder2 ...
+```
+
+#### Download from file
+
+For downloading multiple files the user can provide a text file with the paths of the files to download. The file should contain one path per line.
+In this case user needs to use the `--from-file` flag and at the end user needs to provide the path of the text file with the paths of the files to download:
+
+```bash
+./sda-cli sda-download -config <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> --from-file <path/to/text_file>
 ```
 
 #### Download all the files of the dataset
