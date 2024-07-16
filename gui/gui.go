@@ -54,16 +54,16 @@ func convertActions(actions []reflect.Value) []string {
 	return stringActions
 }
 
-// keyPath is a function for returning the crypt4gh public key path
+// singleSelection is a function for returning the crypt4gh public key path
 // by using the select file feature
-func keyPath() (string, error) {
-	pubKeyPath, err := zenity.SelectFile(zenity.Filename(defaultPath))
+func singleSelection() (string, error) {
+	filePath, err := zenity.SelectFile(zenity.Filename(defaultPath))
 	if err != nil {
 		fmt.Println("Error in select public key")
 		return "", err
 	}
 
-	return pubKeyPath, nil
+	return filePath, nil
 }
 
 // addFiles function is returning multiple filepaths by using the
@@ -106,7 +106,7 @@ func encryptCase() error {
 		return err
 	}
 
-	publicKeyPath, err := keyPath()
+	publicKeyPath, err := singleSelection()
 	if err != nil {
 		return err
 	}
@@ -147,7 +147,7 @@ func uploadCase() error {
 		return err
 	}
 
-	configPath, err := keyPath()
+	configPath, err := singleSelection()
 	if err != nil {
 		return err
 	}
