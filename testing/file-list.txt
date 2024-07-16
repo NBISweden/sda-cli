@@ -1,0 +1,2 @@
+main/subfolder/dummy_data.c4gh
+main/subfolder2/dummy_data2.c4gh

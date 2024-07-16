@@ -443,4 +443,27 @@ fi
 
 rm -r download-fileid
 
+# Download the file paths content of a text file
+echo "Downloading content of a text file"
+./sda-cli sda-download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-from-file --from-file testing/file-list.txt
+
+# Check if the content of the text file has been downloaded
+content_paths="download-from-file/main/subfolder/dummy_data download-from-file/main/subfolder2/dummy_data2"
+
+for content_path in $content_paths; do
+    if [ ! -f "$content_path" ]; then
+        echo "Content of the text file $content_path is missing"
+        exit 1
+    fi
+done
+
+# Check the first line of the file
+first_line_file=$(head -n 1 download-from-file/main/subfolder/dummy_data)
+if [[ $first_line_file != *"THIS FILE IS JUST DUMMY DATA"* ]]; then
+    echo "First line does not contain the expected string"
+    exit 1
+fi
+
+rm -r download-from-file
+
 echo "Integration test finished successfully"
