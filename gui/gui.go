@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"github.com/NBISweden/sda-cli/encrypt"
+	"github.com/NBISweden/sda-cli/upload"
 	"github.com/ncruces/zenity"
 )
 
@@ -28,6 +29,11 @@ func ZenityGui(allActions []reflect.Value) error {
 	switch selectedAction {
 	case "encrypt":
 		err = encryptCase()
+		if err != nil {
+			return err
+		}
+	case "upload":
+		err = uploadCase()
 		if err != nil {
 			return err
 		}
@@ -121,6 +127,47 @@ func encryptCase() error {
 	args = append(args, files...)
 
 	err = encrypt.Encrypt(args)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// uploadCase is a function for collecting all the info needed to call the upload module
+// and upload files.
+func uploadCase() error {
+	args = append(args, "upload")
+
+	err := infoWindow(
+		"Load the config file",
+		"In the next step choose the config file which has been downloaded from the auth srvice",
+	)
+	if err != nil {
+		return err
+	}
+
+	configPath, err := keyPath()
+	if err != nil {
+		return err
+	}
+	args = append(args, "-config", configPath)
+
+	err = infoWindow(
+		"Ready to add files for encryption",
+		"The public key has been loaded. In the next step choose files to encrypt",
+	)
+	if err != nil {
+		return err
+	}
+
+	files, err := addFiles()
+	if err != nil {
+		return err
+	}
+	args = append(args, files...)
+
+	err = upload.Upload(args)
 	if err != nil {
 		return err
 	}
