@@ -15,6 +15,7 @@ import (
 	"slices"
 	"strings"
 
+	s3Download "github.com/NBISweden/sda-cli/download"
 	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
@@ -25,7 +26,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s sda-download -config <s3config-file> -dataset-id <datasetID> -url <uri> (--pubkey <public-key-file>) (-outdir <dir>) ([filepath(s) or fileid(s)] or --dataset or --recursive <dirpath>)
+USAGE: %s sda-download -config <s3config-file> -dataset-id <datasetID> -url <uri> (--pubkey <public-key-file>) (-outdir <dir>) ([filepath(s) or fileid(s)] or --dataset or --recursive <dirpath>) or --from-file <list-filepath>
 
 sda-download:
 	Downloads files from the Sensitive Data Archive (SDA) by using APIs from the given url. The user
@@ -34,6 +35,7 @@ sda-download:
 	When the -pubkey flag is used, the downloaded files will be server-side encrypted with the given public key.
     If the --dataset flag is used, all files in the dataset will be downloaded.
     If the --recursive flag is used, all files in the directory will be downloaded.
+    If the --from-file flag is used, all the files that are in the file will be downloaded.
     `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
@@ -48,7 +50,9 @@ var ArgHelp = `
     	[fileid(s)]
         	The file ID of the file to download.
     	[dirpath]
-        	The directory path to download all files recursively.`
+        	The directory path to download all files recursively.
+        [list-filepath]
+            The path to the file that contains the list of files to download.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
@@ -68,6 +72,8 @@ var pubKeyPath = Args.String("pubkey", "",
 	"Public key file to use for encryption of files to download.")
 
 var recursiveDownload = Args.Bool("recursive", false, "Download content of the folder.")
+
+var fromFile = Args.Bool("from-file", false, "Download files from file list.")
 
 // necessary for mocking in testing
 var getResponseBody = getBody
@@ -122,6 +128,13 @@ func SdaDownload(args []string) error {
 		)
 	}
 
+	// Check if --from-file flag is set and only one file is provided
+	if *fromFile && len(Args.Args()) != 1 {
+		return fmt.Errorf(
+			"one file should be provided with --from-file flag",
+		)
+	}
+
 	// Get the configuration file or the .sda-cli-session
 	config, err := helpers.GetAuth(*configPath)
 	if err != nil {
@@ -139,6 +152,8 @@ func SdaDownload(args []string) error {
 	// then download all the files in the dataset.
 	// Case where the user is setting the --recursive flag
 	// then download the content of the path
+	// Case where the user is setting the --from-file flag
+	// then download the files from the file list
 	// Default case, download the provided files.
 	case *datasetdownload:
 		err = datasetCase(config.AccessToken)
@@ -150,8 +165,13 @@ func SdaDownload(args []string) error {
 		if err != nil {
 			return err
 		}
+	case *fromFile:
+		err = fileCase(config.AccessToken, true)
+		if err != nil {
+			return err
+		}
 	default:
-		err = fileCase(config.AccessToken)
+		err = fileCase(config.AccessToken, false)
 		if err != nil {
 			return err
 		}
@@ -231,11 +251,21 @@ func recursiveCase(token string) error {
 	return nil
 }
 
-func fileCase(token string) error {
-	fmt.Println("Downloading files")
-	// Get the files from the arguments
+func fileCase(token string, fileList bool) error {
 	var files []string
-	files = append(files, Args.Args()...)
+	if fileList {
+		// get the files from the file list
+		fmt.Println("Downloading files from file list")
+		fileList, err := s3Download.GetURLsFile(Args.Args()[0])
+		if err != nil {
+			return err
+		}
+		files = append(files, fileList...)
+	} else {
+		// get the files from the arguments
+		fmt.Println("Downloading files")
+		files = append(files, Args.Args()...)
+	}
 
 	*pubKeyPath = strings.TrimSpace(*pubKeyPath)
 	var pubKeyBase64 string
