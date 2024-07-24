@@ -1,227 +1,314 @@
-version: "3.7"
+# Services auth, download and s3inbox in this file will try to connect to the ls-aai-mock service.
+# Remember to start the later while this stack is being deployed. See documentation for more details.
+
 services:
-  s3_backend:
-    command: server /data
-    container_name: s3
-    environment:
-      - MINIO_ACCESS_KEY=ElixirID
-      - MINIO_SECRET_KEY=987654321
-    healthcheck:
-      test: ["CMD", "curl", "-fkq", "http://localhost:9000/minio/health/live"]
-      interval: 5s
-      timeout: 20s
-      retries: 3
-    image: minio/minio:RELEASE.2021-02-14T04-01-33Z
-    ports:
-      - "9000:9000"
-    volumes:
-      - data:/data
-  createbucket:
-    container_name: buckets
-    image: minio/mc:RELEASE.2021-02-14T04-28-06Z
-    depends_on:
-      - s3_backend
-    entrypoint: >
-      /bin/sh -c "
-      /bin/sleep 30;
-      /usr/bin/mc config host add s3 http://s3:9000 ElixirID 987654321;
-      /usr/bin/mc rm -r --force s3/test;
-      /usr/bin/mc mb s3/test;
-      /usr/bin/mc mb s3/download;
-      /usr/bin/mc mb s3/archive;
-      /usr/bin/mc policy set public s3/download;
-      "
-  rabbitmq:
-    image: ghcr.io/neicnordic/sensitive-data-archive:${TAG}-rabbitmq
-    container_name: rabbitmq
-    environment:
-     - RABBITMQ_DEFAULT_PASS=test
-     - RABBITMQ_DEFAULT_USER=test
-     - MQ_VHOST=sda
-    ports:
-      - "15672:15672"
-      - "5672:5672"
-    healthcheck:
-      test: ["CMD", "bash", "-c", "rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_local_alarms"]
-      interval: 5s
-      timeout: 120s
-      retries: 10
-  s3_proxy:
-    image: "ghcr.io/neicnordic/sensitive-data-archive:${TAG}"
-    command: [ sda-s3inbox ]
-    container_name: proxy
+  credentials:
+    container_name: credentials
+    command:
+      - "/bin/sh"
+      - "/scripts/make_credentials.sh"
     depends_on:
       rabbitmq:
         condition: service_healthy
-      s3_backend:
-        condition: service_healthy
       postgres:
         condition: service_healthy
-    restart: always
     environment:
-      - LOG_LEVEL=info
-      - INBOX_URL=http://s3
-      - INBOX_PORT=9000
-      - INBOX_ACCESSKEY=ElixirID
-      - INBOX_SECRETKEY=987654321
-      - INBOX_BUCKET=test
-      - INBOX_REGION=us-east-1
-      - INBOX_READYPATH=/minio/health/ready
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=postgres
-      - DB_PASSWORD=rootpasswd
-      - DB_DATABASE=sda
-      - DB_SSLMODE=disable
-      - BROKER_HOST=rabbitmq
-      - BROKER_USER=test
-      - BROKER_PASSWORD=test
-      - BROKER_PORT=5672
-      - BROKER_VHOST=sda
-      - BROKER_EXCHANGE=sda
-      - BROKER_ROUTINGKEY=inbox
-      - BROKER_SSL=False
-      - SERVER_JWTPUBKEYPATH=/keys/
-      - LOG_FORMAT=json
+      - PGPASSWORD=${credentials_PGPASSWORD}
+    image: python:3.10-slim
+    networks:
+      - secure
     volumes:
-      - ./keys/:/keys/
-    ports:
-      - "8000:8000"
-      - "8001:8001"
-  postgres:
-    container_name: postgres
-    environment:
-      - POSTGRES_PASSWORD=rootpasswd
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 2s
-      retries: 6
-    image: ghcr.io/neicnordic/sensitive-data-archive:${TAG}-postgres
-    ports:
-      - "5432:5432"
-    volumes:
-      - dbdata:/var/lib/postgresql/data
-  ## mock oidc server is configured only for device flow,
-  ## the client_id corresponds to the sda-cli client, not sda-auth
-  oidc:
-    profiles: ["login"]
-    container_name: oidc
-    build:
-      context: ./oidc
-      dockerfile: Dockerfile
-    image: mock-oidc-user-server
-    environment:
-      - PORT=9090
-      - HOST=localhost
-      - CLIENT_ID=sda-cli
-      - CLIENT_REDIRECT_URI=http://localhost:8080/elixir/login
-    ports:
-      - 9090:9090
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9090/.well-known/openid-configuration"]
-      interval: 5s
-      timeout: 10s
-      retries: 4
-  keygen:
-    profiles: ["login"]
-    image: golang:alpine3.16
-    container_name: keygen
-    command:
-      - "/bin/sh"
-      - "-c"
-      - if [ ! -f "/out/c4gh.sec.pem" ]; then wget -qO- "https://github.com/neicnordic/crypt4gh/releases/latest/download/crypt4gh_linux_x86_64.tar.gz" | tar zxf -;
-        ./crypt4gh generate -n /shared/c4gh -p privatekeypass; fi;
-    volumes:
+      - ./scripts:/scripts
       - shared:/shared
-  ## auth is here only for providing the /info endpoint, no other functionality will work with current configuration
+      - cacert:/cacert
+
   auth:
-    profiles: ["login"]
     container_name: auth
-    image: "ghcr.io/neicnordic/sensitive-data-archive:${TAG}-auth"
+    command: sda-auth
+    image: ghcr.io/neicnordic/sensitive-data-archive:v0.3.25
     depends_on:
-      oidc:
-        condition: service_healthy
-      keygen:
-          condition: service_completed_successfully
+      credentials:
+        condition: service_completed_successfully
     environment:
-      - ELIXIR_ID=sda-cli
-      - ELIXIR_PROVIDER=http://${DOCKERHOST:-localhost}:9090
-      - ELIXIR_SECRET=wHPVQaYXmdDHg  #not used but required so that auth starts
-      - S3INBOX=s3.example.com
-      - PUBLICFILE=/shared/c4gh.pub.pem
+      - OIDC_ID=${auth_ELIXIR_ID}
+      - OIDC_PROVIDER=http://${DOCKERHOST:-localhost}:8080/oidc/
+      - OIDC_SECRET=${auth_ELIXIR_SECRET}
+      - OIDC_JWKPATH=jwk
+      - OIDC_REDIRECTURL=http://localhost:8085/oidc/login
+      - LOG_LEVEL=debug
       - RESIGNJWT=false
     extra_hosts:
       - ${DOCKERHOST:-localhost}:host-gateway
     volumes:
       - shared:/shared
+      - ${CONFIG_FILEPATH}:/config.yaml
     ports:
-      - 8080:8080
-  # mock oidc server for testing the download endpoint
-  mockauth:
-    command:
-      - /bin/sh
-      - -c
-      - |
-        pip install --upgrade pip
-        pip install aiohttp Authlib
-        python -u /mockoidc.py
-    container_name: mockauth
-    image: python:3.10-slim
-    volumes:
-      - ./mockoidc/mockoidc.py:/mockoidc.py
-    mem_limit: 256m
-    ports:
-      - "8002:8000"
+      - 8085:8080
     restart: always
+
+  rabbitmq:
+    container_name: rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_PASS=${rabbitmq_MQ_PASSWORD}
+      - RABBITMQ_DEFAULT_USER=${rabbitmq_MQ_USER}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "sh",
+          "-c",
+          "rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_local_alarms"
+        ]
+      interval: 5s
+      timeout: 20s
+      retries: 20
+    image: ghcr.io/neicnordic/sensitive-data-archive:v0.3.25-rabbitmq
+    networks:
+      - secure
+    ports:
+      - 15672:15672
+    restart: always
+
+  postgres:
+    container_name: postgres
+    environment:
+      - POSTGRES_PASSWORD=${postgres_POSTGRES_PASSWORD}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "pg_isready",
+          "-h",
+          "localhost",
+          "-U",
+          "postgres"
+        ]
+      interval: 5s
+      timeout: 20s
+      retries: 20
+    image: ghcr.io/neicnordic/sensitive-data-archive:v0.3.25-postgres
+    networks:
+      - secure
+    restart: always
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  s3:
+    command: server /data  --console-address ":9001"
+    container_name: s3
+    environment:
+      - MINIO_ROOT_USER=${s3_MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${s3_MINIO_ROOT_PASSWORD}
+      - MINIO_SERVER_URL=${s3_MINIO_SERVER_URL}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-fq",
+          "http://localhost:9000/minio/health/live"
+        ]
+      interval: 5s
+      timeout: 20s
+      retries: 3
+    image: minio/minio:RELEASE.2023-10-25T06-33-25Z
+    networks:
+      - secure
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    restart: always
+    volumes:
+      - s3data:/data
+
+  ## data ingest pipeline
   download:
     command: sda-download
     container_name: download
     depends_on:
+      credentials:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
-      s3_backend:
+      s3:
         condition: service_healthy
-      mockauth:
-        condition: service_started
     environment:
-      - ARCHIVE_URL=http://s3
-      - ARCHIVE_TYPE=s3
-      - ARCHIVE_PORT=9000
-      - ARCHIVE_ACCESSKEY=ElixirID
-      - ARCHIVE_SECRETKEY=987654321
-      - ARCHIVE_BUCKET=archive
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=postgres
-      - DB_PASSWORD=rootpasswd
-      - DB_DATABASE=sda
-      - DB_SSLMODE=disable
-      - OIDC_CONFIGURATION_URL=http://mockauth:8000/.well-known/openid-configuration
-      - GRPC_PORT=50051
-      - GRPC_HOST=reencrypt
-      - APP_SERVEUNENCRYPTEDDATA=true
-    image: "ghcr.io/neicnordic/sensitive-data-archive:${TAG}-download"
-    volumes:
-      - ./archive_data/4293c9a7-dc50-46db-b79a-27ddc0dad1c6:/tmp/4293c9a7-dc50-46db-b79a-27ddc0dad1c6
-    mem_limit: 256m
+      - DB_PASSWORD=${download_DB_PASSWORD}
+      - DB_USER=${download_DB_USER}
+      - OIDC_CONFIGURATION_URL=http://${DOCKERHOST:-dockerhost}:8080/oidc/.well-known/openid-configuration
+      #- ARCHIVE_TYPE=s3seekable
+    extra_hosts:
+      - ${DOCKERHOST:-dockerhost}:host-gateway
+    image: harbor.nbis.se/gdi/sda-download:20240415
+    networks:
+      - public
+      - secure
     ports:
-      - "8080:8080"
+      - 8443:8443
     restart: always
+    volumes:
+      - ${CONFIG_FILEPATH}:/config.yaml
+      - ${ISS_FILEPATH}:/iss.json
+      - shared:/shared
+
+  finalize:
+    command: sda-finalize
+    container_name: finalize
+    depends_on:
+      credentials:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      s3:
+        condition: service_healthy
+    environment:
+      - BROKER_PASSWORD=${finalize_BROKER_PASSWORD}
+      - BROKER_QUEUE=${finalize_BROKER_QUEUE}
+      - BROKER_ROUTINGKEY=${finalize_BROKER_ROUTINGKEY}
+      - BROKER_USER=${finalize_BROKER_USER}
+      - DB_PASSWORD=${finalize_DB_PASSWORD}
+      - DB_USER=${finalize_DB_USER}
+    image: ghcr.io/neicnordic/sensitive-data-archive:v0.3.25
+    networks:
+      - secure
+    restart: always
+    volumes:
+      - ${CONFIG_FILEPATH}:/config.yaml
+
+  ingest:
+    command: sda-ingest
+    container_name: ingest
+    depends_on:
+      credentials:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      s3:
+        condition: service_healthy
+    environment:
+      - BROKER_PASSWORD=${ingest_BROKER_PASSWORD}
+      - BROKER_QUEUE=${ingest_BROKER_QUEUE}
+      - BROKER_ROUTINGKEY=${ingest_BROKER_ROUTINGKEY}
+      - BROKER_USER=${ingest_BROKER_USER}
+      - DB_PASSWORD=${ingest_DB_PASSWORD}
+      - DB_USER=${ingest_DB_USER}
+    image: ghcr.io/neicnordic/sensitive-data-archive:v0.3.25
+    networks:
+      - secure
+    restart: always
+    volumes:
+      - ${CONFIG_FILEPATH}:/config.yaml
+      - shared:/shared
+
+  mapper:
+    command: sda-mapper
+    container_name: mapper
+    depends_on:
+      credentials:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      s3:
+        condition: service_healthy
+    environment:
+      - BROKER_PASSWORD=${mapper_BROKER_PASSWORD}
+      - BROKER_QUEUE=${mapper_BROKER_QUEUE}
+      - BROKER_USER=${mapper_BROKER_USER}
+      - DB_PASSWORD=${mapper_DB_PASSWORD}
+      - DB_USER=${mapper_DB_USER}
+    image: ghcr.io/neicnordic/sensitive-data-archive:v0.3.25
+    networks:
+      - secure
+    restart: always
+    volumes:
+      - ${CONFIG_FILEPATH}:/config.yaml
+
+  verify:
+    command: sda-verify
+    container_name: verify
+    depends_on:
+      credentials:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      s3:
+        condition: service_healthy
+    environment:
+      - BROKER_PASSWORD=${verify_BROKER_PASSWORD}
+      - BROKER_QUEUE=${verify_BROKER_QUEUE}
+      - BROKER_ROUTINGKEY=${verify_BROKER_ROUTINGKEY}
+      - BROKER_USER=${verify_BROKER_USER}
+      - DB_PASSWORD=${verify_DB_PASSWORD}
+      - DB_USER=${verify_DB_USER}
+    image: ghcr.io/neicnordic/sensitive-data-archive:v0.3.25
+    networks:
+      - secure
+    restart: always
+    volumes:
+      - ${CONFIG_FILEPATH}:/config.yaml
+      - shared:/shared
+
+  s3inbox:
+    command: sda-s3inbox
+    container_name: s3inbox
+    depends_on:
+      credentials:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      s3:
+        condition: service_healthy
+    environment:
+      - BROKER_PASSWORD=${s3inbox_BROKER_PASSWORD}
+      - BROKER_ROUTINGKEY=${s3inbox_BROKER_ROUTINGKEY}
+      - BROKER_USER=${s3inbox_BROKER_USER}
+      - DB_PASSWORD=${s3inbox_DB_PASSWORD}
+      - DB_USER=${s3inbox_DB_USER}
+      - SERVER_JWTPUBKEYURL=http://${DOCKERHOST:-dockerhost}:8080/oidc/jwk
+    extra_hosts:
+      - ${DOCKERHOST:-dockerhost}:host-gateway
+    image: ghcr.io/neicnordic/sensitive-data-archive:v0.3.25
+    networks:
+      - public
+      - secure
+    ports:
+      - "8000:8000"
+    restart: always
+    volumes:
+      - ${CONFIG_FILEPATH}:/config.yaml
+      - shared:/shared
+
   reencrypt:
-    image: ghcr.io/neicnordic/sensitive-data-archive:${TAG}
-    command: [ sda-reencrypt ]
+    command: sda-reencrypt
     container_name: reencrypt
-    environment:
-      - LOG_LEVEL=debug
-      - C4GH_PASSPHRASE=oaagCP1YgAZeEyl2eJAkHv9lkcWXWFgm
-      - C4GH_FILEPATH=/dev_utils/c4gh.sec.pem
-    ports:
-      - "50051:50051"
+    depends_on:
+      credentials:
+        condition: service_completed_successfully
+    image: ghcr.io/neicnordic/sensitive-data-archive:v0.3.25
+    networks:
+      - secure
     restart: always
     volumes:
-      - ./:/dev_utils/
+      - ${CONFIG_FILEPATH}:/config.yaml
+      - shared:/shared
+      - cacert:/cacert
+
 volumes:
-  data:
-  dbdata:
+  cacert:
+  pgdata:
   shared:
+  s3data:
+
+networks:
+  public:
+  secure:

@@ -1,0 +1,142 @@
+services:
+  server:
+    image: harbor.nbis.se/gdi/htsget-refserver:0.1.0
+    container_name: htsget-server
+    command:
+      - /usr/src/app/htsget-refserver
+      - -config
+      - /config/config.json
+    networks:
+      - public
+      - secure
+    ports:
+      - 3000:3000
+    volumes:
+      # If you want to start the docker compose without tls, remove the line below,
+      # remove the testing_shared volume from the bottom
+      # of the file and the relevant configuration from the config-htsget/config.json
+      # file, which are the lines for serverCert and serverKey.
+      # The TLS version assumes that this compose file is running along with the
+      # storage and interfaces.
+      # If you want to run the htsget with TLS but without the storage and interfaces,
+      # add the certificates in the volume below
+      - testing_shared:/shared
+      - ./config-htsget:/config  # copy any *.json.example files to *.json beforehand
+      - ./logs:/logs
+    extra_hosts:
+    - dockerhost:host-gateway
+
+  client:
+    image: python:3.11-slim
+    container_name: htsget-client
+    networks:
+      - public
+      - secure
+    command:
+      - /bin/bash
+      - -c
+      - apt update; apt install -y curl;
+        if ! which htsget >/dev/null; then pip install htsget; fi;
+        while true; do sleep 250; done
+    extra_hosts:
+    - dockerhost:host-gateway
+  
+  samtools:
+    image: staphb/samtools:1.17
+    container_name: samtools-client
+    networks:
+      - public
+      - secure
+    command:
+      - /bin/bash
+      - -c 
+      - apt update; apt install -y curl jq;
+        while true; do sleep 250; done
+    volumes:
+      - testing_shared:/shared
+    extra_hosts:
+    - dockerhost:host-gateway
+  
+  s3public:
+    profiles: ["demo"]
+    command: server /data --console-address ":9001"
+    container_name: s3public
+    depends_on:
+      server:
+        condition: service_started
+    environment:
+      - MINIO_ROOT_USER=access
+      - MINIO_ROOT_PASSWORD=secretkey
+      - MINIO_SERVER_URL=http://127.0.0.1:9000
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-fq",
+          "http://localhost:9000/minio/health/live"
+        ]
+      interval: 5s
+      timeout: 20s
+      retries: 3
+    image: minio/minio:RELEASE.2023-02-10T18-48-39Z
+    networks:
+      - secure
+    ports:
+      - "9003:9000"
+      - "9004:9001"
+    restart: always
+    volumes:
+      - s3pubdata:/data
+  
+  createbucket:
+    profiles: ["demo"]
+    image: minio/mc
+    container_name: mc-s3
+    depends_on:
+      s3public:
+        condition: service_started
+    networks:
+      - secure
+    entrypoint: >
+      /bin/sh -c "
+      sleep 10;
+      /usr/bin/mc -q config host add s3 http://s3public:9000 access secretkey;
+      /usr/bin/mc -q mb s3/inbox;
+      /usr/bin/mc anonymous set public s3/inbox;
+      /usr/bin/mc cp /data/NA12878.bam s3/inbox/NA12878.bam;
+      exit 0;
+      "
+    volumes:
+      - ./demo-data:/data
+    
+  data_downloader:
+    profiles: ["demo"]
+    image: staphb/samtools:1.17
+    container_name: data-downloader
+    depends_on:
+      createbucket:
+        condition: service_completed_successfully
+    networks:
+      - public
+      - secure
+    command:
+      - /bin/bash
+      - -c 
+      - export HTS_ALLOW_UNENCRYPTED_AUTHORIZATION_HEADER="I understand the risks";
+        export HTS_AUTH_LOCATION=token.txt;
+        echo "some-token" > token.txt;
+        apt update; apt install -y curl jq;
+        samtools view -b http://server:3000/reads/pub/NA12878.bam > NA12878.bam;
+       exit 0;
+    volumes:
+      - ./output:/data
+
+volumes:
+  s3pubdata:
+  testing_shared:
+    external: true
+
+networks:
+  public:
+  secure:

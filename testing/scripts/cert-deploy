@@ -1,0 +1,65 @@
+#!/bin/sh
+
+# This script is designed to be run from certbot using its --deploy-hook
+# mechanism:
+#
+#	certbot ... --deploy-hook cert-deploy
+#
+# When certbot calls the script, it sets the RENEWED_LINEAGE variable.
+# This variable, according to the certbot manual,
+#
+#       [...] will point to the config live subdirectory (for example,
+#       "/etc/letsencrypt/live/example.com") containing the new
+#       certificates and keys
+#
+# That path and all files beneath it will be replicated as-is in
+# the volume configured below.  That means that if the host stores
+# certificates in "/etc/letsencrypt" and a container mounts the
+# shared volume at "/shared", the certificates will be available in
+# "/shared/etc/letsencrypt".
+#
+# Any running container mounting the named volume will then be
+# restarted.
+
+set -e -u
+
+if [ "${RENEWED_LINEAGE:+set}" != set ]; then
+	cat <<-'END_ERROR' >&2
+		The RENEWED_LINEAGE environment variable is empty or not set at all.
+		This indicates that the script was invoked improperly.  Ensure that the
+		script is either called from certbot using its --deploy-hook facility,
+		or that you set the RENEWED_LINEAGE variable to the correct directory
+		path in the script's environment by other means.
+	END_ERROR
+	exit 1
+fi
+
+# The shared volume:
+project=starter-kit-storage-and-interfaces
+volume=shared
+
+# Steps:
+# 1. Create temporary container that mounts the volume.
+# 2. Copy the file hierarchy to the temporary container.
+# 3. Stop the temporary container (this also deletes it).
+# 4. Restart all running volumes that are mounting the volume.
+#    Containers that don't restart within 10 seconds are forcibly
+#    stopped and then restarted.  See "docker restart --help".
+
+docker run --detach --rm \
+	--name cert-deploy \
+	--volume "${project}_$volume:/shared" \
+	busybox:stable sleep infinity
+trap 'docker stop cert-deploy' EXIT
+
+# We are assuming GNU tar here:
+tar -v -h -c -f - "$RENEWED_LINEAGE" |
+docker cp - cert-deploy:/shared
+
+docker exec cert-deploy chmod -R a+rx /shared/etc/letsencrypt
+
+docker stop cert-deploy
+trap - EXIT
+
+docker ps --filter volume="${project}_$volume" --format '{{.ID}}' |
+xargs -r docker restart
