@@ -67,16 +67,32 @@ func convertActions(actions []reflect.Value) []string {
 	return stringActions
 }
 
-// singleSelection is a function for returning the crypt4gh public key path
+// singleSelection is a function for returning filepaths or folder paths
 // by using the select file feature
-func singleSelection(windowTitle string) (string, error) {
-	filePath, err := zenity.SelectFile(
-		zenity.Filename(defaultPath),
-		zenity.Title(windowTitle),
-	)
-	if err != nil {
-		fmt.Println("Error in selection")
-		return "", err
+func singleSelection(windowTitle string, folder bool) (string, error) {
+	var filePath string
+	var err error
+
+	switch folder {
+	case true:
+		filePath, err = zenity.SelectFile(
+			zenity.Filename(defaultPath),
+			zenity.Directory(),
+			zenity.Title(windowTitle),
+		)
+		if err != nil {
+			fmt.Println("Error in folder selection")
+			return "", err
+		}
+	default:
+		filePath, err = zenity.SelectFile(
+			zenity.Filename(defaultPath),
+			zenity.Title(windowTitle),
+		)
+		if err != nil {
+			fmt.Println("Error in file selection")
+			return "", err
+		}
 	}
 
 	return filePath, nil
@@ -117,7 +133,7 @@ func infoWindow(windowTitle, windowText string) error {
 func encryptCase() error {
 	args = append(args, "encrypt")
 
-	publicKeyPath, err := singleSelection("Choose the public key file")
+	publicKeyPath, err := singleSelection("Choose the public key file", false)
 	if err != nil {
 		return err
 	}
@@ -142,7 +158,7 @@ func encryptCase() error {
 func uploadCase() error {
 	args = append(args, "upload")
 
-	configPath, err := singleSelection("Choose the config file")
+	configPath, err := singleSelection("Choose the config file", false)
 	if err != nil {
 		return err
 	}
