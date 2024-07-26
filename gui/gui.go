@@ -19,14 +19,8 @@ var (
 func ZenityGui(allActions []reflect.Value) error {
 	availableActions := convertActions(allActions)
 	// Create a list of the available actions
-	selectedAction, err := zenity.List(
-		"Select an action",
-		availableActions,
-		zenity.Width(400),
-		zenity.Height(300),
-	)
+	selectedAction, err := createList(availableActions, "Choose an action")
 	if err != nil {
-		fmt.Println("Error in list: ", err)
 		return err
 	}
 
@@ -65,6 +59,23 @@ func convertActions(actions []reflect.Value) []string {
 		stringActions = append(stringActions, action.Interface().(string))
 	}
 	return stringActions
+}
+
+// createList is a function for creating a list with a title and a slice of items
+// and returns the selected item
+func createList(listItems []string, listTitle string) (string, error) {
+	selectedItem, err := zenity.List(
+		listTitle,
+		listItems,
+		zenity.Width(400),
+		zenity.Height(300),
+	)
+	if err != nil {
+		fmt.Println("Error in list: ", err)
+		return "", err
+	}
+
+	return selectedItem, nil
 }
 
 // singleSelection is a function for returning filepaths or folder paths
