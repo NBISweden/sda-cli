@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 
 	"github.com/NBISweden/sda-cli/encrypt"
 	"github.com/NBISweden/sda-cli/upload"
@@ -18,7 +19,12 @@ var (
 func ZenityGui(allActions []reflect.Value) error {
 	availableActions := convertActions(allActions)
 	// Create a list of the available actions
-	selectedAction, err := zenity.List("Select an action", availableActions)
+	selectedAction, err := zenity.List(
+		"Select an action",
+		availableActions,
+		zenity.Width(400),
+		zenity.Height(300),
+	)
 	if err != nil {
 		fmt.Println("Error in list: ", err)
 		return err
@@ -37,6 +43,12 @@ func ZenityGui(allActions []reflect.Value) error {
 		if err != nil {
 			return err
 		}
+	default:
+		err = infoWindow("Action not implemented", "The selected action is not implemented yet")
+		if err != nil {
+			return err
+		}
+		fmt.Println("Action not implemented")
 	}
 
 	return nil
@@ -45,8 +57,9 @@ func ZenityGui(allActions []reflect.Value) error {
 // convertActions transforms the reflect value in a slice
 func convertActions(actions []reflect.Value) []string {
 	var stringActions []string
+	notInclude := "gui version"
 	for _, action := range actions {
-		if action.String() == "gui" {
+		if strings.Contains(notInclude, action.String()) {
 			continue
 		}
 		stringActions = append(stringActions, action.Interface().(string))
@@ -56,10 +69,13 @@ func convertActions(actions []reflect.Value) []string {
 
 // singleSelection is a function for returning the crypt4gh public key path
 // by using the select file feature
-func singleSelection() (string, error) {
-	filePath, err := zenity.SelectFile(zenity.Filename(defaultPath))
+func singleSelection(windowTitle string) (string, error) {
+	filePath, err := zenity.SelectFile(
+		zenity.Filename(defaultPath),
+		zenity.Title(windowTitle),
+	)
 	if err != nil {
-		fmt.Println("Error in select public key")
+		fmt.Println("Error in selection")
 		return "", err
 	}
 
@@ -69,7 +85,10 @@ func singleSelection() (string, error) {
 // addFiles function is returning multiple filepaths by using the
 // multiple files selection feature.
 func addFiles() ([]string, error) {
-	filesPath, err := zenity.SelectFileMultiple(zenity.Filename(defaultPath))
+	filesPath, err := zenity.SelectFileMultiple(
+		zenity.Filename(defaultPath),
+		zenity.Title("Choose your files"),
+	)
 	if err != nil {
 		fmt.Println("Error in adding files")
 		return []string{}, err
@@ -98,27 +117,11 @@ func infoWindow(windowTitle, windowText string) error {
 func encryptCase() error {
 	args = append(args, "encrypt")
 
-	err := infoWindow(
-		"Load crypt4gh public key",
-		"In the next step choose the crypt4gh public key which will be used for encrypting the files.",
-	)
-	if err != nil {
-		return err
-	}
-
-	publicKeyPath, err := singleSelection()
+	publicKeyPath, err := singleSelection("Choose the public key file")
 	if err != nil {
 		return err
 	}
 	args = append(args, "-key", publicKeyPath)
-
-	err = infoWindow(
-		"Ready to add files for encryption",
-		"The public key has been loaded. In the next step choose files to encrypt",
-	)
-	if err != nil {
-		return err
-	}
 
 	files, err := addFiles()
 	if err != nil {
@@ -139,27 +142,11 @@ func encryptCase() error {
 func uploadCase() error {
 	args = append(args, "upload")
 
-	err := infoWindow(
-		"Load the config file",
-		"In the next step choose the config file which has been downloaded from the auth srvice",
-	)
-	if err != nil {
-		return err
-	}
-
-	configPath, err := singleSelection()
+	configPath, err := singleSelection("Choose the config file")
 	if err != nil {
 		return err
 	}
 	args = append(args, "-config", configPath)
-
-	err = infoWindow(
-		"Ready to add files for encryption",
-		"The public key has been loaded. In the next step choose files to encrypt",
-	)
-	if err != nil {
-		return err
-	}
 
 	files, err := addFiles()
 	if err != nil {
