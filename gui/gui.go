@@ -169,8 +169,9 @@ func encryptCase() error {
 // - Get the config file path
 // - Get the upload type (folder or files)
 // - Get the folder path or the files paths
-// - Create a slice with the args
+// - Get the target directory path (optional)
 // - Upload the files
+// TODO add the feature of selecting multiple folders (move it to the addFiles function)
 func uploadCase() error {
 	args = append(args, "upload")
 
@@ -201,6 +202,27 @@ func uploadCase() error {
 			args = append(args, "-r")
 		}
 		args = append(args, files...)
+	}
+
+	targetDir, err := createList(
+		[]string{"Yes", "No"},
+		"Do you want to specify a target directory?",
+	)
+	if err != nil {
+		return err
+	}
+
+	if targetDir == "Yes" {
+		args = append(args, "-targetDir")
+		targetDirPath, err := zenity.Entry(
+			"Enter the target directory",
+			zenity.Title("Target directory"),
+		)
+		if err != nil {
+			fmt.Println("Error in target directory")
+			return err
+		}
+		args = append(args, targetDirPath)
 	}
 
 	err = upload.Upload(args)
