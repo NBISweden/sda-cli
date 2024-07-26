@@ -166,6 +166,11 @@ func encryptCase() error {
 
 // uploadCase is a function for collecting all the info needed to call the upload module
 // and upload files.
+// - Get the config file path
+// - Get the upload type (folder or files)
+// - Get the folder path or the files paths
+// - Create a slice with the args
+// - Upload the files
 func uploadCase() error {
 	args = append(args, "upload")
 
@@ -175,11 +180,28 @@ func uploadCase() error {
 	}
 	args = append(args, "-config", configPath)
 
-	files, err := addFiles()
+	chosenItem, err := createList([]string{"Upload files", "Upload folder"}, "Choose upload type")
 	if err != nil {
 		return err
 	}
-	args = append(args, files...)
+	switch chosenItem {
+	case "Upload folder":
+		args = append(args, "-r")
+		folderPath, err := singleSelection("Choose the folder to upload", true)
+		if err != nil {
+			return err
+		}
+		args = append(args, folderPath)
+	default:
+		files, err := addFiles()
+		if err != nil {
+			return err
+		}
+		if len(files) > 1 {
+			args = append(args, "-r")
+		}
+		args = append(args, files...)
+	}
 
 	err = upload.Upload(args)
 	if err != nil {
