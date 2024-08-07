@@ -173,21 +173,6 @@ will first encrypt all files in `<folder_to_upload_with_unencrypted_data>` and t
 - If the flag `--force-overwrite` is used, the tool will overwrite any already existing file.
 - The cli will exit if the input has any un-encrypred files. To override that, use the flag `--force-unencrypted`.
 
-## Get dataset size
-
-Before downloading a dataset or a specific file, the `sda-cli` tool allows for requesting the size of each file, as well as the whole dataset. In order to use this functionality, the tool expects as an argument a file containing the location of the files in the dataset. The argument can be one of the following:
-
-1. a URL to the file containing the locations of the dataset files
-2. a URL to a folder containing the `urls_list.txt` file with the locations of the dataset files
-3. the path to a local file containing the locations of the dataset files.
-
-Given this argument, the dataset size can be retrieved using the following command:
-
-```bash
-./sda-cli datasetsize <urls_file>
-```
-
-where `urls_file` as described above.
 
 ## List files
 
