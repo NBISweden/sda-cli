@@ -173,22 +173,6 @@ will first encrypt all files in `<folder_to_upload_with_unencrypted_data>` and t
 - If the flag `--force-overwrite` is used, the tool will overwrite any already existing file.
 - The cli will exit if the input has any un-encrypred files. To override that, use the flag `--force-unencrypted`.
 
-## Get dataset size
-
-Before downloading a dataset or a specific file, the `sda-cli` tool allows for requesting the size of each file, as well as the whole dataset. In order to use this functionality, the tool expects as an argument a file containing the location of the files in the dataset. The argument can be one of the following:
-
-1. a URL to the file containing the locations of the dataset files
-2. a URL to a folder containing the `urls_list.txt` file with the locations of the dataset files
-3. the path to a local file containing the locations of the dataset files.
-
-Given this argument, the dataset size can be retrieved using the following command:
-
-```bash
-./sda-cli datasetsize <urls_file>
-```
-
-where `urls_file` as described above.
-
 ## List files
 
 The uploaded files can be listed using the `list` parameter. This feature returns all the files in the user's bucket recursively and can be executed using:
@@ -208,51 +192,8 @@ If no config is given by the user, the tool will look for a previous login from 
 
 ## Download
 
-The SDA/BP archive enables for downloading files and datasets in a secure manner. That can be achieved using the `sda-cli` tool and and it can be done in two ways:
-
-- by downloading from a S3 bucket (`./sda-cli download`)
-- by using the download API (`./sda-cli sda-download`)
-
-### Download from S3 bucket
-
-This process consists of the following two steps: create keys and downloading the file. These steps are explained in the following sections.
-
-#### Create keys
-
-In order to make sure that the files are downloaded from the archive in a secure manner, the user is supposed to create the key pair that the files will be encrypted with. The key pair can be created using the following command:
-
-```bash
-./sda-cli createKey <keypair_name>
-```
-
-where `<keypair_name>` is the base name of the key files. This command will create two keys named `keypair_name.pub.pem` and `keypair_name.sec.pem`. The public key (`pub`) will be used for the encryption of the files, while the private one (`sec`) will be used in the decryption step below.
-
-**NOTE:** Make sure to keep these keys safe. Losing the keys could lead to sensitive data leaks.
-
-#### Download file
-
-The `sda-cli` tool allows for downloading file(s)/datasets. The URLs of the respective dataset files that are available for downloading are stored in a file named `urls_list.txt`. `sda-cli` allows to download files only by using such a file or the URL where it is stored. There are three different ways to pass the location of the file to the tool, similar to the [dataset size section](#get-dataset-size):
-
-1. a direct URL to `urls_list.txt` or a file with a different name but containing the locations of the dataset files
-2. a URL to a folder containing the `urls_list.txt` file
-3. the path to a local file containing the locations of the dataset files.
-
-Given this argument, the whole dataset can be retrieved using the following command:
-
-```bash
-./sda-cli download <urls_file>
-```
-
-where `urls_file` as described above.
-The tool also allows for selecting a folder where the files will be downloaded, using the `outdir` argument like:
-
-```bash
-./sda-cli download -outdir <outdir> <urls_file>
-```
-
-**Note**: If needed, the user can download a selection of files from an available dataset by providing a customized `urls_list.txt` file.
-
-### Download using the download API
+Files and datasets can be downloaded using the `download` parameter.
+This utilizes the Download API which enables secure downloads from the SDA/BP archive.
 
 The download API allows for downloading files from the archive and it requires the user to have access to the dataset, therefore a [configuration file](#download-the-configuration-file) needs to be downloaded before starting the downloading of the files.
 For downloading files the user also needs to know the download service URL and the dataset ID. The user has several options for downloading:
@@ -269,14 +210,14 @@ For downloading files the user also needs to know the download service URL and t
 For downloading one specific file the user needs to provide the path or the id (the id should **NOT** have "/") of this file by running the command below:
 
 ```bash
-./sda-cli sda-download -config <configuration_file> -dataset-id <datasetID> -url <download-service-URL> [<filepath> or <fileid>]
+./sda-cli download -config <configuration_file> -dataset-id <datasetID> -url <download-service-URL> [<filepath> or <fileid>]
 ```
 
 where `<configuration_file>` the file downloaded in the [previous step](#download-the-configuration-file), `<dataset_id>` the ID of the dataset and `<filepath>` the path of the file (or `<fileid>` the id of the file) in the dataset.
 The tool also allows for downloading multiple files at once, by listing their filepaths (or file ids) separated with space and it also allows for selecting a folder where the files will be downloaded, using the `outdir` argument:
 
 ```bash
-./sda-cli sda-download -config <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> <path/to/file1> <other/path/to/file2> ... (or <fileID_1> <fileID_2> ...)
+./sda-cli download -config <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> <path/to/file1> <other/path/to/file2> ... (or <fileID_1> <fileID_2> ...)
 ```
 
 #### Download files recursively
@@ -284,7 +225,7 @@ The tool also allows for downloading multiple files at once, by listing their fi
 For downloading the content of a folder (including subfolders) the user need to add the `--recursive` flag followed by the path(s) of the folder(s):
 
 ```bash
-./sda-cli sda-download -config <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> --recursive path/to/folder1 path/to/folder2 ...
+./sda-cli download -config <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> --recursive path/to/folder1 path/to/folder2 ...
 ```
 
 #### Download from file
@@ -293,7 +234,7 @@ For downloading multiple files the user can provide a text file with the paths o
 In this case user needs to use the `--from-file` flag and at the end user needs to provide the path of the text file with the paths of the files to download:
 
 ```bash
-./sda-cli sda-download -config <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> --from-file <path/to/text_file>
+./sda-cli download -config <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> --from-file <path/to/text_file>
 ```
 
 #### Download all the files of the dataset
@@ -301,7 +242,7 @@ In this case user needs to use the `--from-file` flag and at the end user needs 
 For downloading the whole dataset the user needs add the `--dataset` flag and NOT providing any filepaths:
 
 ```bash
-./sda-cli sda-download -config <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> --dataset
+./sda-cli download -config <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> --dataset
 ```
 
 where the dataset will be downloaded in the `<outdir>` directory be keeping the original folder structure of the dataset.
@@ -311,7 +252,7 @@ where the dataset will be downloaded in the `<outdir>` directory be keeping the 
 When a [public key](#create-keys) is provided, you can download files that are encrypted on the server-side with that public key. The command is similar to downloading the unencrypted files except that a public key is provided through the `-pubkey` flag. For example:
 
 ```bash
-./sda-cli sda-download -pubkey <public-key-file> -config <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> <filepath_1_to_download> <filepath_2_to_download> ...
+./sda-cli download -pubkey <public-key-file> -config <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> <filepath_1_to_download> <filepath_2_to_download> ...
 ```
 
 After a successful download, the encrypted files can be [decrypted](#decrypt-file) using the private key corresponding to the provided public key.

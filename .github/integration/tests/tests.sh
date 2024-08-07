@@ -149,31 +149,89 @@ else
     exit 1
 fi
 
-# Dataset size using a local urls_list.txt
-echo "http://localhost:9000/download/A352764B-2KB4-4738-B6B5-BA55D25FB469/data_file.c4gh" > urls_list.txt
+# Download file by using the sda download service
+./sda-cli download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh
 
-s3cmd -c testing/directS3 put data_files_enc/data_file.c4gh s3://download/A352764B-2KB4-4738-B6B5-BA55D25FB469/data_file.c4gh
-check_uploaded_file download/A352764B-2KB4-4738-B6B5-BA55D25FB469/data_file.c4gh data_file.c4gh
-
-s3cmd -c testing/directS3 put urls_list.txt s3://download/A352764B-2KB4-4738-B6B5-BA55D25FB469/urls_list.txt
-
-# Download file with local urls_list.txt
-./sda-cli download -outdir downloads urls_list.txt
-
-if [ -f downloads/data_file.c4gh ]; then
-    echo "Downloaded data file"
-else
-    echo "Failed to download data file"
+# Check if file exists in the path
+if [ ! -f "test-download/main/subfolder/dummy_data" ]; then
+    echo "Downloaded file not found"
     exit 1
 fi
 
-# Decrypt file
-C4GH_PASSWORD="" ./sda-cli decrypt -key sda_key.sec.pem downloads/data_file.c4gh
+# Check the first line of that file
+first_line=$(head -n 1 test-download/main/subfolder/dummy_data)
+if [[ $first_line != *"THIS FILE IS JUST DUMMY DATA"* ]]; then
+    echo "First line does not contain the expected string"
+    exit 1
+fi
 
-if [ -f downloads/data_file ]; then
-    echo "Decrypted data file"
+rm -r test-download
+
+# Check listing files in a dataset
+output=$(./sda-cli list -config testing/s3cmd-download.conf -dataset https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080)
+expected="dummy_data.c4gh 1048605 dummy_data2.c4gh 1048605 dummy_data3.c4gh 1048605"
+if [[ "${output//[$' \t\n\r']/}" == "${expected//[$' \t\n\r']/}" ]];  then
+    echo "Successfully listed files in dataset"
 else
-    echo "Failed to decrypt data file"
+    echo "Failed to list files in dataset"
+    exit 1
+fi
+
+# Check listing datasets
+output=$(./sda-cli list -config testing/s3cmd-download.conf --datasets -url http://localhost:8080)
+expected="https://doi.example/ty009.sfrrss/600.45asasga"
+if [[ $output == *"$expected"* ]]; then
+    echo "Successfully listed datasets"
+else
+    echo "Failed to list datasets"
+    exit 1
+fi
+
+# Download whole dataset by using the sda-download feature
+./sda-cli download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-dataset --dataset
+
+filepaths="download-dataset/main/subfolder/dummy_data download-dataset/main/subfolder2/dummy_data2 download-dataset/main/subfolder2/random/dummy_data3"
+
+# Check if all the files of the dataset have been downloaded
+for filepath in $filepaths; do
+    if [ ! -f "$filepath" ]; then
+        echo "File $filepath does not exist"
+        exit 1
+    fi
+done
+
+rm -r download-dataset
+
+# Download encrypted file by using the sda download service
+# Create a user key pair
+if ( yes "" | ./sda-cli createKey user_key ) ; then
+    echo "Created a user key pair for downloading encrypted files"
+else
+    echo "Failed to create a user key pair for downloading encrypted files"
+    exit 1
+fi
+./sda-cli download -pubkey user_key.pub.pem -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh
+
+# check if file exists in the path
+if [ ! -f "test-download/main/subfolder/dummy_data.c4gh" ]; then
+    echo "Downloaded file not found"
+    exit 1
+fi
+
+# decrypt the downloaded file
+C4GH_PASSWORD="" ./sda-cli decrypt -key user_key.sec.pem test-download/main/subfolder/dummy_data.c4gh
+
+if [ -f test-download/main/subfolder/dummy_data  ]; then
+    echo "Decrypting downloaded file succeeded"
+else
+    echo "Failed to decrypt downloaded file"
+    exit 1
+fi
+
+# check the first line of that file
+first_line=$(head -n 1 test-download/main/subfolder/dummy_data)
+if [[ $first_line != *"THIS FILE IS JUST DUMMY DATA"* ]]; then
+    echo "First line does not contain the expected string"
     exit 1
 fi
 
@@ -194,7 +252,7 @@ done
 cat sda_key1.pub.pem sda_key2.pub.pem > sda_keys
 
 # Create test files
-cp data_file data_file_keys
+cp test-download/main/subfolder/dummy_data data_file_keys
 
 # Encrypt with multiple key flag calls
 ./sda-cli encrypt -key sda_key.pub.pem -key sda_key2.pub.pem data_file_keys
@@ -252,166 +310,12 @@ done
 # Remove files used for encrypt and upload
 rm -r data_files_enc
 rm -r data_files_unenc
-rm -r downloads
-rm sda_key* checksum_* urls_list.txt data_file*
-
-# Dataset size using a url urls_list.txt
-output=$(./sda-cli datasetsize http://localhost:9000/download/A352764B-2KB4-4738-B6B5-BA55D25FB469/urls_list.txt | grep -q "Total dataset size: 1.00MB")
-
-if $output; then
-    echo "Returned dataset size"
-else
-    echo "Failed to return dataset size"
-    exit 1
-fi
-
-# Dataset size using a folder url
-output=$(./sda-cli datasetsize http://localhost:9000/download/A352764B-2KB4-4738-B6B5-BA55D25FB469/ | grep -q "Total dataset size: 1.00MB")
-
-if $output; then
-    echo "Returned dataset size"
-else
-    echo "Failed to return dataset size"
-    exit 1
-fi
-
-# Check that Download handles http responses with error status code
-
-# Try downloading nonexistent file
-printf "%s" "Attempting to download a nonexistent file from S3..."
-errorMessage="reason: request failed with \`404 Not Found\`, details: {Code:NoSuchKey"
-if ./sda-cli download -outdir downloads http://localhost:9000/download/imaginary/path/ 2>&1 | grep -q "$errorMessage"; then
-    echo "bad download request handled properly"
-else
-    echo "Failed to handle bad download request"
-    exit 1
-fi
-
-# Try downloading from private bucket
-printf "%s" "Attempting to download from S3 bucket with ACL=private..."
-errorMessage="reason: request failed with \`403 Forbidden\`, details: {Code:AllAccessDisabled"
-if ./sda-cli download -outdir downloads http://localhost:9000/minio/test/"$user"/data_file1.c4gh 2>&1 | grep -q "$errorMessage"; then
-    echo "bad download request handled properly"
-else
-    echo "Failed to handle bad download request"
-    exit 1
-fi
-
-# Download files using a folder url
-./sda-cli download -outdir downloads http://localhost:9000/download/A352764B-2KB4-4738-B6B5-BA55D25FB469/
-
-if [ -f downloads/data_file.c4gh ]; then
-    echo "Downloaded data file"
-else
-    echo "Failed to download data file"
-    exit 1
-fi
-
-rm -r downloads
-
-# Download files using a url to urls_list.txt
-./sda-cli download -outdir downloads http://localhost:9000/download/A352764B-2KB4-4738-B6B5-BA55D25FB469/urls_list.txt
-
-if [ -f downloads/data_file.c4gh ]; then
-    echo "Downloaded data file"
-else
-    echo "Failed to download data file"
-    exit 1
-fi
-
-rm -r downloads
-
-# Download file by using the sda download service
-./sda-cli sda-download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh
-
-# Check if file exists in the path
-if [ ! -f "test-download/main/subfolder/dummy_data" ]; then
-    echo "Downloaded file not found"
-    exit 1
-fi
-
-# Check the first line of that file
-first_line=$(head -n 1 test-download/main/subfolder/dummy_data)
-if [[ $first_line != *"THIS FILE IS JUST DUMMY DATA"* ]]; then
-    echo "First line does not contain the expected string"
-    exit 1
-fi
-
-rm -r test-download
-
-# Check listing files in a dataset
-output=$(./sda-cli list -config testing/s3cmd-download.conf -dataset https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080)
-expected="dummy_data.c4gh 1048605 dummy_data2.c4gh 1048605 dummy_data3.c4gh 1048605"
-if [[ "${output//[$' \t\n\r']/}" == "${expected//[$' \t\n\r']/}" ]];  then
-    echo "Successfully listed files in dataset"
-else
-    echo "Failed to list files in dataset"
-    exit 1
-fi
-
-# Check listing datasets
-output=$(./sda-cli list -config testing/s3cmd-download.conf --datasets -url http://localhost:8080)
-expected="https://doi.example/ty009.sfrrss/600.45asasga"
-if [[ $output == *"$expected"* ]]; then
-    echo "Successfully listed datasets"
-else
-    echo "Failed to list datasets"
-    exit 1
-fi
-
-# Download whole dataset by using the sda-download feature
-./sda-cli sda-download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-dataset --dataset 
-
-filepaths="download-dataset/main/subfolder/dummy_data download-dataset/main/subfolder2/dummy_data2 download-dataset/main/subfolder2/random/dummy_data3"
-
-# Check if all the files of the dataset have been downloaded
-for filepath in $filepaths; do
-    if [ ! -f "$filepath" ]; then
-        echo "File $filepath does not exist"
-        exit 1
-    fi
-done
-
-rm -r download-dataset
-
-# Download encrypted file by using the sda download service
-# Create a user key pair
-if ( yes "" | ./sda-cli createKey user_key ) ; then
-    echo "Created a user key pair for downloading encrypted files"
-else
-    echo "Failed to create a user key pair for downloading encrypted files"
-    exit 1
-fi
-./sda-cli sda-download -pubkey user_key.pub.pem -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh
-
-# check if file exists in the path
-if [ ! -f "test-download/main/subfolder/dummy_data.c4gh" ]; then
-    echo "Downloaded file not found"
-    exit 1
-fi
-
-# decrypt the downloaded file
-C4GH_PASSWORD="" ./sda-cli decrypt -key user_key.sec.pem test-download/main/subfolder/dummy_data.c4gh 
-
-if [ -f test-download/main/subfolder/dummy_data  ]; then
-    echo "Decrypting downloaded file succeeded"
-else
-    echo "Failed to decrypt downloaded file"
-    exit 1
-fi
-
-# check the first line of that file
-first_line=$(head -n 1 test-download/main/subfolder/dummy_data)
-if [[ $first_line != *"THIS FILE IS JUST DUMMY DATA"* ]]; then
-    echo "First line does not contain the expected string"
-    exit 1
-fi
-
+rm sda_key* data_file*
 rm -r test-download
 
 # Download recursively a folder
 echo "Downloading content of folder"
-./sda-cli sda-download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-folder --recursive main/subfolder2
+./sda-cli download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-folder --recursive main/subfolder2
 
 folderpaths="download-folder/main/subfolder2/dummy_data2 download-folder/main/subfolder2/random/dummy_data3"
 
@@ -423,10 +327,10 @@ for folderpath in $folderpaths; do
     fi
 done
 
-rm -r download-folder 
+rm -r download-folder
 
 # Download file by providing the file id
-./sda-cli sda-download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-fileid urn:neic:001-001
+./sda-cli download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-fileid urn:neic:001-001
 
 # Check if file exists in the path
 if [ ! -f "download-fileid/main/subfolder/dummy_data" ]; then
@@ -445,7 +349,7 @@ rm -r download-fileid
 
 # Download the file paths content of a text file
 echo "Downloading content of a text file"
-./sda-cli sda-download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-from-file --from-file testing/file-list.txt
+./sda-cli download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-from-file --from-file testing/file-list.txt
 
 # Check if the content of the text file has been downloaded
 content_paths="download-from-file/main/subfolder/dummy_data download-from-file/main/subfolder2/dummy_data2"
