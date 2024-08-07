@@ -150,7 +150,7 @@ else
 fi
 
 # Download file by using the sda download service
-./sda-cli sda-download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh
+./sda-cli download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh
 
 # Check if file exists in the path
 if [ ! -f "test-download/main/subfolder/dummy_data" ]; then
@@ -188,7 +188,7 @@ else
 fi
 
 # Download whole dataset by using the sda-download feature
-./sda-cli sda-download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-dataset --dataset 
+./sda-cli download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-dataset --dataset
 
 filepaths="download-dataset/main/subfolder/dummy_data download-dataset/main/subfolder2/dummy_data2 download-dataset/main/subfolder2/random/dummy_data3"
 
@@ -210,7 +210,7 @@ else
     echo "Failed to create a user key pair for downloading encrypted files"
     exit 1
 fi
-./sda-cli sda-download -pubkey user_key.pub.pem -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh
+./sda-cli download -pubkey user_key.pub.pem -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh
 
 # check if file exists in the path
 if [ ! -f "test-download/main/subfolder/dummy_data.c4gh" ]; then
@@ -219,7 +219,7 @@ if [ ! -f "test-download/main/subfolder/dummy_data.c4gh" ]; then
 fi
 
 # decrypt the downloaded file
-C4GH_PASSWORD="" ./sda-cli decrypt -key user_key.sec.pem test-download/main/subfolder/dummy_data.c4gh 
+C4GH_PASSWORD="" ./sda-cli decrypt -key user_key.sec.pem test-download/main/subfolder/dummy_data.c4gh
 
 if [ -f test-download/main/subfolder/dummy_data  ]; then
     echo "Decrypting downloaded file succeeded"
@@ -239,7 +239,7 @@ rm -r test-download
 
 # Download recursively a folder
 echo "Downloading content of folder"
-./sda-cli sda-download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-folder --recursive main/subfolder2
+./sda-cli download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-folder --recursive main/subfolder2
 
 folderpaths="download-folder/main/subfolder2/dummy_data2 download-folder/main/subfolder2/random/dummy_data3"
 
@@ -251,10 +251,10 @@ for folderpath in $folderpaths; do
     fi
 done
 
-rm -r download-folder 
+rm -r download-folder
 
 # Download file by providing the file id
-./sda-cli sda-download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-fileid urn:neic:001-001
+./sda-cli download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-fileid urn:neic:001-001
 
 # Check if file exists in the path
 if [ ! -f "download-fileid/main/subfolder/dummy_data" ]; then
@@ -273,7 +273,7 @@ rm -r download-fileid
 
 # Download the file paths content of a text file
 echo "Downloading content of a text file"
-./sda-cli sda-download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-from-file --from-file testing/file-list.txt
+./sda-cli download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-from-file --from-file testing/file-list.txt
 
 # Check if the content of the text file has been downloaded
 content_paths="download-from-file/main/subfolder/dummy_data download-from-file/main/subfolder2/dummy_data2"
