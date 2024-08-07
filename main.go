@@ -13,7 +13,6 @@ import (
 	"github.com/NBISweden/sda-cli/htsget"
 	"github.com/NBISweden/sda-cli/list"
 	"github.com/NBISweden/sda-cli/login"
-	sdaDownload "github.com/NBISweden/sda-cli/sda_download"
 	"github.com/NBISweden/sda-cli/upload"
 	"github.com/NBISweden/sda-cli/version"
 	log "github.com/sirupsen/logrus"
@@ -35,17 +34,15 @@ type commandInfo struct {
 }
 
 var Commands = map[string]commandInfo{
-	"encrypt":      {encrypt.Args, encrypt.Usage, encrypt.ArgHelp},
-	"createKey":    {createKey.Args, createKey.Usage, createKey.ArgHelp},
-	"decrypt":      {decrypt.Args, decrypt.Usage, decrypt.ArgHelp},
-	"download":     {download.Args, download.Usage, download.ArgHelp},
-	"upload":       {upload.Args, upload.Usage, upload.ArgHelp},
-	"datasetsize":  {datasetsize.Args, datasetsize.Usage, datasetsize.ArgHelp},
-	"list":         {list.Args, list.Usage, list.ArgHelp},
-	"htsget":       {htsget.Args, htsget.Usage, htsget.ArgHelp},
-	"login":        {login.Args, login.Usage, login.ArgHelp},
-	"sda-download": {sdaDownload.Args, sdaDownload.Usage, sdaDownload.ArgHelp},
-	"version":      {version.Args, version.Usage, version.ArgHelp},
+	"encrypt":   {encrypt.Args, encrypt.Usage, encrypt.ArgHelp},
+	"createKey": {createKey.Args, createKey.Usage, createKey.ArgHelp},
+	"decrypt":   {decrypt.Args, decrypt.Usage, decrypt.ArgHelp},
+	"upload":    {upload.Args, upload.Usage, upload.ArgHelp},
+	"list":      {list.Args, list.Usage, list.ArgHelp},
+	"htsget":    {htsget.Args, htsget.Usage, htsget.ArgHelp},
+	"login":     {login.Args, login.Usage, login.ArgHelp},
+	"download":  {download.Args, download.Usage, download.ArgHelp},
+	"version":   {version.Args, version.Usage, version.ArgHelp},
 }
 
 // Main does argument parsing, then delegates to one of the sub modules
@@ -63,8 +60,6 @@ func main() {
 		err = createKey.CreateKey(args)
 	case "decrypt":
 		err = decrypt.Decrypt(args)
-	case "download":
-		err = download.Download(args)
 	case "upload":
 		err = upload.Upload(args)
 	case "list":
@@ -73,8 +68,8 @@ func main() {
 		err = htsget.Htsget(args)
 	case "login":
 		err = login.NewLogin(args)
-	case "sda-download":
-		err = sdaDownload.SdaDownload(args)
+	case "download":
+		err = download.Download(args)
 	case "version":
 		err = version.Version(Version)
 	default:
