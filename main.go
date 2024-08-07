@@ -6,7 +6,6 @@ import (
 	"os"
 
 	createKey "github.com/NBISweden/sda-cli/create_key"
-	"github.com/NBISweden/sda-cli/datasetsize"
 	"github.com/NBISweden/sda-cli/decrypt"
 	"github.com/NBISweden/sda-cli/download"
 	"github.com/NBISweden/sda-cli/encrypt"
@@ -68,8 +67,6 @@ func main() {
 		err = download.Download(args)
 	case "upload":
 		err = upload.Upload(args)
-	case "datasetsize":
-		err = datasetsize.DatasetSize(args)
 	case "list":
 		err = list.List(args)
 	case "htsget":
