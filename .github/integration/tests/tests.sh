@@ -235,6 +235,82 @@ if [[ $first_line != *"THIS FILE IS JUST DUMMY DATA"* ]]; then
     exit 1
 fi
 
+# Test multiple pub key encryption
+
+# Create another couple of key-pairs
+for c in 1 2
+do
+    if ( yes "" | ./sda-cli createKey sda_key$c ) ; then
+        echo "Created key pair for encryption"
+    else
+        echo "Failed to create key pair for encryption"
+        exit 1
+fi
+done
+
+# Create file with concatenated pub keys
+cat sda_key1.pub.pem sda_key2.pub.pem > sda_keys
+
+# Create test files
+cp test-download/main/subfolder/dummy_data data_file_keys
+
+# Encrypt with multiple key flag calls
+./sda-cli encrypt -key sda_key.pub.pem -key sda_key2.pub.pem data_file_keys
+check_encypted_file "data_file_keys.c4gh"
+
+# Decrypt file with both keys
+for key in sda_key sda_key2
+do
+    rm data_file_keys
+    C4GH_PASSWORD="" ./sda-cli decrypt -key $key.sec.pem data_file_keys.c4gh
+    if [ -f data_file_keys ]; then
+        echo "Decrypted data file"
+    else
+        echo "Failed to decrypt data file with $key"
+        exit 1
+    fi
+done
+rm data_file_keys.c4gh
+
+# Encrypt with concatenated key file
+./sda-cli encrypt -key sda_keys data_file_keys
+check_encypted_file "data_file_keys.c4gh"
+
+# Decrypt file with both keys
+for key in sda_key1 sda_key2
+do
+    rm data_file_keys
+    C4GH_PASSWORD="" ./sda-cli decrypt -key $key.sec.pem data_file_keys.c4gh
+    if [ -f data_file_keys ]; then
+        echo "Decrypted data file"
+    else
+        echo "Failed to decrypt data file with $key"
+        exit 1
+    fi
+done
+rm data_file_keys.c4gh
+
+# Encrypt with concatenated key file and a key flag call
+./sda-cli encrypt -key sda_key.pub.pem -key sda_keys data_file_keys
+check_encypted_file "data_file_keys.c4gh"
+
+# Decrypt file with all keys
+for key in sda_key sda_key1 sda_key2
+do
+    rm data_file_keys
+    C4GH_PASSWORD="" ./sda-cli decrypt -key $key.sec.pem data_file_keys.c4gh
+    if [ -f data_file_keys ]; then
+        echo "Decrypted data file"
+    else
+        echo "Failed to decrypt data file with $key"
+        exit 1
+    fi
+done
+
+# Remove files used for encrypt and upload
+rm -r data_files_enc
+rm -r data_files_unenc
+rm sda_key* data_file*
 rm -r test-download
 
 # Download recursively a folder
