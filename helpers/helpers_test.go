@@ -406,7 +406,8 @@ public_key = 27be42445fd9e39c9be39e6b36a55e61e3801fc845f63781a813d3fe9977e17a
 
 func (suite *HelperTests) TestInvalidCharacters() {
 	// Test that file paths with invalid characters trigger errors
-	for _, badc := range "\x00\x7F\x1A:*?\\" {
+	invalidChars := `\<>"|\!*'();:@&=+$,?#[]`
+	for _, badc := range invalidChars {
 		badchar := string(badc)
 		testfilepath := "test" + badchar + "file"
 
