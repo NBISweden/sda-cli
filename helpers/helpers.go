@@ -446,7 +446,7 @@ func ListFiles(config Config, prefix string) (result *s3.ListObjectsV2Output, er
 
 // Check for invalid characters
 func CheckValidChars(filename string) error {
-	re := regexp.MustCompile(`[\\:\*\?"<>\|\x00-\x1F\x7F]`)
+	re := regexp.MustCompile(`[\\<>"\|\x00-\x1F\x7F\!\*\'\(\)\;\:\@\&\=\+\$\,\?\%\#\[\]]`)
 	dissallowedChars := re.FindAllString(filename, -1)
 	if dissallowedChars != nil {
 		return fmt.Errorf(
