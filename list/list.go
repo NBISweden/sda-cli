@@ -6,8 +6,8 @@ import (
 
 	"strings"
 
+	"github.com/NBISweden/sda-cli/download"
 	"github.com/NBISweden/sda-cli/helpers"
-	sdaDownload "github.com/NBISweden/sda-cli/sda_download"
 	"github.com/inhies/go-bytesize"
 )
 
@@ -104,7 +104,7 @@ func List(args []string) error {
 }
 
 func DatasetFiles(token string) error {
-	files, err := sdaDownload.GetFilesInfo(*URL, *dataset, "", token)
+	files, err := download.GetFilesInfo(*URL, *dataset, "", token)
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func DatasetFiles(token string) error {
 }
 
 func Datasets(token string) error {
-	datasets, err := sdaDownload.GetDatasets(*URL, token)
+	datasets, err := download.GetDatasets(*URL, token)
 	if err != nil {
 		return err
 	}

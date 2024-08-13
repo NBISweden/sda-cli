@@ -2,17 +2,23 @@ package download
 
 import (
 	"bufio"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
+	"net/mail"
+	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/NBISweden/sda-cli/helpers"
-	log "github.com/sirupsen/logrus"
+	"github.com/vbauerster/mpb/v8"
+	"github.com/vbauerster/mpb/v8/decor"
 )
 
 // Help text and command line flags.
@@ -20,89 +26,467 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s download (-outdir <dir>) [url | file]
+USAGE: %s download -config <s3config-file> -dataset-id <datasetID> -url <uri> (--pubkey <public-key-file>) (-outdir <dir>) ([filepath(s) or fileid(s)] or --dataset or --recursive <dirpath>) or --from-file <list-filepath>
 
 download:
-    Downloads files from the Sensitive Data Archive (SDA).  A list with
-    URLs for files to download must be provided either as a URL directly
-    to a remote url_list.txt file or to its containing directory
-    (ending with "/"). Alternatively, the local path to such a file may
-    be given, instead.  The files will be downloaded in the current
-    directory, if outdir is not defined and their folder structure is
-    preserved.
-`
+	Downloads files from the Sensitive Data Archive (SDA) by using APIs from the given url. The user
+	must have been granted access to the datasets (visas) that are to be downloaded.
+	The files will be downloaded in the current directory, if outdir is not defined.
+	When the -pubkey flag is used, the downloaded files will be server-side encrypted with the given public key.
+    If the --dataset flag is used, all files in the dataset will be downloaded.
+    If the --recursive flag is used, all files in the directory will be downloaded.
+    If the --from-file flag is used, all the files that are in the file will be downloaded.
+    `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help
 var ArgHelp = `
-    [urls]
-        All flagless arguments will be used as download URLs.`
+	[datasetID]
+		The ID of the dataset that the file is part of.
+	[uri]
+		All flagless arguments will be used as download uri.
+	[filepath(s)]
+		The filepath of the file to download.
+    	[fileid(s)]
+        	The file ID of the file to download.
+    	[dirpath]
+        	The directory path to download all files recursively.
+        [list-filepath]
+            The path to the file that contains the list of files to download.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
 var Args = flag.NewFlagSet("download", flag.ExitOnError)
-var outDir = Args.String("outdir", "",
-	"Directory for downloaded files.")
 
-// Gets the file name for a URL, using regex
-func createFilePathFromURL(file string, baseDir string) (fileName string, err error) {
-	// Create the file path according to the way files are stored in S3
-	// The folder structure comes after the UID described in the regex
-	re := regexp.MustCompile(`(?i)[0-9a-z]{8}-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{12}/(.*)`)
-	match := re.FindStringSubmatch(file)
-	if match == nil || len(match) < 1 {
-		return fileName, fmt.Errorf("failed to parse url for downloading file")
-	}
-	if baseDir != "" && !strings.HasSuffix(baseDir, "/") {
-		baseDir += "/"
-	}
-	fileName = filepath.Join(baseDir, match[1])
+var configPath = Args.String("config", "", "S3 config file to use for downloading.")
 
-	var filePath string
-	if strings.Contains(fileName, string(os.PathSeparator)) {
-		filePath = filepath.Dir(fileName)
-		err = os.MkdirAll(filePath, os.ModePerm)
-		if err != nil {
-			return fileName, err
-		}
-	}
+var datasetID = Args.String("dataset-id", "", "Dataset ID for the file to download.")
 
-	return fileName, nil
+var URL = Args.String("url", "", "The url of the download server.")
+
+var outDir = Args.String("outdir", "", "Directory for downloaded files.")
+
+var datasetdownload = Args.Bool("dataset", false, "Download all the files of the dataset.")
+
+var pubKeyPath = Args.String("pubkey", "",
+	"Public key file to use for encryption of files to download.")
+
+var recursiveDownload = Args.Bool("recursive", false, "Download content of the folder.")
+
+var fromFile = Args.Bool("from-file", false, "Download files from file list.")
+
+// necessary for mocking in testing
+var getResponseBody = getBody
+
+// File struct represents the file metadata
+type File struct {
+	FileID                    string `json:"fileId"`
+	DatasetID                 string `json:"datasetId"`
+	DisplayFileName           string `json:"displayFileName"`
+	FilePath                  string `json:"filePath"`
+	FileName                  string `json:"fileName"`
+	FileSize                  int    `json:"fileSize"`
+	DecryptedFileSize         int    `json:"decryptedFileSize"`
+	DecryptedFileChecksum     string `json:"decryptedFileChecksum"`
+	DecryptedFileChecksumType string `json:"decryptedFileChecksumType"`
+	FileStatus                string `json:"fileStatus"`
+	CreatedAt                 string `json:"createdAt"`
+	LastModified              string `json:"lastModified"`
 }
 
-// Downloads a file from the url to the filePath location
-func downloadFile(url string, filePath string) error {
-
-	// Get the file from the provided url
-	resp, err := http.Get(url)
+// Download function downloads files from the SDA by using the
+// download's service APIs
+func Download(args []string) error {
+	// Call ParseArgs to take care of all the flag parsing
+	err := helpers.ParseArgs(args, Args)
 	if err != nil {
-		return fmt.Errorf("failed to download file, reason: %v", err)
+		return fmt.Errorf("failed parsing arguments, reason: %v", err)
 	}
-	defer resp.Body.Close()
 
-	// Check reponse status and report S3 error response
-	if resp.StatusCode >= 400 {
-		errorDetails, err := helpers.ParseS3ErrorResponse(resp.Body)
-		if err != nil {
-			log.Error(err.Error())
+	if *datasetID == "" || *URL == "" || *configPath == "" {
+		return fmt.Errorf("missing required arguments, dataset, config and url are required")
+	}
+
+	// Check if both --recursive and --dataset flags are set
+	if *recursiveDownload && *datasetdownload {
+		return fmt.Errorf("both --recursive and --dataset flags are set, choose one of them")
+	}
+
+	// Check that file(s) are not missing if the --dataset flag is not set
+	if len(Args.Args()) == 0 && !*datasetdownload {
+		if !*recursiveDownload {
+			return fmt.Errorf("no files provided for download")
 		}
 
-		return fmt.Errorf("request failed with `%s`, details: %v", resp.Status, errorDetails)
+		return fmt.Errorf("no folders provided for recursive download")
 	}
 
-	// Create the file in the current location
-	out, err := os.Create(filePath)
+	// Check if --dataset flag is set and files are provided
+	if *datasetdownload && len(Args.Args()) > 0 {
+		return fmt.Errorf(
+			"files provided with --dataset flag, add either the flag or the file(s), not both",
+		)
+	}
+
+	// Check if --from-file flag is set and only one file is provided
+	if *fromFile && len(Args.Args()) != 1 {
+		return fmt.Errorf(
+			"one file should be provided with --from-file flag",
+		)
+	}
+
+	// Get the configuration file or the .sda-cli-session
+	config, err := helpers.GetAuth(*configPath)
 	if err != nil {
 		return err
 	}
-	defer out.Close()
 
-	// Write the body to file
-	_, err = io.Copy(out, resp.Body)
-	defer out.Close()
+	// Check if the token has expired
+	err = helpers.CheckTokenExpiration(config.AccessToken)
+	if err != nil {
+		return err
+	}
 
-	return err
+	switch {
+	// Case where the user is setting the --dataset flag
+	// then download all the files in the dataset.
+	// Case where the user is setting the --recursive flag
+	// then download the content of the path
+	// Case where the user is setting the --from-file flag
+	// then download the files from the file list
+	// Default case, download the provided files.
+	case *datasetdownload:
+		err = datasetCase(config.AccessToken)
+		if err != nil {
+			return err
+		}
+	case *recursiveDownload:
+		err = recursiveCase(config.AccessToken)
+		if err != nil {
+			return err
+		}
+	case *fromFile:
+		err = fileCase(config.AccessToken, true)
+		if err != nil {
+			return err
+		}
+	default:
+		err = fileCase(config.AccessToken, false)
+		if err != nil {
+			return err
+		}
+	}
 
+	return nil
+}
+
+func datasetCase(token string) error {
+	fmt.Println("Downloading all files in the dataset")
+	files, err := GetFilesInfo(*URL, *datasetID, "", token)
+	if err != nil {
+		return err
+	}
+	// Loop through the files and download them
+	for _, file := range files {
+		// Download URL for the file
+		fileURL := *URL + "/files/" + file.FileID
+		err = downloadFile(fileURL, token, "", file.FilePath)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func recursiveCase(token string) error {
+	fmt.Println("Downloading content of the path(s)")
+	// get all the files of the dataset
+	files, err := GetFilesInfo(*URL, *datasetID, "", token)
+	if err != nil {
+		return err
+	}
+	// check all the provided paths and add a slash
+	// to each one of them if does not exist and
+	// append them in a slice
+	var dirPaths []string
+	for _, path := range Args.Args() {
+		if !strings.HasSuffix(path, "/") {
+			path += "/"
+		}
+		dirPaths = append(dirPaths, path)
+	}
+	var missingPaths []string
+	// Loop over all the files of the dataset and
+	// check if the provided path is part of their filepath.
+	// If it is then download the file
+	for _, dirPath := range dirPaths {
+		pathExists := false
+		for _, file := range files {
+			if strings.Contains(file.FilePath, dirPath) {
+				pathExists = true
+				fileURL := *URL + "/files/" + file.FileID
+				err = downloadFile(fileURL, token, "", file.FilePath)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		// If dirPath does not exist add in the list
+		if !pathExists {
+			missingPaths = append(missingPaths, dirPath)
+		}
+	}
+	// If all the given paths do not exist then return an error
+	if len(missingPaths) == len(dirPaths) {
+		return errors.New("given path(s) do not exist")
+	}
+	// If some of the give paths do not exist then just return a message
+	if len(missingPaths) > 0 {
+		for _, missingPath := range missingPaths {
+			fmt.Println("Non existing path: ", missingPath)
+		}
+	}
+
+	return nil
+}
+
+func fileCase(token string, fileList bool) error {
+	var files []string
+	if fileList {
+		// get the files from the file list
+		fmt.Println("Downloading files from file list")
+		fileList, err := GetURLsFile(Args.Args()[0])
+		if err != nil {
+			return err
+		}
+		files = append(files, fileList...)
+	} else {
+		// get the files from the arguments
+		fmt.Println("Downloading files")
+		files = append(files, Args.Args()...)
+	}
+
+	*pubKeyPath = strings.TrimSpace(*pubKeyPath)
+	var pubKeyBase64 string
+	if *pubKeyPath != "" {
+		// Read the public key
+		pubKey, err := os.ReadFile(*pubKeyPath)
+		if err != nil {
+			return fmt.Errorf("failed to read public key, reason: %v", err)
+		}
+		pubKeyBase64 = base64.StdEncoding.EncodeToString(pubKey)
+	}
+
+	// Loop through the files and download them
+	for _, filePath := range files {
+		fileIDURL, apiFilePath, err := getFileIDURL(*URL, token, pubKeyBase64, *datasetID, filePath)
+		if err != nil {
+			return err
+		}
+
+		err = downloadFile(fileIDURL, token, pubKeyBase64, apiFilePath)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// downloadFile downloads the file by using the download URL
+func downloadFile(uri, token, pubKeyBase64, filePath string) error {
+	// Check if the file path contains a userID and if it does,
+	// do not keep it in the file path
+	filePathSplit := strings.Split(filePath, "/")
+	if strings.Contains(filePathSplit[0], "_") {
+		_, err := mail.ParseAddress(strings.ReplaceAll(filePathSplit[0], "_", "@"))
+		if err == nil {
+			filePath = strings.Join(filePathSplit[1:], "/")
+		}
+	}
+
+	outFilename := filePath
+	if *outDir != "" {
+		outFilename = *outDir + "/" + filePath
+	}
+
+	filePath = strings.TrimSuffix(outFilename, ".c4gh")
+
+	// Get the file body
+	body, err := getResponseBody(uri, token, pubKeyBase64)
+	if err != nil {
+		return fmt.Errorf("failed to get file for download, reason: %v", err)
+	}
+
+	// Create the directory if it does not exist
+	fileDir := filepath.Dir(filePath)
+	err = os.MkdirAll(fileDir, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("failed to create directory, reason: %v", err)
+	}
+
+	if pubKeyBase64 != "" {
+		filePath += ".c4gh"
+	}
+	outfile, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to create file, reason: %v", err)
+	}
+	defer outfile.Close()
+
+	// Create a new progress container
+	p := mpb.New()
+
+	// Create a new progress bar with the length of the body
+	bar := p.AddBar(int64(len(body)),
+		mpb.PrependDecorators(
+			decor.CountersKibiByte("% .2f / % .2f"),
+		),
+	)
+
+	// Create a proxy reader
+	reader := strings.NewReader(string(body))
+	proxyReader := bar.ProxyReader(reader)
+
+	fmt.Printf("Downloading file to %s\n", filePath)
+	// Copy from the proxy reader (which updates the progress bar) to the file
+	_, err = io.Copy(outfile, proxyReader)
+	if err != nil {
+		return fmt.Errorf("failed to write file, reason: %v", err)
+	}
+
+	// Wait for the progress bar to finish
+	p.Wait()
+
+	return nil
+}
+
+// getFileIDURL gets the datset files, parses the JSON response to get the file ID
+// and returns the download URL for the file and the filepath from the API response
+func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (string, string, error) {
+	// Get the files of the dataset
+	datasetFiles, err := GetFilesInfo(baseURL, dataset, pubKeyBase64, token)
+	if err != nil {
+		return "", "", err
+	}
+
+	// Get the file ID for the filename
+	var idx int
+	switch {
+	case strings.Contains(filename, "/"):
+		// If filename does not have a crypt4gh suffix, add one
+		if !strings.HasSuffix(filename, ".c4gh") {
+			filename += ".c4gh"
+		}
+		idx = slices.IndexFunc(
+			datasetFiles,
+			func(f File) bool { return strings.Contains(f.FilePath, filename) },
+		)
+	default:
+		idx = slices.IndexFunc(
+			datasetFiles,
+			func(f File) bool { return strings.Contains(f.FileID, filename) },
+		)
+	}
+
+	if idx == -1 {
+		return "", "", fmt.Errorf("File not found in dataset %s", filename)
+	}
+
+	var url string
+	// If no public key is provided, retrieve the unencrypted file
+	if pubKeyBase64 == "" {
+		url = baseURL + "/files/" + datasetFiles[idx].FileID
+	} else {
+		url = baseURL + "/s3-encrypted/" + dataset + "/" + filename
+	}
+
+	return url, datasetFiles[idx].FilePath, nil
+}
+
+func GetDatasets(baseURL, token string) ([]string, error) {
+	// Sanitize the base_url
+	u, err := url.ParseRequestURI(baseURL)
+	if err != nil || u.Scheme == "" {
+		return []string{}, fmt.Errorf("invalid base URL")
+	}
+	// Make the url for listing datasets
+	datasetsURL := baseURL + "/metadata/datasets"
+	// Get the response body from the datasets API
+	allDatasets, err := getResponseBody(datasetsURL, token, "")
+	if err != nil {
+		return []string{}, fmt.Errorf("failed to get datasets, reason: %v", err)
+	}
+	// Parse the JSON response
+	var datasets []string
+	err = json.Unmarshal(allDatasets, &datasets)
+	if err != nil {
+		return []string{}, fmt.Errorf("failed to parse dataset list JSON, reason: %v", err)
+	}
+
+	return datasets, nil
+}
+
+// GetFilesInfo gets the files of the dataset by using the dataset ID
+func GetFilesInfo(baseURL, dataset, pubKeyBase64, token string) ([]File, error) {
+	// Sanitize the base_url
+	u, err := url.ParseRequestURI(baseURL)
+	if err != nil || u.Scheme == "" {
+		return []File{}, fmt.Errorf("invalid base URL")
+	}
+	// Make the url for listing files
+	filesURL := baseURL + "/metadata/datasets/" + dataset + "/files"
+	// Get the response body from the files API
+	allFiles, err := getResponseBody(filesURL, token, pubKeyBase64)
+	if err != nil {
+		return []File{}, fmt.Errorf("failed to get files, reason: %v", err)
+	}
+	// Parse the JSON response
+	var files []File
+	err = json.Unmarshal(allFiles, &files)
+	if err != nil {
+		return []File{}, fmt.Errorf("failed to parse file list JSON, reason: %v", err)
+	}
+
+	return files, nil
+}
+
+// getBody gets the body of the response from the URL
+func getBody(url, token, pubKeyBase64 string) ([]byte, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request, reason: %v", err)
+	}
+
+	// Add headers
+	req.Header.Add("Authorization", "Bearer "+token)
+	req.Header.Add("Content-Type", "application/json")
+	if pubKeyBase64 != "" {
+		req.Header.Add("Client-Public-Key", pubKeyBase64)
+	}
+
+	// Send the request
+	client := &http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get response, reason: %v", err)
+	}
+
+	// Check the status code
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("server returned status %d", res.StatusCode)
+	}
+
+	// Read the response body
+	resBody, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body, reason: %v", err)
+	}
+
+	defer res.Body.Close()
+
+	return resBody, nil
 }
 
 // GetURLsFile reads the urls_list.txt file and returns the urls of the files in a list
@@ -123,88 +507,4 @@ func GetURLsFile(urlsFilePath string) (urlsList []string, err error) {
 	}
 
 	return urlsList, scanner.Err()
-}
-
-// GetURLsListFile is returning the path to the urls_list.txt by handling the URL
-// or path provided by the user. In case of a URL, the file is downloaded in the
-// current path
-func GetURLsListFile(currentPath string, fileLocation string) (urlsFilePath string, err error) {
-	switch {
-	// Case where the user passes the url to the s3 folder where the data exists
-	// Download the urls_list.txt file first and then the data files
-	// e.g. https://some/url/to/folder/
-	case strings.HasSuffix(fileLocation, "/") && regexp.MustCompile(`https?://`).MatchString(fileLocation):
-		urlsFilePath = currentPath + "/urls_list.txt"
-		err = downloadFile(fileLocation+"urls_list.txt", urlsFilePath)
-		if err != nil {
-			return "", err
-		}
-	// Case where the user passes the url directly to urls_list.txt
-	// e.g. https://some/url/to/urls_list.txt
-	case regexp.MustCompile(`https?://`).MatchString(fileLocation):
-		urlsFilePath = currentPath + "/urls_list.txt"
-		err = downloadFile(fileLocation, urlsFilePath)
-		if err != nil {
-			return "", err
-		}
-	// Case where the user passes a file containg the urls to download
-	// e.g. /some/folder/to/file.txt
-	default:
-		urlsFilePath = fileLocation
-	}
-
-	return urlsFilePath, nil
-}
-
-// Download function downloads the files included in the urls_list.txt file.
-// The argument can be a local file or a url to an S3 folder
-func Download(args []string) error {
-
-	// Call ParseArgs to take care of all the flag parsing
-	err := helpers.ParseArgs(args, Args)
-	if err != nil {
-		return fmt.Errorf("failed parsing arguments, reason: %v", err)
-	}
-
-	// Args() returns the non-flag arguments, which we assume are filenames.
-	urls := Args.Args()
-	if len(urls) == 0 {
-		return fmt.Errorf("failed to find location of files, no argument passed")
-	}
-
-	var currentPath, urlsFilePath string
-	currentPath, err = os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to get current path, reason: %v", err)
-	}
-
-	urlsFilePath, err = GetURLsListFile(currentPath, urls[0])
-	if err != nil {
-		return fmt.Errorf("failed to urls list file, reason: %v", err)
-	}
-
-	// Open urls_list.txt file and loop through file urls
-	urlsList, err := GetURLsFile(urlsFilePath)
-	if err != nil {
-		return err
-	}
-
-	// Download the files and create the folder structure
-	for _, file := range urlsList {
-
-		fileName, err := createFilePathFromURL(file, *outDir)
-		if err != nil {
-			return err
-		}
-
-		err = downloadFile(file, fileName)
-		if err != nil {
-			return err
-		}
-		fmt.Printf("downloaded file from url %s\n", fileName)
-	}
-
-	fmt.Println("finished downloading files from url")
-
-	return nil
 }
