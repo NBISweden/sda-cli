@@ -86,6 +86,7 @@ do echo "waiting for buckets to be created"
     sleep 10
 done
 
+
 # Populate database with for testing the download service
 # Insert entry in sda.files
 file_ids=$(docker run --rm --name client --network testing_default \
@@ -105,6 +106,31 @@ file_ids=$(docker run --rm --name client --network testing_default \
         '', '637279707434676801000000010000006c000000000000006af1407abc74656b8913a7d323c4bfd30bf7c8ca359f74ae35357acef29dc5073799e207ec5d022b2601340585ff082565e55fbff5b6cdbbbe6b12a0d0a19ef325a219f8b62344325e22c8d26a8e82e45f053f4dcee10c0ec4bb9e466d5253f139dcd4be', 'CRYPT4GH') RETURNING id;" | xargs)
 
 if [ -z "$file_ids" ]; then
+    echo "Failed to insert file entry into database"
+    exit 1
+fi
+
+# Insert entry in sda.files for htsget testing
+hts_file_ids=$(docker run --rm --name client --network testing_default \
+    neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.files (stable_id, submission_user, \
+        submission_file_path, submission_file_size, archive_file_path, \
+        archive_file_size, decrypted_file_size, backup_path, header, \
+        encryption_method) VALUES ('FILE0000001', 'integration-test', 'dummy_gdi.eu/htsnexus_test_NA12878.bam.c4gh', \
+        NULL, 'abb0305b-861b-4983-84c2-c4ad9ab5ebe8', 2597919, 2596799, \
+        'NULL', '637279707434676801000000010000006c00000000000000ea3cb13f1decddb198de260f74e59d03a372fd2ae65509dea4c63f348a21a80ef1b9be145cd3943522a62bbc1992090f0c3a5ef6b4cd05c705333ca16f86818ab99e77e4695d0f45982c70f208cce240fb5e8928713d3aae5bc88206dcf795ce4fc2259a', 'CRYPT4GH'),
+        ('FILE0000002', 'integration-test', 'dummy_gdi.eu/htsnexus_test_NA12878.bam.bai.c4gh', \
+        NULL, '4d6c1787-3641-4aba-8e3f-11f35b514418', 6756, 6728, \
+        'NULL', '637279707434676801000000010000006c000000000000002807585fbbafa584ef89bbd4140e41dc7afe35c6491787f9ea599704770d251ba8947577ade743f1f58539a6afb41022f2c38822befd16d20bc4e5b10fa582a8c676e6f27b9c804d4db0d225b64198bd5c69a2e2c87a79c3ef22d03b7a6a10771219ce85', 'CRYPT4GH'),
+        ('FILE0000003', 'integration-test', 'dummy_gdi.eu/htsnexus_test_NA12878.bam.blocks.yaml.c4gh', \
+        NULL, 'bd0cc83e-86c9-41b4-b110-0089018895f4', 2061, 2033, \
+        'NULL', '637279707434676801000000010000006c00000000000000fe396aefdaeec924ec33ebb1a2de25613212cb8fe902939b28e5e11199885a11c1ba17cdcdbe13fc22fcc451a3010a6008e8f494d53fb8769d23c5ebb06f7ab75821121c634541d3366ae3325bf931e1206e66ce11091b279dd18cf5da5a50f8cf156896', 'CRYPT4GH'),
+        ('FILE0000004', 'integration-test', 'dummy_gdi.eu/htsnexus_test_NA12878.bam.gzi.c4gh', \
+        NULL, '45a73706-7427-4839-9a89-ddb2998b091f', 2644, 2616, \
+        'NULL', '637279707434676801000000010000006c00000000000000c785c033c0ffb12575603cd3ff2e745e3f6552aed9959b942cdd572623dc8007c8437921c473ce5ebf50b050b714aa39b10e784d872adfd2fb27dc96744761feb14a212348664d7d14d459a8cab8ad8380830984a611393c506778656a4fc3e8d0daa0c7', 'CRYPT4GH') RETURNING id;" | xargs)
+
+if [ -z "$hts_file_ids" ]; then
     echo "Failed to insert file entry into database"
     exit 1
 fi
@@ -158,7 +184,53 @@ for file_id in $file_ids; do
             VALUES ('$file_id', $dataset_id);"
 done
 
-# Add file to archive
+# Insert entries in sda.checksums for htsget testing
+hts_file_id1=$(echo $hts_file_ids | cut -d' ' -f1)
+hts_file_id2=$(echo $hts_file_ids | cut -d' ' -f2)
+hts_file_id3=$(echo $hts_file_ids | cut -d' ' -f3)
+hts_file_id4=$(echo $hts_file_ids | cut -d' ' -f4)
+
+docker run --rm --name client --network testing_default \
+    neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.checksums (file_id, checksum, type, source) \
+        VALUES ('$hts_file_id1', '15d28f1f14764511402e8c0eaf68316a79d8d9e7a787594307ed339a2a411b98', 'SHA256', 'ARCHIVED');"
+
+docker run --rm --name client --network testing_default \
+    neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.checksums (file_id, checksum, type, source) \
+        VALUES ('$hts_file_id2', 'bd0dc0bd81d7ef40ba57f8dcda80264b49e227da795dcde6588e6239c93f3af2', 'SHA256', 'ARCHIVED');"
+
+docker run --rm --name client --network testing_default \
+    neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.checksums (file_id, checksum, type, source) \
+        VALUES ('$hts_file_id3', 'b6c85131c91dc96a726e4a3dc9608c5640799b316654dadd14f7e1fd78bfd220', 'SHA256', 'ARCHIVED');"
+
+docker run --rm --name client --network testing_default \
+    neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.checksums (file_id, checksum, type, source) \
+        VALUES ('$hts_file_id4', 'cdedc99765fd3d77bf6f12a89d4afc276d16155a08bab4ea251acaaca4cad344', 'SHA256', 'ARCHIVED');"
+
+for id in $hts_file_ids; do
+    # Insert entry in sda.file_event_log
+    docker run --rm --name client --network testing_default \
+        neicnordic/pg-client:latest \
+        postgresql://postgres:rootpasswd@postgres:5432/sda \
+        -t -q -c "INSERT INTO sda.file_event_log (file_id, event) \
+            VALUES ('$id', 'ready');"
+
+    # Add file to dataset
+    docker run --rm --name client --network testing_default \
+        neicnordic/pg-client:latest \
+        postgresql://postgres:rootpasswd@postgres:5432/sda \
+        -t -q -c "INSERT INTO sda.file_dataset (file_id, dataset_id) \
+            VALUES ('$id', $dataset_id);"
+done
+
+# Add files to archive
 s3cmd -c directS3 put --recursive archive_data/ s3://archive/
 
 # Get the correct token form mockoidc

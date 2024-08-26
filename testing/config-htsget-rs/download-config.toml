@@ -1,0 +1,25 @@
+ticket_server_addr = "0.0.0.0:8080"
+ticket_server_cors_allow_origins = "All"
+
+[[resolvers]]
+regex = "(.*)"
+substitution_string = "$1"
+
+[resolvers.object_type]
+send_encrypted_to_client = true  # if true, htsget will calculate coordinates for the encrypted case
+# Uncomment the lines below to use predefined key pairs,
+# rather than automatically generating new key pairs for each for each request
+#private_key = "/config/server-rs.sec.pem"
+#public_key = "/config/server-rs.pub.pem"
+
+[resolvers.storage]
+# The url that will be returned in the response to the client
+response_url = "http://localhost:8443/s3-encrypted/"
+# forward_headers must be true in order to pass the clients token and public key to the storage endpoint
+forward_headers = true
+
+[resolvers.storage.endpoints]
+# URL to retrieve an index file from the storage
+index = "http://dockerhost:8443/s3/"
+# URL to retrieve a data file from the storage
+file = "http://dockerhost:8443/s3-encrypted/"
