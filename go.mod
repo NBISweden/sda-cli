@@ -19,6 +19,7 @@ require (
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dchest/bcrypt_pbkdf v0.0.0-20150205184540-83f37f9c154a // indirect
+	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
