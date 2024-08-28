@@ -200,14 +200,19 @@ services:
       - GRPC_PORT=50051
       - GRPC_HOST=reencrypt
       - APP_SERVEUNENCRYPTEDDATA=true
+      - C4GH_PASSPHRASE=oaagCP1YgAZeEyl2eJAkHv9lkcWXWFgm
+      - C4GH_FILEPATH=/dev_utils/c4gh.sec.pem
     image: "ghcr.io/neicnordic/sensitive-data-archive:${TAG}-download"
     volumes:
       - ./archive_data/4293c9a7-dc50-46db-b79a-27ddc0dad1c6:/tmp/4293c9a7-dc50-46db-b79a-27ddc0dad1c6
-      - ./archive_data/abb0305b-861b-4983-84c2-c4ad9ab5ebe8:/tmp/abb0305b-861b-4983-84c2-c4ad9ab5ebe8
-      - ./archive_data/4d6c1787-3641-4aba-8e3f-11f35b514418:/tmp/4d6c1787-3641-4aba-8e3f-11f35b514418
-      - ./archive_data/bd0cc83e-86c9-41b4-b110-0089018895f4:/tmp/bd0cc83e-86c9-41b4-b110-0089018895f4
-      - ./archive_data/45a73706-7427-4839-9a89-ddb2998b091f:/tmp/45a73706-7427-4839-9a89-ddb2998b091f
+      - ./archive_data/1068a0b9-51c9-4bda-8fcf-14b3b884f7a4:/tmp/1068a0b9-51c9-4bda-8fcf-14b3b884f7a4
+      - ./archive_data/668330fb-bdd8-40b2-a88f-29e1e610fa4b:/tmp/668330fb-bdd8-40b2-a88f-29e1e610fa4b
+      - ./archive_data/ce796074-21d8-43ef-9b5e-848ce8b6e47b:/tmp/ce796074-21d8-43ef-9b5e-848ce8b6e47b
+      - ./archive_data/2c063d42-f57f-4e74-bb1c-f56af00825b7:/tmp/2c063d42-f57f-4e74-bb1c-f56af00825b7
+      - ./:/dev_utils/
     mem_limit: 256m
+    extra_hosts:
+      - ${DOCKERHOST:-dockerhost}:host-gateway
     ports:
       - "8089:8080"
     restart: always
@@ -228,6 +233,7 @@ services:
   htsget:
     image: harbor.nbis.se/gdi/htsget-rs:20240415
     command: ["htsget-actix", "--config", "/config/download-config.toml"]
+    container_name: htsget
     depends_on:
       download:
         condition: service_started

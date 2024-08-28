@@ -409,6 +409,30 @@ fi
 
 rm -r test-download
 
+# check htsget endpoint works
+curl 'http://localhost:8089/s3-encrypted/https://doi.example/ty009.sfrrss/600.45asasga/htsnexus_test_NA12878.bam' -H "Authorization: Bearer $token"  -H "Client-Public-Key: $pubkey" -H "Range: bytes=16-123" -o p11-00.bam.c4gh
+
+# Download partial file by using htsget endpoint
+./sda-cli htsget -config testing/s3cmd-download.conf -dataset https://doi.example/ty009.sfrrss/600.45asasga -filename htsnexus_test_NA12878 -reference 11 -host http://localhost:8088 -pubkey user_key.pub.pem -output test-htsget/result.c4gh --force-overwrite
+
+# check if file exists in the path
+if [ ! -f "test-htsget/result.c4gh" ]; then
+    echo "Downloaded file not found"
+    exit 1
+fi
+
+# decrypt the downloaded file
+C4GH_PASSWORD="" ./sda-cli decrypt -key user_key.sec.pem test-htsget/result.c4gh
+
+if [ -f test-htsget/result  ]; then
+    echo "Decrypting downloaded file succeeded"
+else
+    echo "Failed to decrypt downloaded file"
+    exit 1
+fi
+
+rm -r test-htsget
+
 # Download recursively a folder
 echo "Downloading content of folder"
 ./sda-cli sda-download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-folder --recursive main/subfolder2
