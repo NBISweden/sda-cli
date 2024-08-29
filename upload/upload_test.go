@@ -354,7 +354,7 @@ func (suite *TestSuite) TestRecursiveToDifferentTarget() {
 	}
 	_, err := s3Client.CreateBucket(cparams)
 	if err != nil {
-		log.Printf(err.Error())
+		log.Print(err.Error())
 	}
 
 	// Create conf file for sda-cli
@@ -377,7 +377,7 @@ func (suite *TestSuite) TestRecursiveToDifferentTarget() {
 
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd.conf")
 	if err != nil {
-		log.Printf(err.Error())
+		log.Print(err.Error())
 	}
 	defer os.Remove(configPath.Name())
 
@@ -419,7 +419,7 @@ func (suite *TestSuite) TestRecursiveToDifferentTarget() {
 		Bucket: aws.String("dummy"),
 	})
 	if err != nil {
-		log.Printf(err.Error())
+		log.Print(err.Error())
 	}
 	assert.Equal(suite.T(), filepath.ToSlash(filepath.Join(targetPath, filepath.Base(dir), filepath.Base(testfile.Name()))), aws.StringValue(result.Contents[0].Key))
 
