@@ -139,9 +139,24 @@ func Datasets(token string) error {
 	if err != nil {
 		return err
 	}
+
 	// Loop through the datasets and list them
 	for _, dataset := range datasets {
-		fmt.Printf("%s \n", dataset)
+		files, err := download.GetFilesInfo(*URL, dataset, "", token)
+		if err != nil {
+			return err
+		}
+		// Set rather long minimum column widths, so that header matches the rest of the table
+		fileIDWidth := 40
+		fmt.Printf("%-*s \t %s \t %s\n", fileIDWidth, "DatasetID", "Files", "Size")
+		datasetSize := 0
+		noOfFiles := 0
+		// Loop through the files and get their sizes
+		for _, file := range files {
+			datasetSize += file.DecryptedFileSize
+			noOfFiles++
+		}
+		fmt.Printf("%s \t %d \t %s\n", dataset, noOfFiles, formatedBytes(datasetSize))
 	}
 
 	return nil
