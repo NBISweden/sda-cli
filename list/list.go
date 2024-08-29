@@ -112,13 +112,6 @@ func DatasetFiles(token string) error {
 	if err != nil {
 		return err
 	}
-	formatedBytes := func(size int) string {
-		if !*bytesFormat {
-			return humanize.Bytes(uint64(size))
-		}
-
-		return strconv.Itoa(size)
-	}
 	// Set rather long minimum column widths, so that header matches the rest of the table
 	fileIDWidth, sizeWidth := 20, 10
 	fmt.Printf("%-*s \t %-*s \t %s\n", fileIDWidth, "FileID", sizeWidth, "Size", "Path")
@@ -131,6 +124,14 @@ func DatasetFiles(token string) error {
 	fmt.Printf("Dataset size: %s\n", formatedBytes(datasetSize))
 
 	return nil
+}
+
+func formatedBytes(size int) string {
+	if !*bytesFormat {
+		return humanize.Bytes(uint64(size))
+	}
+
+	return strconv.Itoa(size)
 }
 
 func Datasets(token string) error {
