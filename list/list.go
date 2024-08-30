@@ -18,7 +18,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help list` command
 var Usage = `
-USAGE: %s list [--config <s3config-file>] [prefix] (-url <uri> --datasets) (-url <uri> --dataset <dataset-id>) [--bytes]
+USAGE: %s list [-config <s3config-file>] [prefix] (-url <uri> --datasets) (-url <uri> --dataset <dataset-id>) [-bytes]
 
 list:
     Lists recursively all files under the user's folder in the Sensitive
