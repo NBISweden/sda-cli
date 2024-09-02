@@ -3,11 +3,13 @@ package list
 import (
 	"flag"
 	"fmt"
+	"strconv"
 
 	"strings"
 
 	"github.com/NBISweden/sda-cli/download"
 	"github.com/NBISweden/sda-cli/helpers"
+	"github.com/dustin/go-humanize"
 	"github.com/inhies/go-bytesize"
 )
 
@@ -16,7 +18,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help list` command
 var Usage = `
-USAGE: %s list [-config <s3config-file>] [prefix] (-url <uri> --datasets) (-url <uri> --dataset <dataset-id>)
+USAGE: %s list [-config <s3config-file>] [prefix] (-url <uri> --datasets) (-url <uri> --dataset <dataset-id>) [-bytes]
 
 list:
     Lists recursively all files under the user's folder in the Sensitive
@@ -44,6 +46,8 @@ var configPath = Args.String("config", "",
 var URL = Args.String("url", "", "The url of the sda-download server")
 
 var datasets = Args.Bool("datasets", false, "List all datasets in the user's folder.")
+
+var bytesFormat = Args.Bool("bytes", false, "Print file sizes in bytes (not human-readable format).")
 
 var dataset = Args.String("dataset", "", "List all files in the specified dataset.")
 
@@ -108,10 +112,23 @@ func DatasetFiles(token string) error {
 	if err != nil {
 		return err
 	}
+	formatedBytes := func(size int) string {
+		if !*bytesFormat {
+			return humanize.Bytes(uint64(size))
+		}
+
+		return strconv.Itoa(size)
+	}
+	// Set rather long minimum column widths, so that header matches the rest of the table
+	fileIDWidth, sizeWidth := 20, 10
+	fmt.Printf("%-*s \t %-*s \t %s\n", fileIDWidth, "FileID", sizeWidth, "Size", "Path")
+	datasetSize := 0
 	// Loop through the files and list them
 	for _, file := range files {
-		fmt.Printf("%s \t %d \n", file.DisplayFileName, file.DecryptedFileSize)
+		datasetSize += file.DecryptedFileSize
+		fmt.Printf("%s \t %s \t %s\n", file.FileID, formatedBytes(file.DecryptedFileSize), file.FilePath)
 	}
+	fmt.Printf("Dataset size: %s\n", formatedBytes(datasetSize))
 
 	return nil
 }
