@@ -312,6 +312,13 @@ func (suite *TestSuite) TestFunctionality() {
 	newArgs = []string{"upload", "-config", configPath.Name(), "--encrypt-with-key", "somekey", testfile.Name()}
 	assert.EqualError(suite.T(), Upload(newArgs), "aborting")
 
+	// Supplying an accesstoken as a parameter overrules the one in the config file
+	newArgs = []string{"upload", "-accessToken", "BadToken", "-config", configPath.Name(), testfile.Name()}
+	assert.EqualError(suite.T(), Upload(newArgs), "could not parse token, reason: token contains an invalid number of segments")
+
+	newArgs = []string{"upload", "-accessToken", suite.accessToken, "-config", configPath.Name(), testfile.Name()}
+	assert.NoError(suite.T(), Upload(newArgs))
+
 	// Remove hash files created by Encrypt
 	if err := os.Remove("checksum_encrypted.md5"); err != nil {
 		log.Panic(err)
