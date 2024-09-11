@@ -63,6 +63,8 @@ var pubKeyPath = Args.String("encrypt-with-key", "",
 		"Only unencrypted data should be provided when this flag is set.",
 )
 
+var accessToken = Args.String("accessToken", "", "Accesstoken to the inbox service. (optional, if it is set in the config file)")
+
 // Function uploadFiles uploads the files in the input list to the s3 bucket
 func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Config) error {
 	// check also here in case sth went wrong with input files
@@ -289,6 +291,10 @@ func Upload(args []string) error {
 	config, err := helpers.GetAuth(*configPath)
 	if err != nil {
 		return err
+	}
+
+	if *accessToken != "" {
+		config.AccessToken = *accessToken
 	}
 
 	err = helpers.CheckTokenExpiration(config.AccessToken)
