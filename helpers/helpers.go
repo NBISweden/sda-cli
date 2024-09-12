@@ -263,7 +263,7 @@ func LoadConfigFile(path string) (*Config, error) {
 		return nil, err
 	}
 
-	if config.AccessKey == "" || config.AccessToken == "" {
+	if config.AccessKey == "" {
 		return nil, errors.New("failed to find credentials in configuration file")
 	}
 
