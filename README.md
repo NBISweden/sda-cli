@@ -94,6 +94,14 @@ Follow the dialogue to get authenticated and then click on `Download inbox s3cmd
 
 Alternatively, you can download the configuration file using the [login command](#Login).
 
+The access token used to authenticate to the inbox can be supplied in 3 different ways; in the config file, as an ENV `ACCESSTOKEN` or on the command line `-accessToken <access-token>` as part of the upload command.
+
+The Priority order for the access token is:
+
+1. Using the `-accessToken` flag
+2. From the ENV `ACCESSTOKEN`
+3. In the config file
+
 ### Upload file(s)
 
 Now that the configuration file is downloaded, the file(s) can be uploaded to the archive using the binary file created in the first step of this guide. To upload a specific file, use the following command:
