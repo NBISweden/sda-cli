@@ -314,6 +314,28 @@ func (suite *TestSuite) TestFunctionality() {
 	newArgs = []string{"upload", "-config", configPath.Name(), "--encrypt-with-key", "somekey", testfile.Name()}
 	assert.EqualError(suite.T(), Upload(newArgs), "aborting")
 
+	// config file without an access_token
+	var confFileNoToken = fmt.Sprintf(`
+	host_base = %[1]s
+	encoding = UTF-8
+	host_bucket = %[1]s
+	multipart_chunk_size_mb = 50
+	secret_key = dummy
+	access_key = dummy
+	use_https = False
+	check_ssl_certificate = False
+	check_ssl_hostname = False
+	socket_timeout = 30
+	human_readable_sizes = True
+	guess_mime_type = True
+	encrypt = False
+	`, strings.TrimPrefix(ts.URL, "http://"))
+
+	err = os.WriteFile(configPath.Name(), []byte(confFileNoToken), 0600)
+	if err != nil {
+		suite.FailNow("failed to write temp config file, %v", err)
+	}
+
 	os.Setenv("ACCESSTOKEN", "BadToken")
 	// Supplying an accesstoken as a ENV overrules the one in the config file
 	newArgs = []string{"upload", "-config", configPath.Name(), testfile.Name()}
