@@ -294,6 +294,8 @@ func Upload(args []string) error {
 	}
 
 	switch {
+	case os.Getenv("ACCESSTOKEN") == "" && *accessToken == "" && config.AccessToken == "":
+		return errors.New("no access token supplied")
 	case os.Getenv("ACCESSTOKEN") != "" && *accessToken == "":
 		config.AccessToken = os.Getenv("ACCESSTOKEN")
 	case *accessToken != "":

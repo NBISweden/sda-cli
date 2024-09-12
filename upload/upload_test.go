@@ -336,6 +336,10 @@ func (suite *TestSuite) TestFunctionality() {
 		suite.FailNow("failed to write temp config file, %v", err)
 	}
 
+	// Check that an access token is supplied
+	newArgs = []string{"upload", "-config", configPath.Name(), testfile.Name()}
+	assert.EqualError(suite.T(), Upload(newArgs), "no access token supplied")
+
 	os.Setenv("ACCESSTOKEN", "BadToken")
 	// Supplying an accesstoken as a ENV overrules the one in the config file
 	newArgs = []string{"upload", "-config", configPath.Name(), testfile.Name()}
