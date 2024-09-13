@@ -25,7 +25,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help upload` command
 var Usage = `
-USAGE: %s upload -config <s3config-file> (--encrypt-with-key <public-key-file>) (--force-overwrite) (--force-unencrypted) (-r) [file(s) | folder(s)] (-targetDir <upload-directory>)
+USAGE: %s upload -config <s3config-file> (-accessToken <access-token>) (--encrypt-with-key <public-key-file>) (--force-overwrite) (--force-unencrypted) (-r) [file(s) | folder(s)] (-targetDir <upload-directory>)
 
 upload:
     Uploads files to the Sensitive Data Archive (SDA).
@@ -62,6 +62,8 @@ var pubKeyPath = Args.String("encrypt-with-key", "",
 		"The key file may optionally contain several concatenated public keys.\n"+
 		"Only unencrypted data should be provided when this flag is set.",
 )
+
+var accessToken = Args.String("accessToken", "", "Access token to the inbox service.\n(optional, if it is set in the config file or exported as the ENV `ACCESSTOKEN`)")
 
 // Function uploadFiles uploads the files in the input list to the s3 bucket
 func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Config) error {
@@ -289,6 +291,15 @@ func Upload(args []string) error {
 	config, err := helpers.GetAuth(*configPath)
 	if err != nil {
 		return err
+	}
+
+	switch {
+	case os.Getenv("ACCESSTOKEN") == "" && *accessToken == "" && config.AccessToken == "":
+		return errors.New("no access token supplied")
+	case os.Getenv("ACCESSTOKEN") != "" && *accessToken == "":
+		config.AccessToken = os.Getenv("ACCESSTOKEN")
+	case *accessToken != "":
+		config.AccessToken = *accessToken
 	}
 
 	err = helpers.CheckTokenExpiration(config.AccessToken)
