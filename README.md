@@ -181,9 +181,13 @@ will first encrypt all files in `<folder_to_upload_with_unencrypted_data>` and t
 - If the flag `--force-overwrite` is used, the tool will overwrite any already existing file.
 - The cli will exit if the input has any un-encrypred files. To override that, use the flag `--force-unencrypted`.
 
-## List files
+## List
 
-The uploaded files can be listed using the `list` parameter. This feature returns all the files in the user's bucket recursively and can be executed using:
+All the following cases require a [configuration file to be downloaded](https://github.com/NBISweden/sda-cli/blob/documentation/datset-list/README.md#download-the-configuration-file) before starting the operation, and the `list` parameter should be used.
+
+### List uploaded files
+
+This feature returns all the files in the user's inbox recursively and can be executed using:
 
 ```bash
 ./sda-cli list [-config <configuration_file>]
@@ -197,6 +201,25 @@ It also allows for requesting files/filepaths with a specified prefix using:
 
 This command will return any file/path starting with the defined `<prefix>`.
 If no config is given by the user, the tool will look for a previous login from the user.
+
+### List datasets and their files
+
+To list datasets or the files within a dataset that the user has access to, the `--datasets` flag should be used and the login URL must be provided:
+
+```bash
+./sda-cli list -config <configuration_file> --datasets --url <login_url> (--bytes)
+```
+
+where `<login_url>` is the URL where the user goes for authentication. This command returns a list of accessible datasets, including the number
+of files in each dataset and the total size of it. The `--bytes` flag is optional and it will display the size of the dataset in bytes.
+
+To list the files within a particular dataset, the user must provide the dataset ID (which can be obtained by executing the previous command):
+
+```bash
+./sda-cli list -config <configuration_file> -dataset <datasetID> -url <login_url> (--bytes)
+```
+
+This command returns a list of files within the dataset, including their file IDs, file sizes and file paths. The `--bytes` flag is optional and it will display the size of the files in bytes.
 
 ## Download
 
