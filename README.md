@@ -187,7 +187,7 @@ All the following cases require a configuration file to be downloaded before sta
 
 ### List uploaded files
 
-This feature returns all the files in the user's bucket recursively and can be executed using:
+This feature returns all the files in the user's inbox recursively and can be executed using:
 
 ```bash
 ./sda-cli list [-config <configuration_file>]
