@@ -183,7 +183,7 @@ will first encrypt all files in `<folder_to_upload_with_unencrypted_data>` and t
 
 ## List
 
-All the below cases require a configuration file to be downloaded before starting the operation and the `list` parameter should be used.
+All the following cases require a configuration file to be downloaded before starting the operation, and the `list` parameter should be used.
 
 ### List uploaded files
 
@@ -204,22 +204,22 @@ If no config is given by the user, the tool will look for a previous login from 
 
 ### List datasets and their files
 
-To list datasets or files within a dataset to which the user has access, the `--datasets` flag should be used and the login URL must be provided:
+To list datasets or the files within a dataset that the user has access to, the `--datasets` flag should be used and the login URL must be provided:
 
 ```bash
 ./sda-cli list -config <configuration_file> --datasets --url <login_url>
 ```
 
-where the `<login_url>` is the url where user go for authentication. This command returns a list of accessible datasets with the number
+where `<login_url>` is the URL where the user goes for authentication. This command returns a list of accessible datasets, including the number
 of files in each dataset and the total size of it.
 
-To list the files within a particular dataset, the user must provide the dataset ID (which can be obtained by executing the previously mentioned command):
+To list the files within a particular dataset, the user must provide the dataset ID (which can be obtained by executing the previous command):
 
 ```bash
 ./sda-cli list -config <configuration_file> -dataset <datasetID> -url <login_url>
 ```
 
-This command returns a list of files of the dataset with their file IDs, file sizes and file paths.
+This command returns a list of files within the dataset, including their file IDs, file sizes and file paths.
 
 ## Download
 
