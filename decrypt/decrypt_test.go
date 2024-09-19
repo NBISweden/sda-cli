@@ -156,3 +156,81 @@ func (suite *DecryptTests) TestDecrypt() {
 	assert.NoError(suite.T(), err, "decrypt failed unexpectedly")
 	os.Args = nil
 }
+
+func (suite *DecryptTests) TestDecryptMultipleFiles() {
+	testKeyFile := filepath.Join(suite.tempDir, "testkey")
+	err := createKey.GenerateKeyPair(testKeyFile, "")
+	assert.NoError(suite.T(), err)
+
+	// Setup files for encryption
+	fileNames := []string{
+		filepath.Join(suite.tempDir, "file1.txt"),
+		filepath.Join(suite.tempDir, "file2.txt"),
+		filepath.Join(suite.tempDir, "file3.txt"),
+	}
+	encryptedFiles := []string{
+		filepath.Join(suite.tempDir, "file1.txt.c4gh"),
+		filepath.Join(suite.tempDir, "file2.txt.c4gh"),
+		filepath.Join(suite.tempDir, "file3.txt.c4gh"),
+	}
+
+	// Create and write to files
+	for _, fileName := range fileNames {
+		err := os.WriteFile(fileName, suite.fileContent, 0600)
+		assert.NoError(suite.T(), err)
+	}
+
+	// Encrypt the files
+	cwd, err := os.Getwd()
+	assert.NoError(suite.T(), err)
+	err = os.Chdir(suite.tempDir)
+	assert.NoError(suite.T(), err)
+	encryptArgs := []string{"encrypt", "-key", fmt.Sprintf("%s.pub.pem", testKeyFile)}
+	for _, fileName := range fileNames {
+		err = encrypt.Encrypt(append(encryptArgs, fileName))
+		assert.NoError(suite.T(), err)
+	}
+	err = os.Chdir(cwd)
+	assert.NoError(suite.T(), err)
+
+	// Remove file2.txt and file3.txt to simulate their absence
+	err = os.Remove(fileNames[1]) // file2.txt
+	assert.NoError(suite.T(), err)
+
+	err = os.Remove(fileNames[2]) // file3.txt
+	assert.NoError(suite.T(), err)
+
+	// Attempt to decrypt all files: file1.txt.c4gh will be skipped due to
+	// existance of file1.txt, file2.txt.c4gh and file3.txt.c4gh will be
+	// decrypted successfully, despite a non existing file in the list
+	os.Setenv("C4GH_PASSWORD", "")
+	os.Args = []string{"decrypt", "-key", fmt.Sprintf("%s.sec.pem", testKeyFile),
+		encryptedFiles[0], encryptedFiles[1], "nonexistent_file.c4gh", encryptedFiles[2]}
+
+	err = Decrypt(os.Args)
+	assert.NoError(suite.T(), err, "decrypt failed unexpectedly")
+
+	// Check the decrypted files
+	for _, fileName := range fileNames[1:] { // Check file2.txt and file3.txt
+		decryptedFile := filepath.Join(suite.tempDir, filepath.Base(fileName))
+
+		// Verify that the file exists
+		if _, err := os.Stat(decryptedFile); os.IsNotExist(err) {
+			suite.T().Errorf("Decrypted file %s does not exist", decryptedFile)
+
+			continue
+		}
+
+		// Open and read the decrypted file
+		inFile, err := os.Open(decryptedFile)
+		assert.NoError(suite.T(), err, "unable to open decrypted file")
+		fileData, err := io.ReadAll(inFile)
+		assert.NoError(suite.T(), err, "unable to read decrypted file")
+
+		// Check the file content
+		assert.Equal(suite.T(), fileData, suite.fileContent, "content of decrypted file does not match expected")
+	}
+
+	// Cleanup
+	os.Args = nil
+}

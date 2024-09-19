@@ -85,6 +85,7 @@ func Decrypt(args []string) error {
 		// check that the input file exists and is readable
 		if !helpers.FileIsReadable(file.Encrypted) {
 			warnings = append(warnings, fmt.Sprintf("Warning: cannot read input file %s", file.Encrypted))
+
 			continue
 		}
 
