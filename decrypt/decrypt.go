@@ -79,26 +79,40 @@ func Decrypt(args []string) error {
 		return err
 	}
 
+	var warnings []string
 	// Check that all the encrypted files exist, and all the unencrypted don't
 	for _, file := range files {
 		// check that the input file exists and is readable
 		if !helpers.FileIsReadable(file.Encrypted) {
-			return fmt.Errorf("cannot read input file %s", file.Encrypted)
+			warnings = append(warnings, fmt.Sprintf("Warning: cannot read input file %s", file.Encrypted))
+			continue
 		}
 
 		// check that the output file doesn't exist
 		if helpers.FileExists(file.Unencrypted) && !*forceOverwrite {
-			return fmt.Errorf("outfile %s already exists", file.Unencrypted)
+			warnings = append(warnings, fmt.Sprintf("Warning: output file %s already exists", file.Unencrypted))
+		}
+	}
+
+	// Print warnings if any
+	if len(warnings) > 0 {
+		for _, warning := range warnings {
+			fmt.Println(warning)
 		}
 	}
 
 	// decrypt the input files
 	numFiles := len(files)
 	for i, file := range files {
-		fmt.Printf("Decrypting file %v/%v: %s\n", i+1, numFiles, file.Encrypted)
-		err = decryptFile(file.Encrypted, file.Unencrypted, *privateKey)
-		if err != nil {
-			return err
+		if helpers.FileIsReadable(file.Encrypted) && !helpers.FileExists(file.Unencrypted) || *forceOverwrite {
+			fmt.Printf("Decrypting file %v/%v: %s\n", i+1, numFiles, file.Encrypted)
+			err := decryptFile(file.Encrypted, file.Unencrypted, *privateKey)
+			if err != nil {
+				fmt.Printf("Error decrypting file %s: %v\n", file.Encrypted, err)
+			}
+		} else if helpers.FileExists(file.Unencrypted) {
+			// Skip decrypting if the file already exists and forceOverwrite is not set
+			fmt.Printf("Skipping decryption for file %s as it already exists and forceOverwrite is not enabled\n", file.Unencrypted)
 		}
 	}
 
