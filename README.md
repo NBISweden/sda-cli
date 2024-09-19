@@ -183,7 +183,7 @@ will first encrypt all files in `<folder_to_upload_with_unencrypted_data>` and t
 
 ## List
 
-All the following cases require a configuration file to be downloaded before starting the operation, and the `list` parameter should be used.
+All the following cases require a [configuration file to be downloaded](https://github.com/NBISweden/sda-cli/blob/documentation/datset-list/README.md#download-the-configuration-file) before starting the operation, and the `list` parameter should be used.
 
 ### List uploaded files
 
@@ -207,19 +207,19 @@ If no config is given by the user, the tool will look for a previous login from 
 To list datasets or the files within a dataset that the user has access to, the `--datasets` flag should be used and the login URL must be provided:
 
 ```bash
-./sda-cli list -config <configuration_file> --datasets --url <login_url>
+./sda-cli list -config <configuration_file> --datasets --url <login_url> (--bytes)
 ```
 
 where `<login_url>` is the URL where the user goes for authentication. This command returns a list of accessible datasets, including the number
-of files in each dataset and the total size of it.
+of files in each dataset and the total size of it. The `--bytes` flag is optional and it will display the size of the dataset in bytes.
 
 To list the files within a particular dataset, the user must provide the dataset ID (which can be obtained by executing the previous command):
 
 ```bash
-./sda-cli list -config <configuration_file> -dataset <datasetID> -url <login_url>
+./sda-cli list -config <configuration_file> -dataset <datasetID> -url <login_url> (--bytes)
 ```
 
-This command returns a list of files within the dataset, including their file IDs, file sizes and file paths.
+This command returns a list of files within the dataset, including their file IDs, file sizes and file paths. The `--bytes` flag is optional and it will display the size of the files in bytes.
 
 ## Download
 
