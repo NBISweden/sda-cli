@@ -2,6 +2,7 @@ package createkey
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -65,4 +66,26 @@ func (suite *CreateKeyTests) TestgenerateKeyPair() {
 
 	_, err = keys.ReadPrivateKey(keyFile, []byte(password))
 	assert.NoError(suite.T(), err)
+}
+
+func (suite *CreateKeyTests) TestgenerateKeyPairPermission() {
+
+	testFileName := filepath.Join(suite.tempDir, "keyfile")
+
+	// none of the target files exist, no password used
+	err := GenerateKeyPair(testFileName, "")
+	assert.NoError(suite.T(), err)
+
+	// test that the public key has correct permission
+	pubFile, err := os.Lstat(testFileName + ".pub.pem")
+	assert.NoError(suite.T(), err)
+	pubPerm := pubFile.Mode().Perm()
+	assert.Equal(suite.T(), pubPerm, fs.FileMode(0644))
+
+	// test that the secret key has correct permission
+	secFile, err := os.Lstat(testFileName + ".sec.pem")
+	assert.NoError(suite.T(), err)
+	secPerm := secFile.Mode().Perm()
+	assert.Equal(suite.T(), secPerm, fs.FileMode(0600))
+
 }
