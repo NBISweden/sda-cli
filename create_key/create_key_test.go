@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/neicnordic/crypt4gh/keys"
@@ -80,12 +81,19 @@ func (suite *CreateKeyTests) TestgenerateKeyPairPermission() {
 	pubFile, err := os.Lstat(testFileName + ".pub.pem")
 	assert.NoError(suite.T(), err)
 	pubPerm := pubFile.Mode().Perm()
-	assert.Equal(suite.T(), pubPerm, fs.FileMode(0644))
+	if runtime.GOOS == "windows" {
+		assert.Equal(suite.T(), fs.FileMode(0666), pubPerm)
+	} else {
+		assert.Equal(suite.T(), fs.FileMode(0644), pubPerm)
+	}
 
 	// test that the secret key has correct permission
 	secFile, err := os.Lstat(testFileName + ".sec.pem")
 	assert.NoError(suite.T(), err)
 	secPerm := secFile.Mode().Perm()
-	assert.Equal(suite.T(), secPerm, fs.FileMode(0600))
-
+	if runtime.GOOS == "windows" {
+		assert.Equal(suite.T(), fs.FileMode(0666), pubPerm)
+	} else {
+		assert.Equal(suite.T(), fs.FileMode(0600), secPerm)
+	}
 }
