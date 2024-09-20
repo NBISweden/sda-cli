@@ -100,7 +100,7 @@ func GenerateKeyPair(basename, password string) error {
 	}
 
 	// Save keys to file
-	pubFile, err := os.OpenFile(filepath.Clean(publicKeyName), os.O_WRONLY|os.O_CREATE, 0600)
+	pubFile, err := os.OpenFile(filepath.Clean(publicKeyName), os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return err
 	}

@@ -2,8 +2,10 @@ package createkey
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/neicnordic/crypt4gh/keys"
@@ -65,4 +67,33 @@ func (suite *CreateKeyTests) TestgenerateKeyPair() {
 
 	_, err = keys.ReadPrivateKey(keyFile, []byte(password))
 	assert.NoError(suite.T(), err)
+}
+
+func (suite *CreateKeyTests) TestgenerateKeyPairPermission() {
+
+	testFileName := filepath.Join(suite.tempDir, "keyfile")
+
+	// none of the target files exist, no password used
+	err := GenerateKeyPair(testFileName, "")
+	assert.NoError(suite.T(), err)
+
+	// test that the public key has correct permission
+	pubFile, err := os.Lstat(testFileName + ".pub.pem")
+	assert.NoError(suite.T(), err)
+	pubPerm := pubFile.Mode().Perm()
+	if runtime.GOOS == "windows" {
+		assert.Equal(suite.T(), fs.FileMode(0666), pubPerm)
+	} else {
+		assert.Equal(suite.T(), fs.FileMode(0644), pubPerm)
+	}
+
+	// test that the secret key has correct permission
+	secFile, err := os.Lstat(testFileName + ".sec.pem")
+	assert.NoError(suite.T(), err)
+	secPerm := secFile.Mode().Perm()
+	if runtime.GOOS == "windows" {
+		assert.Equal(suite.T(), fs.FileMode(0666), pubPerm)
+	} else {
+		assert.Equal(suite.T(), fs.FileMode(0600), secPerm)
+	}
 }
