@@ -231,6 +231,44 @@ func (suite *DecryptTests) TestDecryptMultipleFiles() {
 		assert.Equal(suite.T(), fileData, suite.fileContent, "content of decrypted file does not match expected")
 	}
 
+	// Test decryption of multiple files with --force-overwrite enabled
+	// First, modify the content of the decrypted files to ensure we can verify that they are overwritten later
+	for _, fileName := range fileNames {
+		decryptedFile := filepath.Join(suite.tempDir, filepath.Base(fileName))
+
+		// Clear the file content by truncating the file
+		err := os.WriteFile(decryptedFile, []byte{}, 0600)
+		assert.NoError(suite.T(), err, "failed to empty the file content")
+	}
+
+	// Now, run decryption again with --force-overwrite enabled
+	os.Args = []string{"decrypt", "-key", fmt.Sprintf("%s.sec.pem", testKeyFile),
+		"--force-overwrite", encryptedFiles[0], encryptedFiles[1], encryptedFiles[2]}
+
+	err = Decrypt(os.Args)
+	assert.NoError(suite.T(), err, "decrypt with --force-overwrite failed unexpectedly")
+
+	// Verify that all files have been overwritten
+	for _, fileName := range fileNames { // Check all files
+		decryptedFile := filepath.Join(suite.tempDir, filepath.Base(fileName))
+
+		// Verify that the file exists
+		if _, err := os.Stat(decryptedFile); os.IsNotExist(err) {
+			suite.T().Errorf("Decrypted file %s does not exist after --force-overwrite", decryptedFile)
+
+			continue
+		}
+
+		// Open and read the overwritten decrypted file
+		inFile, err := os.Open(decryptedFile)
+		assert.NoError(suite.T(), err, "unable to open overwritten decrypted file")
+		fileData, err := io.ReadAll(inFile)
+		assert.NoError(suite.T(), err, "unable to read overwritten decrypted file")
+
+		// Check the file content to verify it has been overwritten
+		assert.Equal(suite.T(), fileData, suite.fileContent, "content of overwritten file does not match expected")
+	}
+
 	// Cleanup
 	os.Args = nil
 }
