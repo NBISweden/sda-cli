@@ -84,7 +84,7 @@ func Decrypt(args []string) error {
 	for i, file := range files {
 		switch {
 		case !helpers.FileIsReadable(file.Encrypted):
-			fmt.Fprintf(os.Stderr, "Warning: cannot read input file %s\n", file.Encrypted)
+			fmt.Fprintf(os.Stderr, "Error: cannot read input file %s\n", file.Encrypted)
 		case *forceOverwrite:
 			fmt.Printf("Decrypting file %v/%v: %s\n", i+1, numFiles, file.Encrypted)
 			err := decryptFile(file.Encrypted, file.Unencrypted, *privateKey)
