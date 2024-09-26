@@ -151,8 +151,19 @@ func (suite *DecryptTests) TestDecrypt() {
 		assert.Equal(suite.T(), string(suite.fileContent), string(fileData))
 	}
 
-	os.Args = []string{"decrypt", "-key", fmt.Sprintf("%s.sec.pem", testKeyFile), "--force-overwrite", fmt.Sprintf("%s.c4gh", suite.testFile.Name())}
+	os.Args = []string{"decrypt", "-key", fmt.Sprintf("%s.sec.pem", testKeyFile), "--force-overwrite", "--clean", fmt.Sprintf("%s.c4gh", suite.testFile.Name())}
 	err = Decrypt(os.Args)
 	assert.NoError(suite.T(), err, "decrypt failed unexpectedly")
+	// Check that the encrypted file was removed
+	_, err = os.Stat(fmt.Sprintf("%s.c4gh", suite.testFile.Name()))
+	msg := "no such file or directory"
+	if runtime.GOOS == "windows" {
+		msg = "The system cannot find the file specified"
+	}
+	assert.ErrorContains(suite.T(), err, msg)
+	// check that the decrypted file was created
+	_, err = os.Stat(suite.testFile.Name())
+	assert.NoError(suite.T(), err, "decrypted file was not created")
 	os.Args = nil
+
 }
