@@ -242,8 +242,7 @@ func (suite *DecryptTests) TestDecryptMultipleFiles() {
 	}
 
 	// Now, run decryption again with --force-overwrite enabled
-	os.Args = []string{"decrypt", "-key", fmt.Sprintf("%s.sec.pem", testKeyFile),
-		"--force-overwrite", encryptedFiles[0], encryptedFiles[1], encryptedFiles[2]}
+	os.Args = []string{"decrypt", "-key", fmt.Sprintf("%s.sec.pem", testKeyFile), "--force-overwrite", encryptedFiles[0], encryptedFiles[1], encryptedFiles[2]}
 
 	err = Decrypt(os.Args)
 	assert.NoError(suite.T(), err, "decrypt with --force-overwrite failed unexpectedly")
