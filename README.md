@@ -296,7 +296,7 @@ Given that the instructions in the [download section](#download) have been follo
 ./sda-cli decrypt -key <keypair_name>.sec.pem <file_to_decrypt>
 ```
 
-where `<keypair_name>.sec.pem` the private key created in the [relevant section](#create-keys) and `<file_to_decrypt>` one of the files downloaded following the instructions of the [download section](#download-file). The `--force-overwrite` flag can be used to over-write the decrypted file if it exists and the `--clean` flag to delete the encrypted file after successful decryption.
+where `<keypair_name>.sec.pem` is the private key created in the [relevant section](#create-keys) and `<file_to_decrypt>` is one of the files downloaded following the instructions of the [download section](#download-file). The `--force-overwrite` flag can be used to over-write the decrypted file if it exists and the `--clean` flag to delete the encrypted file after successful decryption.
 
 ## Login
 
