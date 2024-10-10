@@ -109,6 +109,31 @@ if [ -z "$file_ids" ]; then
     exit 1
 fi
 
+# Insert entry in sda.files for htsget testing
+hts_file_ids=$(docker run --rm --name client --network testing_default \
+    neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.files (stable_id, submission_user, \
+        submission_file_path, submission_file_size, archive_file_path, \
+        archive_file_size, decrypted_file_size, backup_path, header, \
+        encryption_method) VALUES ('FILE0000001', 'integration-test', 'dummy_gdi.eu/htsnexus_test_NA12878.bam.c4gh', \
+        2597919, '1068a0b9-51c9-4bda-8fcf-14b3b884f7a4', 2597919, 2596799, \
+        '', '637279707434676801000000010000006c000000000000001b8aba36a673d374614406259c60b5c658492e05a771240f0ca5a407836bfc630ff275d8ae5e213a5853127611126e2fc79b4a16e8bbb95f3d9503902ac9ce59d0d58a15e9b8b364cb7d9c17ad1d863c89cd097667a1cc17b215095779886635bdd0ea70', 'CRYPT4GH'),
+        ('FILE0000002', 'integration-test', 'dummy_gdi.eu/htsnexus_test_NA12878.bam.bai.c4gh', \
+        6756, '668330fb-bdd8-40b2-a88f-29e1e610fa4b', 6756, 6728, \
+        '', '637279707434676801000000010000006c00000000000000856951a851a8dd081cd3f17e8212c40caea530327704aaccfb852aaabf7c947ea9b541c32358151979451259b78bbaf5e824cf76d1758ec3a34bd845a2af389639be6adf46c77910861ca1236ed1f0d46a0e91dc31ebae28f5f75776d284d75ce2c0d444', 'CRYPT4GH'),
+        ('FILE0000003', 'integration-test', 'dummy_gdi.eu/htsnexus_test_NA12878.bam.blocks.yaml.c4gh', \
+        2061, 'ce796074-21d8-43ef-9b5e-848ce8b6e47b', 2061, 2033, \
+        '', '637279707434676801000000010000006c00000000000000d0a084f92c6ddd1193320d00e94be34d1e31d10654eae55d67fe53b165812c194a1eb18c09881adaf49a567281fceab23495ae925de7ea2027288dd1faa601e1303f87cb31968d12211825f0fa1fd6628ac33e3b629567e38ed9fe27cfefaa344b5bb523', 'CRYPT4GH'),
+        ('FILE0000004', 'integration-test', 'dummy_gdi.eu/htsnexus_test_NA12878.bam.gzi.c4gh', \
+        2644, '2c063d42-f57f-4e74-bb1c-f56af00825b7', 2644, 2616, \
+        '', '637279707434676801000000010000006c000000000000000818521c25f759f337e0560977cd36f29edd073ac05bc6efc0def114aa81c625c485461fae5c12c8967107b0edf8fd697bb00fa103592b0f4e161541fcbabb39e1c7cfc3ee84ebaa4085ecf802ae5e010ffafcc139a3dd5ed818c13192d44548718e9437', 'CRYPT4GH') RETURNING id;" | xargs)
+
+if [ -z "$hts_file_ids" ]; then
+    echo "Failed to insert file entry into database"
+    exit 1
+fi
+
 # Insert dataset in sda.datasets
 dataset_id=$(docker run --rm --name client --network testing_default \
     neicnordic/pg-client:latest \
@@ -158,7 +183,93 @@ for file_id in $file_ids; do
             VALUES ('$file_id', $dataset_id);"
 done
 
-# Add file to archive
+# Insert entries in sda.checksums for htsget testing
+hts_file_id1=$(echo $hts_file_ids | cut -d' ' -f1)
+hts_file_id2=$(echo $hts_file_ids | cut -d' ' -f2)
+hts_file_id3=$(echo $hts_file_ids | cut -d' ' -f3)
+hts_file_id4=$(echo $hts_file_ids | cut -d' ' -f4)
+
+docker run --rm --name client --network testing_default \
+    neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.checksums (file_id, checksum, type, source) \
+        VALUES ('$hts_file_id1', 'e0ab4f1c82bcac6fa13040f4778a6642ba21dcf7c321bdacbe02c78dbdf8e2fb', 'SHA256', 'UPLOADED');"
+docker run --rm --name client --network testing_default \
+    neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.checksums (file_id, checksum, type, source) \
+        VALUES ('$hts_file_id1', 'a615ce3e5c8a59c646deb5b01cf088182a5102a02c1ce88b71d2461cfb621360', 'SHA256', 'ARCHIVED');"
+docker run --rm --name client --network testing_default \
+    neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.checksums (file_id, checksum, type, source) \
+        VALUES ('$hts_file_id1', '0424dfcc1255ff5f48ae39f9bf0129d1d01cb75fa6cf8d141670101860182060', 'SHA256', 'UNENCRYPTED');"
+
+docker run --rm --name client --network testing_default \
+    neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.checksums (file_id, checksum, type, source) \
+        VALUES ('$hts_file_id2', '0ea62b6fce887a61ecb03c2ebdadd96d398b3fd76e9e639064c19561ceb3c155', 'SHA256', 'UPLOADED');"
+docker run --rm --name client --network testing_default \
+    neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.checksums (file_id, checksum, type, source) \
+        VALUES ('$hts_file_id2', '136f509276413663780928f97f2c6dbf6fff0c290420a3144fb5af36b19d8d58', 'SHA256', 'ARCHIVED');"
+docker run --rm --name client --network testing_default \
+    neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.checksums (file_id, checksum, type, source) \
+        VALUES ('$hts_file_id2', '1da16bd728559f3089b87e563d3ca87e673b878cbbededbb9a33af81f386d530', 'SHA256', 'UNENCRYPTED');"
+
+docker run --rm --name client --network testing_default \
+    neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.checksums (file_id, checksum, type, source) \
+        VALUES ('$hts_file_id3', '77bfc5dfcbd3bad740a6337df39537a9a9687cf087aa409a059c380a7476380d', 'SHA256', 'UPLOADED');"
+docker run --rm --name client --network testing_default \
+    neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.checksums (file_id, checksum, type, source) \
+        VALUES ('$hts_file_id3', '5fcf7fbf9c9640e96e35fcc9feeb8d74399df02861e9368dce2d8229435df37e', 'SHA256', 'ARCHIVED');"
+docker run --rm --name client --network testing_default \
+    neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.checksums (file_id, checksum, type, source) \
+        VALUES ('$hts_file_id3', 'a4f22564184871ad9a75a5dd5e3c2ffbe7c9b48f0392bbd0c151aca95964b6cf', 'SHA256', 'UNENCRYPTED');"
+
+docker run --rm --name client --network testing_default \
+    neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.checksums (file_id, checksum, type, source) \
+        VALUES ('$hts_file_id4', 'f11a60bc3945676727af36e8f05ebede895db777addf69c8c7cabad7c5a681c7', 'SHA256', 'UPLOADED');"
+docker run --rm --name client --network testing_default \
+    neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.checksums (file_id, checksum, type, source) \
+        VALUES ('$hts_file_id4', '399602f732d35374033acc5dd51b5c2b658c491eabafa826f3f4b601fbf71067', 'SHA256', 'ARCHIVED');"
+docker run --rm --name client --network testing_default \
+    neicnordic/pg-client:latest \
+    postgresql://postgres:rootpasswd@postgres:5432/sda \
+    -t -q -c "INSERT INTO sda.checksums (file_id, checksum, type, source) \
+        VALUES ('$hts_file_id4', '55cc7a5adbc85096abefb83d99f784fd68adb8e2c83aa1a71c6b705bb95bf48c', 'SHA256', 'UNENCRYPTED');"
+
+for id in $hts_file_ids; do
+    # Insert entry in sda.file_event_log
+    docker run --rm --name client --network testing_default \
+        neicnordic/pg-client:latest \
+        postgresql://postgres:rootpasswd@postgres:5432/sda \
+        -t -q -c "INSERT INTO sda.file_event_log (file_id, event) \
+            VALUES ('$id', 'ready');"
+
+    # Add file to dataset
+    docker run --rm --name client --network testing_default \
+        neicnordic/pg-client:latest \
+        postgresql://postgres:rootpasswd@postgres:5432/sda \
+        -t -q -c "INSERT INTO sda.file_dataset (file_id, dataset_id) \
+            VALUES ('$id', $dataset_id);"
+done
+
+# Add files to archive
 s3cmd -c directS3 put --recursive archive_data/ s3://archive/
 
 # Get the correct token form mockoidc
