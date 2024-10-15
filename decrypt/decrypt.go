@@ -96,6 +96,7 @@ func Decrypt(args []string) error {
 
 	// decrypt the input files
 	numFiles := len(files)
+	removedCount := 0
 	for i, file := range files {
 		fmt.Printf("Decrypting file %v/%v: %s\n", i+1, numFiles, file.Encrypted)
 		err = decryptFile(file.Encrypted, file.Unencrypted, *privateKey)
@@ -108,12 +109,12 @@ func Decrypt(args []string) error {
 			if err != nil {
 				return fmt.Errorf("could not remove encrypted file %s: %s", file.Encrypted, err)
 			}
-
-			// check that the encrypted file was removed
-			if !helpers.FileExists(file.Encrypted) {
-				fmt.Printf("Encrypted file %s was removed\n", file.Encrypted)
-			}
+			removedCount++
 		}
+	}
+	fmt.Printf("Decryption completed, %v files decrypted\n", numFiles)
+	if *clean {
+		fmt.Printf("Removed %v encrypted files\n", removedCount)
 	}
 
 	return nil
