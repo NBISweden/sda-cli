@@ -19,13 +19,14 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help decrypt` command
 var Usage = `
-USAGE: %s decrypt -key <private-key-file> (--force-overwrite) [file(s)]
+USAGE: %s decrypt -key <private-key-file> (--force-overwrite) (--clean) [file(s)]
 
 decrypt:
     Decrypts files from the Sensitive Data Archive (SDA) with the
     provided private key.  If the private key is encrypted, the password
     can be supplied in the C4GH_PASSWORD environment variable, or at the
-    interactive password prompt.
+    interactive password prompt. The --force-overwrite flag will overwrite
+	existing files, and the --clean flag will remove the encrypted file.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
@@ -40,6 +41,7 @@ var Args = flag.NewFlagSet("decrypt", flag.ExitOnError)
 
 var privateKeyFile = Args.String("key", "", "Private key to use for decrypting files.")
 var forceOverwrite = Args.Bool("force-overwrite", false, "Force overwrite existing files.")
+var clean = Args.Bool("clean", false, "Remove the encrypted file after decryption.")
 
 // Decrypt takes a set of arguments, parses them, and attempts to decrypt the
 // given data files with the given private key file..
@@ -81,6 +83,7 @@ func Decrypt(args []string) error {
 
 	// decrypt the input files
 	numFiles := len(files)
+	removedCount := 0
 	for i, file := range files {
 		switch {
 		case !helpers.FileIsReadable(file.Encrypted):
@@ -100,6 +103,18 @@ func Decrypt(args []string) error {
 				fmt.Fprintf(os.Stderr, "Error decrypting file %s: %v\n", file.Encrypted, err)
 			}
 		}
+		// remove the encrypted file if the clean flag is set
+		if *clean {
+			err = os.Remove(file.Encrypted)
+			if err != nil {
+				return fmt.Errorf("could not remove encrypted file %s: %s", file.Encrypted, err)
+			}
+			removedCount++
+		}
+	}
+	fmt.Printf("Decryption completed, %v files decrypted\n", numFiles)
+	if *clean {
+		fmt.Printf("Removed %v encrypted files\n", removedCount)
 	}
 
 	return nil
