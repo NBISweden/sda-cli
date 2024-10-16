@@ -73,19 +73,22 @@ type htsgetResponse struct {
 
 // Htsget function downloads the files included in the urls_list.txt file.
 // The argument can be a local file or a url to an S3 folder
-func Htsget(args []string) error {
+func Htsget(args []string, configPathF string) error {
 
 	// Call ParseArgs to take care of all the flag parsing
 	err := helpers.ParseArgs(args, Args)
 	if err != nil {
 		return fmt.Errorf("failed parsing arguments, reason: %v", err)
 	}
+	if configPathF == "" {
+		configPathF = *configPath
+	}
 
 	if *datasetID == "" || *fileName == "" || *htsgetHost == "" || *publicKeyFile == "" {
 		return fmt.Errorf("missing required arguments, dataset, filename, host and key are required")
 	}
 
-	config, err := helpers.GetAuth(*configPath)
+	config, err := helpers.GetAuth(configPathF)
 	if err != nil {
 		return err
 	}

@@ -52,11 +52,14 @@ var bytesFormat = Args.Bool("bytes", false, "Print file sizes in bytes (not huma
 var dataset = Args.String("dataset", "", "List all files in the specified dataset.")
 
 // List function lists the contents of an s3
-func List(args []string) error {
+func List(args []string, configPathF string) error {
 	// Call ParseArgs to take care of all the flag parsing
 	err := helpers.ParseArgs(args, Args)
 	if err != nil {
 		return fmt.Errorf("failed parsing arguments, reason: %v", err)
+	}
+	if configPathF == "" {
+		configPathF = *configPath
 	}
 
 	prefix := ""
@@ -65,7 +68,7 @@ func List(args []string) error {
 	}
 
 	// // Get the configuration file or the .sda-cli-session
-	config, err := helpers.GetAuth(*configPath)
+	config, err := helpers.GetAuth(configPathF)
 	if err != nil {
 		return fmt.Errorf("failed to load config file, reason: %v", err)
 	}
