@@ -256,7 +256,7 @@ func createFilePaths(dirPath string) ([]string, []string, error) {
 
 // Upload function uploads files to the s3 bucket. Input can be files or
 // directories to be uploaded recursively
-func Upload(args []string) error {
+func Upload(args []string, configPathF string) error {
 	var files []string
 	var outFiles []string
 	*pubKeyPath = ""
@@ -266,6 +266,9 @@ func Upload(args []string) error {
 	err := helpers.ParseArgs(args, Args)
 	if err != nil {
 		return fmt.Errorf("failed parsing arguments, reason: %v", err)
+	}
+	if configPathF == "" {
+		configPathF = *configPath
 	}
 
 	// Dereference the pointer to a string
@@ -288,7 +291,7 @@ func Upload(args []string) error {
 	}
 
 	// Get the configuration file or the .sda-cli-session
-	config, err := helpers.GetAuth(*configPath)
+	config, err := helpers.GetAuth(configPathF)
 	if err != nil {
 		return err
 	}

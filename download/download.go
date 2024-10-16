@@ -96,14 +96,17 @@ type File struct {
 
 // Download function downloads files from the SDA by using the
 // download's service APIs
-func Download(args []string) error {
+func Download(args []string, configPathF string) error {
 	// Call ParseArgs to take care of all the flag parsing
 	err := helpers.ParseArgs(args, Args)
 	if err != nil {
 		return fmt.Errorf("failed parsing arguments, reason: %v", err)
 	}
+	if configPathF == "" {
+		configPathF = *configPath
+	}
 
-	if *datasetID == "" || *URL == "" || *configPath == "" {
+	if *datasetID == "" || *URL == "" || configPathF == "" {
 		return fmt.Errorf("missing required arguments, dataset, config and url are required")
 	}
 
@@ -136,7 +139,7 @@ func Download(args []string) error {
 	}
 
 	// Get the configuration file or the .sda-cli-session
-	config, err := helpers.GetAuth(*configPath)
+	config, err := helpers.GetAuth(configPathF)
 	if err != nil {
 		return err
 	}
