@@ -133,6 +133,8 @@ func getPositional(args []string) ([]string, []string) {
 		"--datasets",
 		"--recursive",
 		"--from-file",
+		"--clean",
+		"-clean",
 	}
 	i := 1
 	var positional []string
