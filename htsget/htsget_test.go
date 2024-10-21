@@ -22,7 +22,7 @@ func TestConfigTestSuite(t *testing.T) {
 func (suite *TestSuite) MissingArgument() {
 
 	os.Args = []string{"htsget"}
-	err := Htsget(os.Args)
+	err := Htsget(os.Args, "")
 	assert.EqualError(suite.T(), err, "missing required arguments, dataset, filename, host and key are required")
 }
 
@@ -30,7 +30,7 @@ func (suite *TestSuite) MissingArgument() {
 
 func (suite *TestSuite) TestHtsgetMissingConfig() {
 	os.Args = []string{"htsget", "-config", "nonexistent.conf", "-dataset", "DATASET0001", "-filename", "htsnexus_test_NA12878", "-host", "somehost", "-pubkey", "somekey"}
-	err := Htsget(os.Args)
+	err := Htsget(os.Args, "")
 	msg := "no such file or directory"
 	if runtime.GOOS == "windows" {
 		msg = "open nonexistent.conf: The system cannot find the file specified."
@@ -59,7 +59,7 @@ access_token = eyJ0eXAiOiJKV1QiLCJqa3UiOiJodHRwczovL29pZGM6ODA4MC9qd2siLCJhbGciO
 		panic(err)
 	}
 	os.Args = []string{"htsget", "-config", tmpDir + "s3cmd_test.conf", "-dataset", "DATASET0001", "-filename", "htsnexus_test_NA12878", "-host", "somehost", "-pubkey", "somekey"}
-	err = Htsget(os.Args)
+	err = Htsget(os.Args, "")
 	assert.ErrorContains(suite.T(), err, "failed to read public key")
 }
 
@@ -91,7 +91,7 @@ KKj6NUcJGZ2/HeqkYbxm57ZaFLP5cIHsdK+0nQubFVs=
 		panic(err)
 	}
 	os.Args = []string{"htsget", "-config", tmpDir + "s3cmd_test.conf", "-dataset", "DATASET0001", "-filename", "htsnexus_test_NA12878", "-host", "missingserver", "-pubkey", tmpDir + "c4gh.pub.pem"}
-	err = Htsget(os.Args)
+	err = Htsget(os.Args, "")
 	assert.ErrorContains(suite.T(), err, "failed to do the request")
 }
 
@@ -185,6 +185,6 @@ KKj6NUcJGZ2/HeqkYbxm57ZaFLP5cIHsdK+0nQubFVs=
 	defer server.Close()
 
 	os.Args = []string{"htsget", "-config", tmpDir + "s3cmd_test.conf", "-dataset", "DATASET0001", "-filename", "htsnexus_test_NA12878", "-host", server.URL, "-pubkey", tmpDir + "c4gh.pub.pem"}
-	err = Htsget(os.Args)
+	err = Htsget(os.Args, "")
 	assert.ErrorContains(suite.T(), err, "error downloading the files")
 }

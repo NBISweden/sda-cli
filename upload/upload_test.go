@@ -72,15 +72,15 @@ func (suite *TestSuite) TestSampleNoFiles() {
 	// Test Upload function
 	os.Args = []string{"upload", "-config", configPath.Name()}
 
-	assert.EqualError(suite.T(), Upload(os.Args), "no files to upload")
+	assert.EqualError(suite.T(), Upload(os.Args, ""), "no files to upload")
 
 	// Test handling of mistakenly passing a filename as an upload folder
 	os.Args = []string{"upload", "-config", configPath.Name(), "-targetDir", configPath.Name()}
-	assert.EqualError(suite.T(), Upload(os.Args), configPath.Name()+" is not a valid target directory")
+	assert.EqualError(suite.T(), Upload(os.Args, ""), configPath.Name()+" is not a valid target directory")
 
 	// Test handling of mistakenly passing a flag as an upload folder
 	os.Args = []string{"upload", "-config", configPath.Name(), "-targetDir", "-r"}
-	assert.EqualError(suite.T(), Upload(os.Args), "-r"+" is not a valid target directory")
+	assert.EqualError(suite.T(), Upload(os.Args, ""), "-r"+" is not a valid target directory")
 
 	// Test passing flags at the end as well
 
@@ -89,10 +89,10 @@ func (suite *TestSuite) TestSampleNoFiles() {
 		msg = "CreateFile somefileOrfolder: The system cannot find the file specified."
 	}
 	os.Args = []string{"upload", "-config", configPath.Name(), "-r", "somefileOrfolder", "-targetDir", "somedir"}
-	assert.EqualError(suite.T(), Upload(os.Args), msg)
+	assert.EqualError(suite.T(), Upload(os.Args, ""), msg)
 
 	os.Args = []string{"upload", "-config", configPath.Name(), "somefiles", "-targetDir"}
-	assert.EqualError(suite.T(), Upload(os.Args), "no files to upload")
+	assert.EqualError(suite.T(), Upload(os.Args, ""), "no files to upload")
 
 	// Test uploadFiles function
 	config, _ := helpers.LoadConfigFile(configPath.Name())
@@ -220,7 +220,7 @@ func (suite *TestSuite) TestFunctionality() {
 
 	// Test recursive upload
 	os.Args = []string{"upload", "--force-unencrypted", "-config", configPath.Name(), "-r", dir}
-	assert.NoError(suite.T(), Upload(os.Args))
+	assert.NoError(suite.T(), Upload(os.Args, ""))
 
 	// Check logs that file was uploaded
 	logMsg := strings.ReplaceAll(fmt.Sprintf("%v", strings.TrimSuffix(str.String(), "\n")), "\\\\", "\\")
@@ -243,7 +243,7 @@ func (suite *TestSuite) TestFunctionality() {
 	// Test upload to a different folder
 	targetPath := filepath.Join("a", "b", "c")
 	os.Args = []string{"upload", "--force-unencrypted", "-config", configPath.Name(), testfile.Name(), "-targetDir", targetPath}
-	assert.NoError(suite.T(), Upload(os.Args))
+	assert.NoError(suite.T(), Upload(os.Args, ""))
 	// Check logs that file was uploaded
 	logMsg = fmt.Sprintf("%v", strings.TrimSuffix(str.String(), "\n"))
 	msg = fmt.Sprintf("file uploaded to %s/dummy/%s/%s", ts.URL, filepath.ToSlash(targetPath), filepath.Base(testfile.Name()))
@@ -280,7 +280,7 @@ func (suite *TestSuite) TestFunctionality() {
 	// Empty buffer logs
 	str.Reset()
 	newArgs := []string{"upload", "--force-unencrypted", "-config", configPath.Name(), "--encrypt-with-key", publicKey.Name(), testfile.Name(), "-targetDir", "someDir"}
-	assert.NoError(suite.T(), Upload(newArgs))
+	assert.NoError(suite.T(), Upload(newArgs, ""))
 
 	// Check logs that encrypted file was uploaded
 	logMsg = fmt.Sprintf("%v", strings.TrimSuffix(str.String(), "\n"))
@@ -302,17 +302,17 @@ func (suite *TestSuite) TestFunctionality() {
 
 	// Check that trying to encrypt already encrypted files returns error and aborts
 	newArgs = []string{"upload", "-config", configPath.Name(), "--encrypt-with-key", publicKey.Name(), dir, "-r"}
-	assert.EqualError(suite.T(), Upload(newArgs), "aborting")
+	assert.EqualError(suite.T(), Upload(newArgs, ""), "aborting")
 
 	// Check handling of passing source files as pub key
 	// (code checks first for errors related with file args)
 	newArgs = []string{"upload", "-config", configPath.Name(), "--encrypt-with-key", testfile.Name()}
-	assert.EqualError(suite.T(), Upload(newArgs), "no files to upload")
+	assert.EqualError(suite.T(), Upload(newArgs, ""), "no files to upload")
 
 	// If both a bad key and already encrypted file args are given,
 	// file arg errors are captured first
 	newArgs = []string{"upload", "-config", configPath.Name(), "--encrypt-with-key", "somekey", testfile.Name()}
-	assert.EqualError(suite.T(), Upload(newArgs), "aborting")
+	assert.EqualError(suite.T(), Upload(newArgs, ""), "aborting")
 
 	// config file without an access_token
 	var confFileNoToken = fmt.Sprintf(`
@@ -338,24 +338,24 @@ func (suite *TestSuite) TestFunctionality() {
 
 	// Check that an access token is supplied
 	newArgs = []string{"upload", "-config", configPath.Name(), testfile.Name()}
-	assert.EqualError(suite.T(), Upload(newArgs), "no access token supplied")
+	assert.EqualError(suite.T(), Upload(newArgs, ""), "no access token supplied")
 
 	os.Setenv("ACCESSTOKEN", "BadToken")
 	// Supplying an accesstoken as a ENV overrules the one in the config file
 	newArgs = []string{"upload", "-config", configPath.Name(), testfile.Name()}
-	assert.EqualError(suite.T(), Upload(newArgs), "could not parse token, reason: token contains an invalid number of segments")
+	assert.EqualError(suite.T(), Upload(newArgs, ""), "could not parse token, reason: token contains an invalid number of segments")
 
 	suite.SetupTest()
 	os.Setenv("ACCESSTOKEN", suite.accessToken)
 	newArgs = []string{"upload", "-config", configPath.Name(), testfile.Name()}
-	assert.NoError(suite.T(), Upload(newArgs))
+	assert.NoError(suite.T(), Upload(newArgs, ""))
 
 	// Supplying an accesstoken as a parameter overrules the one in the config file
 	newArgs = []string{"upload", "-accessToken", "BadToken", "-config", configPath.Name(), testfile.Name()}
-	assert.EqualError(suite.T(), Upload(newArgs), "could not parse token, reason: token contains an invalid number of segments")
+	assert.EqualError(suite.T(), Upload(newArgs, ""), "could not parse token, reason: token contains an invalid number of segments")
 
 	newArgs = []string{"upload", "-accessToken", suite.accessToken, "-config", configPath.Name(), testfile.Name()}
-	assert.NoError(suite.T(), Upload(newArgs))
+	assert.NoError(suite.T(), Upload(newArgs, ""))
 
 	// Remove hash files created by Encrypt
 	if err := os.Remove("checksum_encrypted.md5"); err != nil {
@@ -453,7 +453,7 @@ func (suite *TestSuite) TestRecursiveToDifferentTarget() {
 	// Test recursive upload to a different folder
 	targetPath := filepath.Join("a", "b", "c")
 	os.Args = []string{"upload", "--force-unencrypted", "-config", configPath.Name(), "-r", dir, "-targetDir", targetPath}
-	assert.NoError(suite.T(), Upload(os.Args))
+	assert.NoError(suite.T(), Upload(os.Args, ""))
 	// Check logs that file was uploaded
 	logMsg := fmt.Sprintf("%v", strings.TrimSuffix(str.String(), "\n"))
 	msg := fmt.Sprintf("file uploaded to %s/dummy/%s", ts.URL, filepath.ToSlash(filepath.Join(targetPath, filepath.Base(dir), filepath.Base(testfile.Name()))))
@@ -538,7 +538,7 @@ func (suite *TestSuite) TestUploadInvalidCharacters() {
 		badchar := string(badc)
 		targetDir := "test" + badchar + "dir"
 		os.Args = []string{"upload", "--force-unencrypted", "-config", configPath.Name(), "-targetDir", targetDir, "-r", testfile.Name()}
-		err = Upload(os.Args)
+		err = Upload(os.Args, "")
 		assert.Error(suite.T(), err)
 		assert.Equal(suite.T(), targetDir+" is not a valid target directory", err.Error())
 	}
@@ -564,7 +564,7 @@ func (suite *TestSuite) TestUploadInvalidCharacters() {
 		defer os.Remove(testfile.Name())
 
 		os.Args = []string{"upload", "--force-unencrypted", "-config", configPath.Name(), "-r", testfile.Name()}
-		err = Upload(os.Args)
+		err = Upload(os.Args, "")
 		assert.Error(suite.T(), err)
 		assert.Equal(suite.T(), fmt.Sprintf("filepath %v contains disallowed characters: %+v", testfilepath, badchar), err.Error())
 	}

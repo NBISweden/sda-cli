@@ -76,7 +76,7 @@ func (suite *TestSuite) TestInvalidUrl() {
 		"file2",
 	}
 
-	err := Download(os.Args)
+	err := Download(os.Args, "")
 	assert.Contains(
 		suite.T(),
 		err.Error(),

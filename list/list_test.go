@@ -39,7 +39,7 @@ func (suite *TestSuite) TestNoConfig() {
 
 	os.Args = []string{"list", "-config", ""}
 
-	err := List(os.Args)
+	err := List(os.Args, "")
 	assert.EqualError(suite.T(), err, "failed to load config file, reason: failed to read the configuration file")
 }
 
@@ -127,7 +127,7 @@ func (suite *TestSuite) TestFunctionality() {
 
 	// Upload a file
 	os.Args = []string{"upload", "--force-unencrypted", "-config", configPath.Name(), "-r", dir}
-	err = upload.Upload(os.Args)
+	err = upload.Upload(os.Args, "")
 	assert.NoError(suite.T(), err)
 
 	// Check logs that file was uploaded
@@ -142,7 +142,7 @@ func (suite *TestSuite) TestFunctionality() {
 	os.Stdout = w
 
 	os.Args = []string{"list", "-config", configPath.Name()}
-	err = List(os.Args)
+	err = List(os.Args, "")
 	assert.NoError(suite.T(), err)
 
 	w.Close()

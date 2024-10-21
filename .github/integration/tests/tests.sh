@@ -150,7 +150,7 @@ else
 fi
 
 # Download file by using the sda download service
-./sda-cli download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh
+./sda-cli -config testing/s3cmd-download.conf download -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh
 
 # Check if file exists in the path
 if [ ! -f "test-download/main/subfolder/dummy_data" ]; then
@@ -168,7 +168,7 @@ fi
 rm -r test-download
 
 # Check listing files in a dataset
-output=$(./sda-cli list -config testing/s3cmd-download.conf -dataset https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080)
+output=$(./sda-cli -config testing/s3cmd-download.conf list -dataset https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080)
 expected="FileIDSizePathurn:neic:001-0011.0MB5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8_elixir-europe.org/main/subfolder/dummy_data.c4ghurn:neic:001-0021.0MB5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8_elixir-europe.org/main/subfolder2/dummy_data2.c4ghurn:neic:001-0031.0MB5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8_elixir-europe.org/main/subfolder2/random/dummy_data3.c4ghDatasetsize:3.1MB"
 if [[ "${output//[$' \t\n\r']/}" == "${expected//[$' \t\n\r']/}" ]];  then
     echo "Successfully listed files in dataset"
