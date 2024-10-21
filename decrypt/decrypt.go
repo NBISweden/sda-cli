@@ -84,6 +84,7 @@ func Decrypt(args []string) error {
 	// decrypt the input files
 	numFiles := len(files)
 	removedCount := 0
+	decryptedCount := 0
 	for i, file := range files {
 		switch {
 		case !helpers.FileIsReadable(file.Encrypted):
@@ -93,7 +94,9 @@ func Decrypt(args []string) error {
 			err := decryptFile(file.Encrypted, file.Unencrypted, *privateKey)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error decrypting file %s: %v\n", file.Encrypted, err)
+				decryptedCount--
 			}
+			decryptedCount++
 		case helpers.FileExists(file.Unencrypted):
 			fmt.Fprintf(os.Stderr, "Warning: file %s is already decrypted, skipping\n", file.Unencrypted)
 		default:
@@ -101,20 +104,25 @@ func Decrypt(args []string) error {
 			err := decryptFile(file.Encrypted, file.Unencrypted, *privateKey)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error decrypting file %s: %v\n", file.Encrypted, err)
+				decryptedCount--
 			}
+			decryptedCount++
 		}
 		// remove the encrypted file if the clean flag is set
-		if *clean {
+		if *clean && helpers.FileIsReadable(file.Encrypted) {
 			err = os.Remove(file.Encrypted)
 			if err != nil {
-				return fmt.Errorf("could not remove encrypted file %s: %s", file.Encrypted, err)
+				fmt.Fprintf(os.Stderr, "Could not remove encrypted file %s: %s", file.Encrypted, err)
+
+				continue
 			}
 			removedCount++
 		}
+
 	}
-	fmt.Printf("Decryption completed, %v files decrypted\n", numFiles)
+	fmt.Printf("Decryption completed.\n%v files decrypted\n", decryptedCount)
 	if *clean {
-		fmt.Printf("Removed %v encrypted files\n", removedCount)
+		fmt.Printf("%v encrypted files removed\n", removedCount)
 	}
 
 	return nil
