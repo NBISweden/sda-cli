@@ -94,7 +94,8 @@ func Decrypt(args []string) error {
 			err := decryptFile(file.Encrypted, file.Unencrypted, *privateKey)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error decrypting file %s: %v\n", file.Encrypted, err)
-				decryptedCount--
+
+				continue
 			}
 			decryptedCount++
 		case helpers.FileExists(file.Unencrypted):
@@ -104,12 +105,13 @@ func Decrypt(args []string) error {
 			err := decryptFile(file.Encrypted, file.Unencrypted, *privateKey)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error decrypting file %s: %v\n", file.Encrypted, err)
-				decryptedCount--
+
+				continue
 			}
 			decryptedCount++
 		}
 		// remove the encrypted file if the clean flag is set
-		if *clean && helpers.FileIsReadable(file.Encrypted) {
+		if *clean {
 			err = os.Remove(file.Encrypted)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Could not remove encrypted file %s: %s", file.Encrypted, err)
