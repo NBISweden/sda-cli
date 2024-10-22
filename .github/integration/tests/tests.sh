@@ -49,11 +49,11 @@ files="data_file.c4gh"
 check_encypted_file $files
 
 # Upload a specific file and check it
-./sda-cli upload -config testing/s3cmd.conf data_file.c4gh
+./sda-cli -config testing/s3cmd.conf upload data_file.c4gh
 check_uploaded_file "test/$user/data_file.c4gh" data_file.c4gh
 
 
-if ./sda-cli list -config testing/s3cmd.conf | grep -q 'data_file.c4gh'
+if ./sda-cli -config testing/s3cmd.conf list | grep -q 'data_file.c4gh'
 then
     echo "Listed file from s3 backend"
 else
@@ -62,7 +62,7 @@ else
 fi
 
 # Try to upload a file twice with the --force-overwrite flag
-output=$(./sda-cli upload -config testing/s3cmd.conf --force-overwrite data_file.c4gh)
+output=$(./sda-cli -config testing/s3cmd.conf upload --force-overwrite data_file.c4gh)
 
 # Create and encrypt multiple files in a folder
 
@@ -76,7 +76,7 @@ check_encypted_file "data_files_enc/data_file.c4gh data_files_enc/data_file1.c4g
 for k in data_file.c4gh data_file1.c4gh
 do
     # Upload and check file
-    ./sda-cli upload -config testing/s3cmd.conf --force-overwrite "data_files_enc/$k"
+    ./sda-cli -config testing/s3cmd.conf upload --force-overwrite "data_files_enc/$k"
     check_uploaded_file "test/$user/$k" "$k"
 done
 
@@ -90,7 +90,7 @@ cp data_files_enc/data_file.c4gh data_files_enc/dir1/dir2/data_file.c4gh
 cp data_files_enc/data_file.c4gh data_files_enc/dir1/dir2/data_file2.c4gh
 
 # Upload a folder recursively and a single file
-./sda-cli upload -config testing/s3cmd.conf -r data_files_enc/dir1 data_files_enc/data_file3.c4gh
+./sda-cli -config testing/s3cmd.conf upload -r data_files_enc/dir1 data_files_enc/data_file3.c4gh
 
 # Check that files were uploaded with the local path prefix `data_files_enc` stripped from the target path
 for k in dir1/data_file.c4gh dir1/dir2/data_file.c4gh dir1/dir2/data_file2.c4gh data_file3.c4gh
@@ -102,10 +102,10 @@ done
 
 # Upload a folder recursively and a single file in a specified upload folder
 uploadDir="testfolder"
-./sda-cli upload -config testing/s3cmd.conf -targetDir "$uploadDir" -r data_files_enc/dir1 data_files_enc/data_file3.c4gh
+./sda-cli -config testing/s3cmd.conf upload -targetDir "$uploadDir" -r data_files_enc/dir1 data_files_enc/data_file3.c4gh
 
 # Do it again to test that we can pass -targetDir at the end
-./sda-cli upload --force-overwrite -config testing/s3cmd.conf -r data_files_enc/dir1 data_files_enc/data_file3.c4gh -targetDir "$uploadDir"
+./sda-cli -config testing/s3cmd.conf upload --force-overwrite -r data_files_enc/dir1 data_files_enc/data_file3.c4gh -targetDir "$uploadDir"
 
 # Check that files were uploaded with the local path prefix `data_files_enc` stripped from the
 # target path and into the specified upload folder
@@ -117,7 +117,7 @@ done
 # Upload all contents of a folder recursively to a specified upload folder
 
 uploadDir="testfolder2"
-./sda-cli upload -config testing/s3cmd.conf -targetDir "$uploadDir" -r data_files_enc/dir1/.
+./sda-cli -config testing/s3cmd.conf upload -targetDir "$uploadDir" -r data_files_enc/dir1/.
 
 # Check that files were uploaded with the local path prefix `data_files_enc/dir1` stripped from the
 # target path and into the specified upload folder
@@ -132,7 +132,7 @@ mkdir data_files_unenc && mkdir data_files_unenc/dir1
 cp data_file data_files_unenc/. && cp data_file data_files_unenc/dir1/data_file1
 
 uploadDir="testEncryptUpload"
-./sda-cli upload -config testing/s3cmd.conf -encrypt-with-key sda_key.pub.pem -r data_files_unenc -targetDir "$uploadDir"
+./sda-cli -config testing/s3cmd.conf upload -encrypt-with-key sda_key.pub.pem -r data_files_unenc -targetDir "$uploadDir"
 
 check_encypted_file "data_files_unenc/data_file.c4gh" "data_files_unenc/dir1/data_file1.c4gh"
 
@@ -178,7 +178,7 @@ else
 fi
 
 # Check listing datasets
-output=$(./sda-cli list -config testing/s3cmd-download.conf --datasets -url http://localhost:8080)
+output=$(./sda-cli -config testing/s3cmd-download.conf list --datasets -url http://localhost:8080)
 expected="https://doi.example/ty009.sfrrss/600.45asasga"
 if [[ $output == *"$expected"* ]]; then
     echo "Successfully listed datasets"
@@ -188,7 +188,7 @@ else
 fi
 
 # Download whole dataset by using the sda-download feature
-./sda-cli download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-dataset --dataset
+./sda-cli -config testing/s3cmd-download.conf download -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-dataset --dataset
 
 filepaths="download-dataset/main/subfolder/dummy_data download-dataset/main/subfolder2/dummy_data2 download-dataset/main/subfolder2/random/dummy_data3"
 
@@ -210,7 +210,7 @@ else
     echo "Failed to create a user key pair for downloading encrypted files"
     exit 1
 fi
-./sda-cli download -pubkey user_key.pub.pem -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh
+./sda-cli -config testing/s3cmd-download.conf download -pubkey user_key.pub.pem -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh
 
 # check if file exists in the path
 if [ ! -f "test-download/main/subfolder/dummy_data.c4gh" ]; then
@@ -315,7 +315,7 @@ rm -r test-download
 
 # Download recursively a folder
 echo "Downloading content of folder"
-./sda-cli download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-folder --recursive main/subfolder2
+./sda-cli -config testing/s3cmd-download.conf download -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-folder --recursive main/subfolder2
 
 folderpaths="download-folder/main/subfolder2/dummy_data2 download-folder/main/subfolder2/random/dummy_data3"
 
@@ -330,7 +330,7 @@ done
 rm -r download-folder
 
 # Download file by providing the file id
-./sda-cli download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-fileid urn:neic:001-001
+./sda-cli -config testing/s3cmd-download.conf download -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-fileid urn:neic:001-001
 
 # Check if file exists in the path
 if [ ! -f "download-fileid/main/subfolder/dummy_data" ]; then
@@ -349,7 +349,7 @@ rm -r download-fileid
 
 # Download the file paths content of a text file
 echo "Downloading content of a text file"
-./sda-cli download -config testing/s3cmd-download.conf -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-from-file --from-file testing/file-list.txt
+./sda-cli -config testing/s3cmd-download.conf download -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-from-file --from-file testing/file-list.txt
 
 # Check if the content of the text file has been downloaded
 content_paths="download-from-file/main/subfolder/dummy_data download-from-file/main/subfolder2/dummy_data2"

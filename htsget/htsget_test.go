@@ -29,8 +29,8 @@ func (suite *TestSuite) MissingArgument() {
 // test Htsget with mocked http request
 
 func (suite *TestSuite) TestHtsgetMissingConfig() {
-	os.Args = []string{"htsget", "-config", "nonexistent.conf", "-dataset", "DATASET0001", "-filename", "htsnexus_test_NA12878", "-host", "somehost", "-pubkey", "somekey"}
-	err := Htsget(os.Args, "")
+	os.Args = []string{"htsget", "-dataset", "DATASET0001", "-filename", "htsnexus_test_NA12878", "-host", "somehost", "-pubkey", "somekey"}
+	err := Htsget(os.Args, "nonexistent.conf")
 	msg := "no such file or directory"
 	if runtime.GOOS == "windows" {
 		msg = "open nonexistent.conf: The system cannot find the file specified."
@@ -58,8 +58,8 @@ access_token = eyJ0eXAiOiJKV1QiLCJqa3UiOiJodHRwczovL29pZGM6ODA4MC9qd2siLCJhbGciO
 	if err != nil {
 		panic(err)
 	}
-	os.Args = []string{"htsget", "-config", tmpDir + "s3cmd_test.conf", "-dataset", "DATASET0001", "-filename", "htsnexus_test_NA12878", "-host", "somehost", "-pubkey", "somekey"}
-	err = Htsget(os.Args, "")
+	os.Args = []string{"htsget", "-dataset", "DATASET0001", "-filename", "htsnexus_test_NA12878", "-host", "somehost", "-pubkey", "somekey"}
+	err = Htsget(os.Args, tmpDir+"s3cmd_test.conf")
 	assert.ErrorContains(suite.T(), err, "failed to read public key")
 }
 
@@ -90,8 +90,8 @@ KKj6NUcJGZ2/HeqkYbxm57ZaFLP5cIHsdK+0nQubFVs=
 	if err != nil {
 		panic(err)
 	}
-	os.Args = []string{"htsget", "-config", tmpDir + "s3cmd_test.conf", "-dataset", "DATASET0001", "-filename", "htsnexus_test_NA12878", "-host", "missingserver", "-pubkey", tmpDir + "c4gh.pub.pem"}
-	err = Htsget(os.Args, "")
+	os.Args = []string{"htsget", "-dataset", "DATASET0001", "-filename", "htsnexus_test_NA12878", "-host", "missingserver", "-pubkey", tmpDir + "c4gh.pub.pem"}
+	err = Htsget(os.Args, tmpDir+"s3cmd_test.conf")
 	assert.ErrorContains(suite.T(), err, "failed to do the request")
 }
 
@@ -184,7 +184,7 @@ KKj6NUcJGZ2/HeqkYbxm57ZaFLP5cIHsdK+0nQubFVs=
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	os.Args = []string{"htsget", "-config", tmpDir + "s3cmd_test.conf", "-dataset", "DATASET0001", "-filename", "htsnexus_test_NA12878", "-host", server.URL, "-pubkey", tmpDir + "c4gh.pub.pem"}
-	err = Htsget(os.Args, "")
+	os.Args = []string{"htsget", "-dataset", "DATASET0001", "-filename", "htsnexus_test_NA12878", "-host", server.URL, "-pubkey", tmpDir + "c4gh.pub.pem"}
+	err = Htsget(os.Args, tmpDir+"s3cmd_test.conf")
 	assert.ErrorContains(suite.T(), err, "error downloading the files")
 }

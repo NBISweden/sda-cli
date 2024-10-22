@@ -20,7 +20,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help htsget` command
 var Usage = `
-USAGE: %s htsget [-dataset <datasetID>] [-filename <filename>] (-reference <referenceName>) [-htsgethost <htsget-hostname>] [-pubkey <public-key-file>] (-output <file>) (--force-overwrite)
+USAGE: %s -config testing/s3cmd.conf htsget [-dataset <datasetID>] [-filename <filename>] (-reference <referenceName>) [-htsgethost <htsget-hostname>] [-pubkey <public-key-file>] (-output <file>) (--force-overwrite)
 
 htsget:
 	Htsget downloads files from the Sensitive Data Archive (SDA), using the
@@ -51,7 +51,6 @@ var fileName = Args.String("filename", "", "The name of the file to download")
 var referenceName = Args.String("reference", "", "The reference number of the file to download")
 var htsgetHost = Args.String("host", "", "The host to download from")
 var publicKeyFile = Args.String("pubkey", "", "Public key file")
-var configPath = Args.String("config", "", "config file.")
 var outPut = Args.String("output", "", "Name for the downloaded file.")
 var forceOverwrite = Args.Bool("force-overwrite", false, "Force overwrite existing files.")
 
@@ -73,22 +72,19 @@ type htsgetResponse struct {
 
 // Htsget function downloads the files included in the urls_list.txt file.
 // The argument can be a local file or a url to an S3 folder
-func Htsget(args []string, configPathF string) error {
+func Htsget(args []string, configPath string) error {
 
 	// Call ParseArgs to take care of all the flag parsing
 	err := helpers.ParseArgs(args, Args)
 	if err != nil {
 		return fmt.Errorf("failed parsing arguments, reason: %v", err)
 	}
-	if configPathF == "" {
-		configPathF = *configPath
-	}
 
 	if *datasetID == "" || *fileName == "" || *htsgetHost == "" || *publicKeyFile == "" {
 		return fmt.Errorf("missing required arguments, dataset, filename, host and key are required")
 	}
 
-	config, err := helpers.GetAuth(configPathF)
+	config, err := helpers.GetAuth(configPath)
 	if err != nil {
 		return err
 	}

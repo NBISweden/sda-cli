@@ -68,15 +68,13 @@ func (suite *TestSuite) TestInvalidUrl() {
 		"download",
 		"-dataset-id",
 		"TES01",
-		"-config",
-		confPath.Name(),
 		"-url",
 		"https://some/url",
 		"file1",
 		"file2",
 	}
 
-	err := Download(os.Args, "")
+	err := Download(os.Args, confPath.Name())
 	assert.Contains(
 		suite.T(),
 		err.Error(),

@@ -20,7 +20,7 @@ import (
 
 var Version = "development"
 
-var Usage = `USAGE: %s <command> [command-args]
+var Usage = `USAGE: %s -config <s3config-file> <command> [command-args]
 
 This is a helper tool that can help with common tasks when interacting
 with the Sensitive Data Archive (SDA).
