@@ -114,7 +114,7 @@ func Decrypt(args []string) error {
 		if *clean {
 			err = os.Remove(file.Encrypted)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Could not remove encrypted file %s: %s", file.Encrypted, err)
+				fmt.Fprintf(os.Stderr, "Could not remove encrypted file %s: %s\n", file.Encrypted, err)
 
 				continue
 			}
@@ -122,9 +122,11 @@ func Decrypt(args []string) error {
 		}
 
 	}
-	fmt.Printf("Decryption completed.\n%v files decrypted\n", decryptedCount)
-	if *clean {
-		fmt.Printf("%v encrypted files removed\n", removedCount)
+	if decryptedCount != numFiles {
+		fmt.Printf("WARNING: %v file(s) could not be decrypted\n", numFiles-decryptedCount)
+	}
+	if *clean && removedCount != numFiles {
+		fmt.Printf("WARNING: %v file(s) could not be removed\n", numFiles-removedCount)
 	}
 
 	return nil
