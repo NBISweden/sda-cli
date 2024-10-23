@@ -98,7 +98,7 @@ func (suite *TestSuite) TestSampleNoFiles() {
 	config, _ := helpers.LoadConfigFile(configPath.Name())
 	var files []string
 
-	err = uploadFiles(files, files, "", config, configPath.Name())
+	err = uploadFiles(files, files, "", config)
 	assert.EqualError(suite.T(), err, "no files to upload")
 }
 

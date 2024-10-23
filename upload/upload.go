@@ -63,7 +63,7 @@ var pubKeyPath = Args.String("encrypt-with-key", "",
 var accessToken = Args.String("accessToken", "", "Access token to the inbox service.\n(optional, if it is set in the config file or exported as the ENV `ACCESSTOKEN`)")
 
 // Function uploadFiles uploads the files in the input list to the s3 bucket
-func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Config, configPath string) error {
+func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Config) error {
 	// check also here in case sth went wrong with input files
 	if len(files) == 0 {
 		return errors.New("no files to upload")
@@ -123,8 +123,6 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 
 		// create progress bar instance
 		p := mpb.New()
-		log.Infof("Uploading %s with config %s\n", filename, configPath)
-		fmt.Printf("Uploading %s with config %s\n", filename, configPath)
 
 		f, err := os.Open(path.Clean(filename))
 		if err != nil {
@@ -362,5 +360,5 @@ func Upload(args []string, configPath string) error {
 		}
 	}
 
-	return uploadFiles(files, outFiles, filepath.ToSlash(*targetDir), config, configPath)
+	return uploadFiles(files, outFiles, filepath.ToSlash(*targetDir), config)
 }
