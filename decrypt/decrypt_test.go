@@ -154,7 +154,6 @@ func (suite *DecryptTests) TestDecrypt() {
 	os.Args = []string{"decrypt", "-key", fmt.Sprintf("%s.sec.pem", testKeyFile), "--force-overwrite", fmt.Sprintf("%s.c4gh", suite.testFile.Name())}
 	err = Decrypt(os.Args)
 	assert.NoError(suite.T(), err, "decrypt failed unexpectedly")
-	os.Args = nil
 }
 
 func (suite *DecryptTests) TestDecryptMultipleFiles() {
@@ -270,4 +269,72 @@ func (suite *DecryptTests) TestDecryptMultipleFiles() {
 
 	// Cleanup
 	os.Args = nil
+}
+
+// create a new suite for testing decrypt with the clean flag
+type DecryptCleanTests struct {
+	suite.Suite
+	tempDir     string
+	fileContent []byte
+	testFile    *os.File
+}
+
+func TestDecryptCleanTestSuite(t *testing.T) {
+	suite.Run(t, new(DecryptCleanTests))
+}
+
+// test decrypt with clean flag
+func (suite *DecryptCleanTests) TestDecryptClean() {
+
+	var err error
+	// Create a temporary directory for our files
+	suite.tempDir, err = os.MkdirTemp(os.TempDir(), "sda-cli-test-decrypt-clean")
+	assert.NoError(suite.T(), err)
+
+	// create a test file...
+	suite.testFile, err = os.CreateTemp(suite.tempDir, "testfile-")
+	assert.NoError(suite.T(), err)
+
+	// ... create some content ...
+	suite.fileContent = []byte("This is some fine content right here.")
+	// ... and write the known content to it
+	err = os.WriteFile(suite.testFile.Name(), suite.fileContent, 0600)
+	assert.NoError(suite.T(), err)
+
+	testKeyFile := filepath.Join(suite.tempDir, "testkey")
+	err = createKey.GenerateKeyPair(testKeyFile, "")
+	assert.NoError(suite.T(), err)
+
+	// Encrypt a file using the encrypt module. change to the test directory to
+	// make sure that the checksum files end up there.
+	cwd, err := os.Getwd()
+	assert.NoError(suite.T(), err)
+	err = os.Chdir(suite.tempDir)
+	assert.NoError(suite.T(), err)
+	encryptArgs := []string{"encrypt", "-key", fmt.Sprintf("%s.pub.pem", testKeyFile), suite.testFile.Name()}
+	assert.NoError(suite.T(), encrypt.Encrypt(encryptArgs), "encrypting file for testing failed")
+	assert.NoError(suite.T(), os.Chdir(cwd))
+	os.Setenv("C4GH_PASSWORD", "")
+	if runtime.GOOS != "windows" {
+		assert.NoError(suite.T(), os.Remove(suite.testFile.Name()))
+		os.Args = []string{"decrypt", "-key", fmt.Sprintf("%s.sec.pem", testKeyFile), fmt.Sprintf("%s.c4gh", suite.testFile.Name()), "--clean"}
+		err = Decrypt(os.Args)
+		assert.NoError(suite.T(), err, "decrypt failed unexpectedly")
+		// Check that the encrypted file was removed
+		_, err = os.Stat(fmt.Sprintf("%s.c4gh", suite.testFile.Name()))
+		assert.ErrorContains(suite.T(), err, "no such file or directory")
+
+		// Check content of the decrypted file
+		inFile, err := os.Open(suite.testFile.Name())
+		assert.NoError(suite.T(), err, "unable to open decrypted file")
+		fileData, err := io.ReadAll(inFile)
+		assert.NoError(suite.T(), err, "unable to read decrypted file")
+		assert.Equal(suite.T(), string(suite.fileContent), string(fileData))
+	}
+
+	os.Args = nil
+}
+
+func (suite *DecryptCleanTests) TearDownTest() {
+	os.Remove(suite.tempDir)
 }
