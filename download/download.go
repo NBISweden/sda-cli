@@ -26,7 +26,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s download -config <s3config-file> -dataset-id <datasetID> -url <uri> (--pubkey <public-key-file>) (-outdir <dir>) ([filepath(s) or fileid(s)] or --dataset or --recursive <dirpath>) or --from-file <list-filepath>
+USAGE: %s -config <s3config-file> download -dataset-id <datasetID> -url <uri> (--pubkey <public-key-file>) (-outdir <dir>) ([filepath(s) or fileid(s)] or --dataset or --recursive <dirpath>) or --from-file <list-filepath>
 
 download:
 	Downloads files from the Sensitive Data Archive (SDA) by using APIs from the given url. The user
@@ -57,8 +57,6 @@ var ArgHelp = `
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
 var Args = flag.NewFlagSet("download", flag.ExitOnError)
-
-var configPath = Args.String("config", "", "S3 config file to use for downloading.")
 
 var datasetID = Args.String("dataset-id", "", "Dataset ID for the file to download.")
 
@@ -96,14 +94,14 @@ type File struct {
 
 // Download function downloads files from the SDA by using the
 // download's service APIs
-func Download(args []string) error {
+func Download(args []string, configPath string) error {
 	// Call ParseArgs to take care of all the flag parsing
 	err := helpers.ParseArgs(args, Args)
 	if err != nil {
 		return fmt.Errorf("failed parsing arguments, reason: %v", err)
 	}
 
-	if *datasetID == "" || *URL == "" || *configPath == "" {
+	if *datasetID == "" || *URL == "" || configPath == "" {
 		return fmt.Errorf("missing required arguments, dataset, config and url are required")
 	}
 
@@ -136,7 +134,7 @@ func Download(args []string) error {
 	}
 
 	// Get the configuration file or the .sda-cli-session
-	config, err := helpers.GetAuth(*configPath)
+	config, err := helpers.GetAuth(configPath)
 	if err != nil {
 		return err
 	}

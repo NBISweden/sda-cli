@@ -107,13 +107,13 @@ The Priority order for the access token is:
 Now that the configuration file is downloaded, the file(s) can be uploaded to the archive using the binary file created in the first step of this guide. To upload a specific file, use the following command:
 
 ```bash
-./sda-cli upload -config <configuration_file> <encrypted_file_to_upload>
+./sda-cli -config <configuration_file> upload <encrypted_file_to_upload>
 ```
 
 where `<configuration_file>` the file downloaded in the previous step and `<encrypted_file_to_upload>` a file encrypted in the earlier steps. The tool also allows for uploading multiple files at once, by listing them separated with space like:
 
 ```bash
-./sda-cli upload -config <configuration_file> <encrypted_file_1_to_upload> <encrypted_file_2_to_upload>
+./sda-cli -config <configuration_file> upload <encrypted_file_1_to_upload> <encrypted_file_2_to_upload>
 ```
 
 Note that the files will be uploaded in the base folder of the user.
@@ -123,7 +123,7 @@ Note that the files will be uploaded in the base folder of the user.
 One can also upload entire directories recursively, i.e. including all contained files and folders while keeping the local folder structure. This can be achieved with the `-r` flag, e.g. running:
 
 ```bash
-./sda-cli upload -config <configuration_file> -r <folder_to_upload>
+./sda-cli -config <configuration_file> upload -r <folder_to_upload>
 ```
 
 will upload `<folder_to_upload>` as is, i.e. with the same inner folder and file structure as the local one, to the archive.
@@ -131,7 +131,7 @@ will upload `<folder_to_upload>` as is, i.e. with the same inner folder and file
 It is also possible to specify multiple directories and files for upload with the same command. For example,
 
 ```bash
-./sda-cli upload -config <configuration_file> -r <encrypted_file_1_to_upload> <encrypted_file_2_to_upload> <folder_1_to_upload> <folder_2_to_upload>
+./sda-cli -config <configuration_file> upload -r <encrypted_file_1_to_upload> <encrypted_file_2_to_upload> <folder_1_to_upload> <folder_2_to_upload>
 ```
 
 However, if `-r` is omitted in the above, any folders will be skipped during upload.
@@ -141,7 +141,7 @@ However, if `-r` is omitted in the above, any folders will be skipped during upl
 The user can specify a different path for uploading files/folders with the `-targetDir` flag followed by the name of the folder. For example, the command:
 
 ```bash
-./sda-cli upload -config <configuration_file> -r <encrypted_file_1_to_upload> <folder_1_to_upload> -targetDir <upload_folder>
+./sda-cli -config <configuration_file> upload -r <encrypted_file_1_to_upload> <folder_1_to_upload> -targetDir <upload_folder>
 ```
 
 will create `<upload_folder>` under the user's base folder with contents `<upload_folder>/<encrypted_file_1_to_upload>` and `<upload_folder>/<folder_1_to_upload>`. Note that the given `<upload_folder>` may well be a folder path, e.g. `<folder1/folder2>`, and in this case `<encrypted_file_1_to_upload>` will be uploaded to `folder1/folder2/<encrypted_file_1_to_upload>`.
@@ -149,7 +149,7 @@ will create `<upload_folder>` under the user's base folder with contents `<uploa
 As a side note it is possible to include all the contents of a directory with `/.`, for example,
 
 ```bash
-./sda-cli upload -config <configuration_file> -r <folder_to_upload>/. -targetDir <new_folder_name>
+./sda-cli -config <configuration_file> upload -r <folder_to_upload>/. -targetDir <new_folder_name>
 ```
 
 will upload all contents of `<folder_to_upload>` to `<new_folder_name>` recursively, effectively renaming `<folder_to_upload>` upon upload to the archive.
@@ -159,7 +159,7 @@ will upload all contents of `<folder_to_upload>` to `<new_folder_name>` recursiv
 It is possible to combine the encryption and upload steps with the use of the flag `--encrypt-with-key` followed by the path of the crypt4gh public key to be used for encryption. In this case, the input list of file arguments can only contain _unencrypted_ source files. For example the following,
 
 ```bash
-./sda-cli upload -config <configuration_file> --encrypt-with-key <public_key> <unencrypted_file_to_upload>
+./sda-cli -config <configuration_file> upload --encrypt-with-key <public_key> <unencrypted_file_to_upload>
 ```
 
 will encrypt `<unencrypted_file_to_upload>` using `<public_key>` as public key and upload the created `<file_to_upload.c4gh>` in the base folder of the user.
@@ -167,7 +167,7 @@ will encrypt `<unencrypted_file_to_upload>` using `<public_key>` as public key a
 Encrypt on upload can be combined with any of the flags above. For example,
 
 ```bash
-./sda-cli upload -config <configuration_file> --encrypt-with-key <public_key> -r <folder_to_upload_with_unencrypted_data> -targetDir <new_folder_name>
+./sda-cli -config <configuration_file> upload --encrypt-with-key <public_key> -r <folder_to_upload_with_unencrypted_data> -targetDir <new_folder_name>
 ```
 
 will first encrypt all files in `<folder_to_upload_with_unencrypted_data>` and then upload the folder recursively (selecting only the created `c4gh` files) under `<new_folder_name>`.
@@ -190,13 +190,13 @@ All the following cases require a [configuration file to be downloaded](https://
 This feature returns all the files in the user's inbox recursively and can be executed using:
 
 ```bash
-./sda-cli list [-config <configuration_file>]
+./sda-cli [-config <configuration_file>] list
 ```
 
 It also allows for requesting files/filepaths with a specified prefix using:
 
 ```bash
-./sda-cli list [-config <configuration_file>] <prefix>
+./sda-cli [-config <configuration_file>] list <prefix>
 ```
 
 This command will return any file/path starting with the defined `<prefix>`.
@@ -207,7 +207,7 @@ If no config is given by the user, the tool will look for a previous login from 
 To list datasets or the files within a dataset that the user has access to, the `--datasets` flag should be used and the login URL must be provided:
 
 ```bash
-./sda-cli list -config <configuration_file> --datasets --url <login_url> (--bytes)
+./sda-cli -config <configuration_file> list --datasets --url <login_url> (--bytes)
 ```
 
 where `<login_url>` is the URL where the user goes for authentication. This command returns a list of accessible datasets, including the number
@@ -216,7 +216,7 @@ of files in each dataset and the total size of it. The `--bytes` flag is optiona
 To list the files within a particular dataset, the user must provide the dataset ID (which can be obtained by executing the previous command):
 
 ```bash
-./sda-cli list -config <configuration_file> -dataset <datasetID> -url <login_url> (--bytes)
+./sda-cli -config <configuration_file> list -dataset <datasetID> -url <login_url> (--bytes)
 ```
 
 This command returns a list of files within the dataset, including their file IDs, file sizes and file paths. The `--bytes` flag is optional and it will display the size of the files in bytes.
@@ -241,14 +241,14 @@ For downloading files the user also needs to know the download service URL and t
 For downloading one specific file the user needs to provide the path or the id (the id should **NOT** have "/") of this file by running the command below:
 
 ```bash
-./sda-cli download -config <configuration_file> -dataset-id <datasetID> -url <download-service-URL> [<filepath> or <fileid>]
+./sda-cli -config <configuration_file> download -dataset-id <datasetID> -url <download-service-URL> [<filepath> or <fileid>]
 ```
 
 where `<configuration_file>` the file downloaded in the [previous step](#download-the-configuration-file), `<dataset_id>` the ID of the dataset and `<filepath>` the path of the file (or `<fileid>` the id of the file) in the dataset.
 The tool also allows for downloading multiple files at once, by listing their filepaths (or file ids) separated with space and it also allows for selecting a folder where the files will be downloaded, using the `outdir` argument:
 
 ```bash
-./sda-cli download -config <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> <path/to/file1> <other/path/to/file2> ... (or <fileID_1> <fileID_2> ...)
+./sda-cli -config download <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> <path/to/file1> <other/path/to/file2> ... (or <fileID_1> <fileID_2> ...)
 ```
 
 #### Download files recursively
@@ -256,7 +256,7 @@ The tool also allows for downloading multiple files at once, by listing their fi
 For downloading the content of a folder (including subfolders) the user need to add the `--recursive` flag followed by the path(s) of the folder(s):
 
 ```bash
-./sda-cli download -config <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> --recursive path/to/folder1 path/to/folder2 ...
+./sda-cli -config download <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> --recursive path/to/folder1 path/to/folder2 ...
 ```
 
 #### Download from file
@@ -265,7 +265,7 @@ For downloading multiple files the user can provide a text file with the paths o
 In this case user needs to use the `--from-file` flag and at the end user needs to provide the path of the text file with the paths of the files to download:
 
 ```bash
-./sda-cli download -config <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> --from-file <path/to/text_file>
+./sda-cli -config download <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> --from-file <path/to/text_file>
 ```
 
 #### Download all the files of the dataset
@@ -273,7 +273,7 @@ In this case user needs to use the `--from-file` flag and at the end user needs 
 For downloading the whole dataset the user needs add the `--dataset` flag and NOT providing any filepaths:
 
 ```bash
-./sda-cli download -config <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> --dataset
+./sda-cli -config download <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> --dataset
 ```
 
 where the dataset will be downloaded in the `<outdir>` directory be keeping the original folder structure of the dataset.
@@ -283,7 +283,7 @@ where the dataset will be downloaded in the `<outdir>` directory be keeping the 
 When a [public key](#create-keys) is provided, you can download files that are encrypted on the server-side with that public key. The command is similar to downloading the unencrypted files except that a public key is provided through the `-pubkey` flag. For example:
 
 ```bash
-./sda-cli download -pubkey <public-key-file> -config <configuration_file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> <filepath_1_to_download> <filepath_2_to_download> ...
+./sda-cli -config <configuration_file> download -pubkey <public-key-file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> <filepath_1_to_download> <filepath_2_to_download> ...
 ```
 
 After a successful download, the encrypted files can be [decrypted](#decrypt-file) using the private key corresponding to the provided public key.
@@ -330,7 +330,7 @@ htsget -dataset <datasetID> -filename <filename> -reference <reference-number> -
 for example:
 
 ```
-./sda-cli htsget -config testing/s3cmd.conf -dataset DATASET0001 -filename htsnexus_test_NA12878 -reference 11 -host http://localhost:8088 -pubkey testing/c4gh.pub.pem -output ~/tmp/result.c4gh --force-overwrite
+./sda-cli -config testing/s3cmd.conf htsget -dataset DATASET0001 -filename htsnexus_test_NA12878 -reference 11 -host http://localhost:8088 -pubkey testing/c4gh.pub.pem -output ~/tmp/result.c4gh --force-overwrite
 ```
 
 # Developers' section

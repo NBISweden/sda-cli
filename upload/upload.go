@@ -25,7 +25,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help upload` command
 var Usage = `
-USAGE: %s upload -config <s3config-file> (-accessToken <access-token>) (--encrypt-with-key <public-key-file>) (--force-overwrite) (--force-unencrypted) (-r) [file(s) | folder(s)] (-targetDir <upload-directory>)
+USAGE: %s -config <s3config-file> upload (-accessToken <access-token>) (--encrypt-with-key <public-key-file>) (--force-overwrite) (--force-unencrypted) (-r) [file(s) | folder(s)] (-targetDir <upload-directory>)
 
 upload:
     Uploads files to the Sensitive Data Archive (SDA).
@@ -43,9 +43,6 @@ var ArgHelp = `
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
 var Args = flag.NewFlagSet("upload", flag.ExitOnError)
-
-var configPath = Args.String("config", "",
-	"S3 config file to use for uploading.")
 
 var forceUnencrypted = Args.Bool("force-unencrypted", false, "Force uploading unencrypted files.")
 
@@ -126,8 +123,6 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 
 		// create progress bar instance
 		p := mpb.New()
-		log.Infof("Uploading %s with config %s\n", filename, *configPath)
-		fmt.Printf("Uploading %s with config %s\n", filename, *configPath)
 
 		f, err := os.Open(path.Clean(filename))
 		if err != nil {
@@ -256,7 +251,7 @@ func createFilePaths(dirPath string) ([]string, []string, error) {
 
 // Upload function uploads files to the s3 bucket. Input can be files or
 // directories to be uploaded recursively
-func Upload(args []string) error {
+func Upload(args []string, configPath string) error {
 	var files []string
 	var outFiles []string
 	*pubKeyPath = ""
@@ -288,7 +283,7 @@ func Upload(args []string) error {
 	}
 
 	// Get the configuration file or the .sda-cli-session
-	config, err := helpers.GetAuth(*configPath)
+	config, err := helpers.GetAuth(configPath)
 	if err != nil {
 		return err
 	}
