@@ -19,13 +19,14 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help decrypt` command
 var Usage = `
-USAGE: %s decrypt -key <private-key-file> (--force-overwrite) [file(s)]
+USAGE: %s decrypt -key <private-key-file> (--force-overwrite) (--clean) [file(s)]
 
 decrypt:
     Decrypts files from the Sensitive Data Archive (SDA) with the
     provided private key.  If the private key is encrypted, the password
     can be supplied in the C4GH_PASSWORD environment variable, or at the
-    interactive password prompt.
+    interactive password prompt. The --force-overwrite flag will overwrite
+	existing files, and the --clean flag will remove the encrypted file.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
@@ -40,6 +41,7 @@ var Args = flag.NewFlagSet("decrypt", flag.ExitOnError)
 
 var privateKeyFile = Args.String("key", "", "Private key to use for decrypting files.")
 var forceOverwrite = Args.Bool("force-overwrite", false, "Force overwrite existing files.")
+var clean = Args.Bool("clean", false, "Remove the encrypted file after decryption.")
 
 // Decrypt takes a set of arguments, parses them, and attempts to decrypt the
 // given data files with the given private key file..
@@ -81,6 +83,8 @@ func Decrypt(args []string) error {
 
 	// decrypt the input files
 	numFiles := len(files)
+	removedCount := 0
+	decryptedCount := 0
 	for i, file := range files {
 		switch {
 		case !helpers.FileIsReadable(file.Encrypted):
@@ -90,7 +94,10 @@ func Decrypt(args []string) error {
 			err := decryptFile(file.Encrypted, file.Unencrypted, *privateKey)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error decrypting file %s: %v\n", file.Encrypted, err)
+
+				continue
 			}
+			decryptedCount++
 		case helpers.FileExists(file.Unencrypted):
 			fmt.Fprintf(os.Stderr, "Warning: file %s is already decrypted, skipping\n", file.Unencrypted)
 		default:
@@ -98,8 +105,28 @@ func Decrypt(args []string) error {
 			err := decryptFile(file.Encrypted, file.Unencrypted, *privateKey)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error decrypting file %s: %v\n", file.Encrypted, err)
+
+				continue
 			}
+			decryptedCount++
 		}
+		// remove the encrypted file if the clean flag is set
+		if *clean {
+			err = os.Remove(file.Encrypted)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Could not remove encrypted file %s: %s\n", file.Encrypted, err)
+
+				continue
+			}
+			removedCount++
+		}
+
+	}
+	if decryptedCount != numFiles {
+		fmt.Printf("WARNING: %v file(s) could not be decrypted\n", numFiles-decryptedCount)
+	}
+	if *clean && removedCount != numFiles {
+		fmt.Printf("WARNING: %v file(s) could not be removed\n", numFiles-removedCount)
 	}
 
 	return nil
