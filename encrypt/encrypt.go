@@ -106,9 +106,12 @@ func Encrypt(args []string) error {
 		if err != nil {
 			return err
 		}
-		// key from session file found
-		if len(publicKeyFileList) == 0 && pubKey != "" {
-			publicKeyFileList = append(publicKeyFileList, pubKey)
+
+		if pubKey == "" {
+			return errors.New("no public key supplied")
+		}
+
+		publicKeyFileList = append(publicKeyFileList, pubKey)
 	default:
 		// Read the public key(s) to be used for encryption. The matching private key will be able to decrypt the file.
 		pubKeyList, err = createPubKeyList(publicKeyFileList, newKeySpecs())
