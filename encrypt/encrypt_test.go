@@ -251,9 +251,14 @@ func (suite *EncryptTests) TestPubKeyFromInfo() {
 	os.Args = []string{"encrypt", "-target", mockServer.URL, suite.fileOk.Name()}
 	assert.NoError(suite.T(), Encrypt(os.Args), "Encrypt from info failed unexpectedly")
 
-	// verify that the file can be decrypted
-	os.Remove(suite.fileOk.Name())
 	os.Setenv("C4GH_PASSWORD", "")
-	os.Args = []string{"decrypt", "-key", suite.privateKey.Name(), fmt.Sprintf("%s.c4gh", suite.fileOk.Name())}
+	if runtime.GOOS != "windows" {
+		// verify that the file can be decrypted
+		os.Remove(suite.fileOk.Name())
+		os.Args = []string{"decrypt", "-key", suite.privateKey.Name(), fmt.Sprintf("%s.c4gh", suite.fileOk.Name())}
+		assert.NoError(suite.T(), decrypt.Decrypt(os.Args), "decrypting encrypted file failed unexpectedly")
+	}
+
+	os.Args = []string{"decrypt", "-key", suite.privateKey.Name(), "--force-overwrite", fmt.Sprintf("%s.c4gh", suite.fileOk.Name())}
 	assert.NoError(suite.T(), decrypt.Decrypt(os.Args), "decrypting encrypted file failed unexpectedly")
 }
