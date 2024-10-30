@@ -309,11 +309,6 @@ func (suite *TestSuite) TestFunctionality() {
 	newArgs = []string{"upload", "-config", configPath.Name(), "--encrypt-with-key", testfile.Name()}
 	assert.EqualError(suite.T(), Upload(newArgs), "no files to upload")
 
-	// If both a bad key and already encrypted file args are given,
-	// file arg errors are captured first
-	newArgs = []string{"upload", "-config", configPath.Name(), "--encrypt-with-key", "somekey", testfile.Name()}
-	assert.EqualError(suite.T(), Upload(newArgs), "aborting")
-
 	// config file without an access_token
 	var confFileNoToken = fmt.Sprintf(`
 	host_base = %[1]s

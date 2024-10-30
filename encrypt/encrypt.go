@@ -69,19 +69,16 @@ func init() {
 // Encrypt takes a set of arguments, parses them, and attempts to encrypt the
 // given data files with the given public key file
 func Encrypt(args []string) error {
-
-	publicKeyFileList = nil
 	// Call ParseArgs to take care of all the flag parsing
 	err := helpers.ParseArgs(args, Args)
 	if err != nil {
 		return err
 	}
 
-	if publicKeyFileList != nil && *target != "" {
+	switch {
+	case publicKeyFileList != nil && *target != "":
 		return errors.New("only one of -key or -target can be used")
-	}
-
-	if *target != "" {
+	case *target != "":
 		// fetch info endpoint values
 		log.Println("fetching public key")
 		info, err := login.GetAuthInfo(*target)
@@ -95,9 +92,7 @@ func Encrypt(args []string) error {
 		}
 		// no key provided, no key in session file, target provided
 		publicKeyFileList = append(publicKeyFileList, pubKeyFile)
-	}
-	// no key provided, no key in session file, no target provided
-	if publicKeyFileList == nil && *target == "" {
+	case publicKeyFileList == nil:
 		// check for public key in .sda-cli-session file from login
 		pubKey, err := helpers.GetPublicKeyFromSession()
 		if err != nil {
@@ -107,6 +102,11 @@ func Encrypt(args []string) error {
 		if len(publicKeyFileList) == 0 && pubKey != "" {
 			publicKeyFileList = append(publicKeyFileList, pubKey)
 		}
+	}
+
+	pubKeyList, err := createPubKeyList(publicKeyFileList, newKeySpecs())
+	if err != nil {
+		return err
 	}
 
 	// Each filename is first read into a helper struct (sliced for combatibility with checkFiles)
@@ -159,16 +159,6 @@ func Encrypt(args []string) error {
 	}
 
 	log.Infof("Ready to encrypt %d file(s)", len(files))
-
-	// Initialize a c4gh public key specs instance
-	c4ghKeySpecs := newKeySpecs()
-
-	// Read the public key(s) to be used for encryption. The matching private
-	// key will be able to decrypt the file.
-	pubKeyList, err := createPubKeyList(publicKeyFileList, c4ghKeySpecs)
-	if err != nil {
-		return err
-	}
 
 	// Generate a random private key to encrypt the data
 	privateKey, err := generatePrivateKey()
