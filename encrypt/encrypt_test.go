@@ -113,12 +113,11 @@ func (suite *EncryptTests) SetupTest() {
 }
 
 func (suite *EncryptTests) TearDownTest() {
-	os.Remove(suite.publicKey.Name())
-	os.Remove(suite.privateKey.Name())
-	os.Remove(suite.multiPublicKey.Name())
-	os.Remove(suite.fileOk.Name())
-	os.Remove(suite.encryptedFile.Name())
-	os.Remove(suite.tempDir)
+	os.Remove("checksum_encrypted.md5")
+	os.Remove("checksum_encrypted.sha256")
+	os.Remove("checksum_unencrypted.md5")
+	os.Remove("checksum_unencrypted.sha256")
+	os.RemoveAll(suite.tempDir)
 }
 
 func (suite *EncryptTests) TestcheckFiles() {
