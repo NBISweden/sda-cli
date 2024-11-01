@@ -100,11 +100,7 @@ func ParseArgs() (string, []string, string) {
 		}
 
 		return "version", os.Args, ""
-	}
-
-	// If config comes before the command, we remove it from the
-	// arguments and set the global config path.
-	if len(os.Args) > 1 && (os.Args[1] == "--config" || os.Args[1] == "-config") {
+	case "--config", "-config":
 		if len(os.Args) < 3 {
 			fmt.Fprintf(os.Stderr, "Error: --config requires an argument\n")
 			os.Exit(1)
