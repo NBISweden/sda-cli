@@ -51,7 +51,7 @@ func (suite *VersionTests) TestGetVersion_newerAvailable() {
 	out, _ := io.ReadAll(r)
 	os.Stdout = storeStdout
 
-	assert.Contains(suite.T(), string(out), "Newer version if sda-cli is avaiable")
+	assert.Contains(suite.T(), string(out), "Newer version of sda-cli is available")
 }
 
 func (suite *VersionTests) TestGetVersion_badGateway() {
@@ -72,7 +72,7 @@ func (suite *VersionTests) TestGetVersion_badGateway() {
 	out, _ := io.ReadAll(r)
 	os.Stderr = storeStderr
 
-	assert.Equal(suite.T(), string(out), "failed to fetch releases, reson: 502 Bad Gateway\n")
+	assert.Equal(suite.T(), string(out), "failed to fetch releases, reason: 502 Bad Gateway\n")
 }
 
 func (suite *VersionTests) TestGetVersion_networkTimeout() {

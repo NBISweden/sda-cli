@@ -62,13 +62,13 @@ func Version(ver string) error {
 	client := &http.Client{Timeout: timeout}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to fetch releases, reson: %s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "failed to fetch releases, reason: %s\n", err.Error())
 		fmt.Println("sda-cli version: ", ver)
 
 		return nil
 	}
 	if resp.StatusCode >= 400 {
-		fmt.Fprintf(os.Stderr, "failed to fetch releases, reson: %s\n", resp.Status)
+		fmt.Fprintf(os.Stderr, "failed to fetch releases, reason: %s\n", resp.Status)
 		fmt.Println("sda-cli version: ", ver)
 
 		return nil
@@ -93,14 +93,14 @@ func Version(ver string) error {
 
 	appVer, err := version.NewVersion(ver)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "faile to parse app version")
+		fmt.Fprintln(os.Stderr, "failed to parse app version")
 		fmt.Println("sda-cli version: ", ver)
 
 		return nil
 	}
 	ghVer, err := version.NewVersion(ghVersion.Name)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "faile to parse release version")
+		fmt.Fprintln(os.Stderr, "failed to parse release version")
 		fmt.Println("sda-cli version: ", ver)
 
 		return nil
@@ -108,7 +108,7 @@ func Version(ver string) error {
 
 	if appVer.LessThan(ghVer) {
 		pt, _ := time.Parse(time.RFC3339, ghVersion.Published)
-		fmt.Printf("Newer version if sda-cli is avaiable, %s\n", ghVersion.Name)
+		fmt.Printf("Newer version of sda-cli is available, %s\n", ghVersion.Name)
 		fmt.Printf("Published: %s\n", pt.Format(time.DateTime))
 		fmt.Printf("Download it from here: %s\n", ghVersion.URL)
 
