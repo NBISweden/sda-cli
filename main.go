@@ -18,7 +18,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var Version = "development"
+var Version = "0-development"
 
 var Usage = `USAGE: %s -config <s3config-file> <command> [command-args]
 

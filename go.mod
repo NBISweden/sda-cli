@@ -6,6 +6,7 @@ require (
 	github.com/aws/aws-sdk-go v1.55.5
 	github.com/dustin/go-humanize v1.0.1
 	github.com/golang-jwt/jwt v3.2.2+incompatible
+	github.com/hashicorp/go-version v1.7.0
 	github.com/inhies/go-bytesize v0.0.0-20210819104631-275770b98743
 	github.com/johannesboyne/gofakes3 v0.0.0-20220627085814-c3ac35da23b2
 	github.com/manifoldco/promptui v0.9.0
