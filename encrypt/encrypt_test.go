@@ -1,13 +1,19 @@
 package encrypt
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"runtime"
 	"testing"
 
+	"github.com/NBISweden/sda-cli/decrypt"
 	"github.com/NBISweden/sda-cli/helpers"
+	"github.com/NBISweden/sda-cli/login"
 	"github.com/neicnordic/crypt4gh/keys"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -107,12 +113,11 @@ func (suite *EncryptTests) SetupTest() {
 }
 
 func (suite *EncryptTests) TearDownTest() {
-	os.Remove(suite.publicKey.Name())
-	os.Remove(suite.privateKey.Name())
-	os.Remove(suite.multiPublicKey.Name())
-	os.Remove(suite.fileOk.Name())
-	os.Remove(suite.encryptedFile.Name())
-	os.Remove(suite.tempDir)
+	os.Remove("checksum_encrypted.md5")
+	os.Remove("checksum_encrypted.sha256")
+	os.Remove("checksum_unencrypted.md5")
+	os.Remove("checksum_unencrypted.sha256")
+	os.RemoveAll(suite.tempDir)
 }
 
 func (suite *EncryptTests) TestcheckFiles() {
@@ -220,4 +225,40 @@ func (suite *EncryptTests) TestEncryptFunction() {
 	os.Args = []string{"encrypt", "-key", "somekey", suite.fileOk.Name()}
 	err = Encrypt(os.Args)
 	assert.EqualError(suite.T(), err, msg)
+}
+
+func (suite *EncryptTests) TestPubKeyFromInfo() {
+	publicKeyFileList = nil
+	keyData, err := os.ReadFile(suite.publicKey.Name())
+	if err != nil {
+		suite.FailNow("failed to read public key from disk")
+	}
+
+	infoData := login.AuthInfo{
+		PublicKey: base64.StdEncoding.EncodeToString(keyData),
+	}
+	responseData, err := json.Marshal(infoData)
+	if err != nil {
+		suite.FailNow("failed to marshal JSON response")
+	}
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(responseData)
+	}))
+	defer mockServer.Close()
+
+	os.Args = []string{"encrypt", "-target", mockServer.URL, suite.fileOk.Name()}
+	assert.NoError(suite.T(), Encrypt(os.Args), "Encrypt from info failed unexpectedly")
+
+	os.Setenv("C4GH_PASSWORD", "")
+	if runtime.GOOS != "windows" {
+		// verify that the file can be decrypted
+		os.Remove(suite.fileOk.Name())
+		os.Args = []string{"decrypt", "-key", suite.privateKey.Name(), fmt.Sprintf("%s.c4gh", suite.fileOk.Name())}
+		assert.NoError(suite.T(), decrypt.Decrypt(os.Args), "decrypting encrypted file failed unexpectedly")
+	}
+
+	os.Args = []string{"decrypt", "-key", suite.privateKey.Name(), "--force-overwrite", fmt.Sprintf("%s.c4gh", suite.fileOk.Name())}
+	assert.NoError(suite.T(), decrypt.Decrypt(os.Args), "decrypting encrypted file failed unexpectedly")
 }
