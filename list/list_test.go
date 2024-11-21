@@ -37,9 +37,9 @@ func (suite *TestSuite) SetupTest() {
 
 func (suite *TestSuite) TestNoConfig() {
 
-	os.Args = []string{"list", "-config", ""}
+	os.Args = []string{"list"}
 
-	err := List(os.Args)
+	err := List(os.Args, "")
 	assert.EqualError(suite.T(), err, "failed to load config file, reason: failed to read the configuration file")
 }
 
@@ -126,8 +126,8 @@ func (suite *TestSuite) TestFunctionality() {
 	log.SetOutput(&uploadOutput)
 
 	// Upload a file
-	os.Args = []string{"upload", "--force-unencrypted", "-config", configPath.Name(), "-r", dir}
-	err = upload.Upload(os.Args)
+	os.Args = []string{"upload", "--force-unencrypted", "-r", dir}
+	err = upload.Upload(os.Args, configPath.Name())
 	assert.NoError(suite.T(), err)
 
 	// Check logs that file was uploaded
@@ -141,8 +141,8 @@ func (suite *TestSuite) TestFunctionality() {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	os.Args = []string{"list", "-config", configPath.Name()}
-	err = List(os.Args)
+	os.Args = []string{"list"}
+	err = List(os.Args, configPath.Name())
 	assert.NoError(suite.T(), err)
 
 	w.Close()

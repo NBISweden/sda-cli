@@ -18,7 +18,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help list` command
 var Usage = `
-USAGE: %s list [-config <s3config-file>] [prefix] (-url <uri> --datasets) (-url <uri> --dataset <dataset-id>) [-bytes]
+USAGE: %s [-config <s3config-file>] list [prefix] (-url <uri> --datasets) (-url <uri> --dataset <dataset-id>) [-bytes]
 
 list:
     Lists recursively all files under the user's folder in the Sensitive
@@ -40,9 +40,6 @@ var ArgHelp = `
 // main program help
 var Args = flag.NewFlagSet("list", flag.ExitOnError)
 
-var configPath = Args.String("config", "",
-	"S3 config file to use for listing.")
-
 var URL = Args.String("url", "", "The url of the sda-download server")
 
 var datasets = Args.Bool("datasets", false, "List all datasets in the user's folder.")
@@ -52,7 +49,7 @@ var bytesFormat = Args.Bool("bytes", false, "Print file sizes in bytes (not huma
 var dataset = Args.String("dataset", "", "List all files in the specified dataset.")
 
 // List function lists the contents of an s3
-func List(args []string) error {
+func List(args []string, configPath string) error {
 	// Call ParseArgs to take care of all the flag parsing
 	err := helpers.ParseArgs(args, Args)
 	if err != nil {
@@ -65,7 +62,7 @@ func List(args []string) error {
 	}
 
 	// // Get the configuration file or the .sda-cli-session
-	config, err := helpers.GetAuth(*configPath)
+	config, err := helpers.GetAuth(configPath)
 	if err != nil {
 		return fmt.Errorf("failed to load config file, reason: %v", err)
 	}

@@ -20,7 +20,7 @@ import (
 
 var Version = "0-development"
 
-var Usage = `USAGE: %s <command> [command-args]
+var Usage = `USAGE: %s -config <s3config-file> <command> [command-args]
 
 This is a helper tool that can help with common tasks when interacting
 with the Sensitive Data Archive (SDA).
@@ -49,7 +49,7 @@ var Commands = map[string]commandInfo{
 func main() {
 
 	log.SetLevel(log.WarnLevel)
-	command, args := ParseArgs()
+	command, args, configPath := ParseArgs()
 
 	var err error
 
@@ -61,15 +61,15 @@ func main() {
 	case "decrypt":
 		err = decrypt.Decrypt(args)
 	case "upload":
-		err = upload.Upload(args)
+		err = upload.Upload(args, configPath)
 	case "list":
-		err = list.List(args)
+		err = list.List(args, configPath)
 	case "htsget":
-		err = htsget.Htsget(args)
+		err = htsget.Htsget(args, configPath)
 	case "login":
 		err = login.NewLogin(args)
 	case "download":
-		err = download.Download(args)
+		err = download.Download(args, configPath)
 	case "version":
 		err = version.Version(Version)
 	default:
@@ -84,7 +84,8 @@ func main() {
 
 // Parses the command line arguments into a command, and keep the rest
 // of the arguments for the subcommand.
-func ParseArgs() (string, []string) {
+func ParseArgs() (string, []string, string) {
+	var configPath string
 	// Print usage if no arguments are provided.
 	if len(os.Args) < 2 {
 		_ = Help("help")
@@ -98,7 +99,14 @@ func ParseArgs() (string, []string) {
 			os.Exit(0)
 		}
 
-		return "version", os.Args
+		return "version", os.Args, ""
+	case "--config", "-config":
+		if len(os.Args) < 3 {
+			fmt.Fprintf(os.Stderr, "Error: --config requires an argument\n")
+			os.Exit(1)
+		}
+		configPath = os.Args[2]
+		os.Args = append(os.Args[:1], os.Args[3:]...)
 	}
 
 	// Extract the command from the 1st argument, then remove it
@@ -130,7 +138,7 @@ func ParseArgs() (string, []string) {
 	// The "list" command can have no arguments since it can use the
 	// config from login so we immediately return in that case.
 	if command == "list" {
-		return command, os.Args
+		return command, os.Args, configPath
 	}
 
 	// If no arguments are provided to the subcommand, it's not
@@ -141,7 +149,7 @@ func ParseArgs() (string, []string) {
 		os.Exit(1)
 	}
 
-	return command, os.Args
+	return command, os.Args, configPath
 }
 
 // Prints the main usage string, and the global help or command help
