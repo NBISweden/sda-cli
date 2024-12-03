@@ -1,4 +1,3 @@
-version: "3.7"
 services:
   s3_backend:
     command: server /data
@@ -201,12 +200,21 @@ services:
       - GRPC_PORT=50051
       - GRPC_HOST=reencrypt
       - APP_SERVEUNENCRYPTEDDATA=true
+      - C4GH_PASSPHRASE=oaagCP1YgAZeEyl2eJAkHv9lkcWXWFgm
+      - C4GH_FILEPATH=/dev_utils/c4gh.sec.pem
     image: "ghcr.io/neicnordic/sensitive-data-archive:${TAG}-download"
     volumes:
       - ./archive_data/4293c9a7-dc50-46db-b79a-27ddc0dad1c6:/tmp/4293c9a7-dc50-46db-b79a-27ddc0dad1c6
+      - ./archive_data/1068a0b9-51c9-4bda-8fcf-14b3b884f7a4:/tmp/1068a0b9-51c9-4bda-8fcf-14b3b884f7a4
+      - ./archive_data/668330fb-bdd8-40b2-a88f-29e1e610fa4b:/tmp/668330fb-bdd8-40b2-a88f-29e1e610fa4b
+      - ./archive_data/ce796074-21d8-43ef-9b5e-848ce8b6e47b:/tmp/ce796074-21d8-43ef-9b5e-848ce8b6e47b
+      - ./archive_data/2c063d42-f57f-4e74-bb1c-f56af00825b7:/tmp/2c063d42-f57f-4e74-bb1c-f56af00825b7
+      - ./:/dev_utils/
     mem_limit: 256m
+    extra_hosts:
+      - ${DOCKERHOST:-dockerhost}:host-gateway
     ports:
-      - "8080:8080"
+      - "8089:8080"
     restart: always
   reencrypt:
     image: ghcr.io/neicnordic/sensitive-data-archive:${TAG}
@@ -221,6 +229,24 @@ services:
     restart: always
     volumes:
       - ./:/dev_utils/
+
+  htsget:
+    image: harbor.nbis.se/gdi/htsget-rs:20240415
+    command: ["htsget-actix", "--config", "/config/download-config.toml"]
+    container_name: htsget
+    depends_on:
+      download:
+        condition: service_started
+    ports:
+      - 8088:8080
+    environment:
+      - FORMATTING_STYLE=Pretty
+      - RUST_LOG=debug
+    volumes:
+      - ./config-htsget-rs:/config/
+    extra_hosts:
+      - dockerhost:host-gateway
+
 volumes:
   data:
   dbdata:
