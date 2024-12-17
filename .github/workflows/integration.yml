@@ -25,4 +25,8 @@ jobs:
         run: bash -x .github/integration/setup/setup.sh
 
       - name: Run tests
-        run: bash -x .github/integration/tests/tests.sh
+        run: |
+            ls -1 .github/integration/tests/*.sh 2>/dev/null | sort -t/ -k5 -n | while read -r runscript; do
+              echo "Executing setup script $runscript";
+              bash -x "$runscript";
+            done
