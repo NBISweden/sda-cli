@@ -38,8 +38,6 @@ files="data_file.c4gh"
 check_encypted_file $files
 
 
-# Create and encrypt multiple files in a folder
-
 # Create folder and encrypt files in it
 cp data_file data_file1
 mkdir data_files_enc
@@ -78,7 +76,7 @@ cp data_file data_file_keys
 # Encrypt with multiple key flag calls
 ./sda-cli encrypt -key sda_key.pub.pem -key sda_key2.pub.pem data_file_keys
 check_encypted_file "data_file_keys.c4gh"
-# Decrypt file with both keys
+# Decrypt file with both keys, one at the time
 for key in sda_key sda_key2
 do
     rm data_file_keys
@@ -94,11 +92,11 @@ echo "Could decrypt with both keys from multiple key flag"
 rm data_file_keys.c4gh
 
 
-# Encrypt with concatenated key file and a key flag call
+# Encrypt with a single key and with a concatenated key file
 ./sda-cli encrypt -key sda_key.pub.pem -key sda_keys data_file_keys
 check_encypted_file "data_file_keys.c4gh"
 
-# Decrypt file with both keys
+# Decrypt file with all three keys
 for key in sda_key sda_key1 sda_key2
 do
     rm data_file_keys

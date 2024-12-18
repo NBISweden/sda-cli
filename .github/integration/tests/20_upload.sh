@@ -42,7 +42,7 @@ check_uploaded_file "test/$user/data_file.c4gh" data_file.c4gh
 output=$(./sda-cli -config testing/s3cmd.conf upload --force-overwrite data_file.c4gh)
 
 
-# Test recursive folder upload
+# Test upload all files from a folder, one by one
 for k in data_file.c4gh data_file1.c4gh
 do
     # Upload and check file

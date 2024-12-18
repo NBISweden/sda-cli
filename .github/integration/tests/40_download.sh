@@ -34,7 +34,6 @@ done
 
 rm -r download-dataset
 
-# Download encrypted file by using the sda-cli download comand
 # Create a user key pair
 if ( yes "" | ./sda-cli createKey user_key ) ; then
     echo "Created a user key pair for downloading encrypted files"
@@ -42,15 +41,16 @@ else
     echo "Failed to create a user key pair for downloading encrypted files"
     exit 1
 fi
+# Download encrypted file by using the sda-cli download command
 ./sda-cli -config testing/s3cmd-download.conf download -pubkey user_key.pub.pem -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh
 
-# check if file exists in the path
+# Check if file exists in the path
 if [ ! -f "test-download/main/subfolder/dummy_data.c4gh" ]; then
     echo "Downloaded file not found"
     exit 1
 fi
 
-# decrypt the downloaded file
+# Decrypt the downloaded file
 C4GH_PASSWORD="" ./sda-cli decrypt -key user_key.sec.pem test-download/main/subfolder/dummy_data.c4gh
 
 if [ -f test-download/main/subfolder/dummy_data  ]; then
@@ -60,7 +60,7 @@ else
     exit 1
 fi
 
-# check the first line of that file
+# Check the first line of that file
 first_line=$(head -n 1 test-download/main/subfolder/dummy_data)
 if [[ $first_line != *"THIS FILE IS JUST DUMMY DATA"* ]]; then
     echo "First line does not contain the expected string"
@@ -83,7 +83,7 @@ done
 
 rm -r download-folder
 
-# Download file by providing the file id
+# Download dataset by providing the dataset id
 ./sda-cli -config testing/s3cmd-download.conf download -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-fileid urn:neic:001-001
 
 # Check if file exists in the path
