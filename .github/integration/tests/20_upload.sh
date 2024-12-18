@@ -33,6 +33,14 @@ function check_uploaded_file() {
 }
 
 
+# Create folder with subfolder structure and add some encrypted files
+mkdir data_files_enc/dir1 data_files_enc/dir1/dir2
+cp data_files_enc/data_file.c4gh data_files_enc/data_file3.c4gh
+cp data_files_enc/data_file.c4gh data_files_enc/dir1/data_file.c4gh
+cp data_files_enc/data_file.c4gh data_files_enc/dir1/dir2/data_file.c4gh
+cp data_files_enc/data_file.c4gh data_files_enc/dir1/dir2/data_file2.c4gh
+
+
 # Upload a specific file and check it
 ./sda-cli -config testing/s3cmd.conf upload data_file.c4gh
 check_uploaded_file "test/$user/data_file.c4gh" data_file.c4gh
