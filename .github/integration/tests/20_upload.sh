@@ -1,36 +1,10 @@
 #!/bin/bash
 set -e
+test_dir=$(dirname "$0")
+source "$test_dir/../scripts/checkers.sh"
+
 # inferred from access_key in testing/s3cmd.conf
 user=test_dummy.org
-
-
-# Function checking that a file was encrypted
-function check_encypted_file() {
-
-    for k in $1
-    do
-        output=$(head -c 8 "$k")
-
-        if [[ "$output" = "crypt4gh"  ]]; then
-            echo "Encrypted data file"
-        else
-            echo "Failed to encrypt file"
-            exit 1
-        fi
-    done
-}
-
-# Function checking that a file was uploaded to the S3 backend
-function check_uploaded_file() {
-    # TODO if emtpy, this will fail silently
-    output=$(s3cmd -c testing/directS3 ls s3://"$1" | grep -q "$2")
-    if $output ; then
-        echo "Uploaded encrypted file to s3 backend"
-    else
-        echo "Failed to upload file to s3 backend"
-        exit 1
-    fi
-}
 
 
 # Create folder with subfolder structure and add some encrypted files
@@ -47,7 +21,7 @@ check_uploaded_file "test/$user/data_file.c4gh" data_file.c4gh
 
 
 # Try to upload a file twice with the --force-overwrite flag
-output=$(./sda-cli -config testing/s3cmd.conf upload --force-overwrite data_file.c4gh)
+./sda-cli -config testing/s3cmd.conf upload --force-overwrite data_file.c4gh
 
 
 # Test upload all files from a folder, one by one
@@ -105,7 +79,7 @@ cp data_file data_files_unenc/. && cp data_file data_files_unenc/dir1/data_file1
 uploadDir="testEncryptUpload"
 ./sda-cli -config testing/s3cmd.conf upload -encrypt-with-key sda_key.pub.pem -r data_files_unenc -targetDir "$uploadDir"
 
-check_encypted_file "data_files_unenc/data_file.c4gh" "data_files_unenc/dir1/data_file1.c4gh"
+check_encrypted_file data_files_unenc/data_file.c4gh data_files_unenc/dir1/data_file1.c4gh
 
 for k in data_files_unenc/data_file.c4gh data_files_unenc/dir1/data_file1.c4gh
 do

@@ -1,24 +1,7 @@
 #!/bin/bash
 set -e
-
-# Function checking that a file was encrypted
-function check_encypted_file() {
-
-    for k in $1
-    do
-        output=$(head -c 8 "$k")
-
-        if [[ "$output" = "crypt4gh"  ]]; then
-            echo "Encrypted data file"
-        else
-            echo "Failed to encrypt file"
-            exit 1
-        fi
-    done
-}
-
-# inferred from access_key in testing/s3cmd.conf
-user=test_dummy.org
+test_dir=$(dirname "$0")
+source "$test_dir/../scripts/checkers.sh"
 
 # Create random file
 dd if=/dev/urandom of=data_file count=1 bs=1M
@@ -34,8 +17,7 @@ fi
 # Encrypt a file
 ./sda-cli encrypt -key sda_key.pub.pem data_file
 
-files="data_file.c4gh"
-check_encypted_file $files
+check_encrypted_file data_file.c4gh
 
 
 # Create folder and encrypt files in it
@@ -43,7 +25,7 @@ cp data_file data_file1
 mkdir data_files_enc
 ./sda-cli encrypt -key sda_key.pub.pem -outdir data_files_enc data_file data_file1
 
-check_encypted_file "data_files_enc/data_file.c4gh data_files_enc/data_file1.c4gh"
+check_encrypted_file data_files_enc/data_file.c4gh data_files_enc/data_file1.c4gh
 
 # Test multiple pub key encryption
 
@@ -55,7 +37,7 @@ do
     else
         echo "Failed to create key pair for encryption"
         exit 1
-fi
+    fi
 done
 
 # Create file with concatenated pub keys
@@ -67,7 +49,7 @@ cp data_file data_file_keys
 
 # Encrypt with multiple key flag calls
 ./sda-cli encrypt -key sda_key.pub.pem -key sda_key2.pub.pem data_file_keys
-check_encypted_file "data_file_keys.c4gh"
+check_encrypted_file data_file_keys.c4gh
 # Decrypt file with both keys, one at the time
 for key in sda_key sda_key2
 do
@@ -86,7 +68,7 @@ rm data_file_keys.c4gh
 
 # Encrypt with a single key and with a concatenated key file
 ./sda-cli encrypt -key sda_key.pub.pem -key sda_keys data_file_keys
-check_encypted_file "data_file_keys.c4gh"
+check_encrypted_file data_file_keys.c4gh
 
 # Decrypt file with all three keys
 for key in sda_key sda_key1 sda_key2
@@ -105,7 +87,7 @@ rm data_file_keys.c4gh
 
 # Encrypt with concatenated key file
 ./sda-cli encrypt -key sda_keys data_file_keys
-check_encypted_file "data_file_keys.c4gh"
+check_encrypted_file data_file_keys.c4gh
 
 # Decrypt file with all keys
 for key in sda_key1 sda_key2
