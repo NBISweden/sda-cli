@@ -9,7 +9,6 @@ import (
 	"github.com/NBISweden/sda-cli/decrypt"
 	"github.com/NBISweden/sda-cli/download"
 	"github.com/NBISweden/sda-cli/encrypt"
-	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/NBISweden/sda-cli/htsget"
 	"github.com/NBISweden/sda-cli/list"
 	"github.com/NBISweden/sda-cli/login"
@@ -19,12 +18,34 @@ import (
 )
 
 var Version = "0-development"
+const ExecName = "sda-cli"
 
-var Usage = `USAGE: %s -config <s3config-file> <command> [command-args]
+var Usage = fmt.Sprintf(`
+Usage: %s [-config CONFIGFILE] <command> [OPTIONS]
 
-This is a helper tool that can help with common tasks when interacting
-with the Sensitive Data Archive (SDA).
-`
+A tool for common tasks with the Sensitive Data Archive (SDA)
+
+Commands:
+  createKey   Creates a Crypt4GH key pair
+  decrypt     Decrypt files
+  download    Download files from SDA
+  encrypt     Encrypt files
+  htsget      Get files using htsget
+  list        List files in the SDA
+  login       Login to the SDA
+  upload      Upload files to the SDA
+
+Global options:
+  -config CONFIGFILE  Path to the configuration file
+  -h, -help           Show this help message
+  -v, -version        Show the version of the tool
+
+Additional commands:
+  version          Show the version of the tool
+  help             Show this help message
+
+Run '%s help <command>' for more information on a command.
+`, ExecName, ExecName)
 
 // Map of the sub-commands, and their arguments and usage text strings
 type commandInfo struct {
@@ -80,9 +101,11 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
+
+	os.Exit(0)
 }
 
-// Parses the command line arguments into a command, and keep the rest
+// Parse the command line arguments into a command, and keep the rest
 // of the arguments for the subcommand.
 func ParseArgs() (string, []string, string) {
 	var configPath string
@@ -152,7 +175,7 @@ func ParseArgs() (string, []string, string) {
 	return command, os.Args, configPath
 }
 
-// Prints the main usage string, and the global help or command help
+// Print the main usage string, and the global help or command help
 // depending on the command argument.  Returns an error if the command
 // is not recognized.
 func Help(command string) error {
@@ -163,15 +186,7 @@ func Help(command string) error {
 		}
 
 		// print main help
-		fmt.Fprintf(os.Stderr, Usage, os.Args[0])
-		fmt.Fprintln(os.Stderr, "The tool can help with these actions:")
-		for _, info := range Commands {
-			subcommandUsage := helpers.FormatSubcommandUsage(info.usage)
-			fmt.Fprint(os.Stderr, subcommandUsage)
-		}
-		fmt.Fprintf(os.Stderr,
-			"use '%s help <command>' to get help with subcommand flags.\n",
-			os.Args[0])
+		fmt.Println(Usage)
 
 		if command == "help" {
 			return nil
@@ -180,11 +195,11 @@ func Help(command string) error {
 		return fmt.Errorf("unknown command: %s", command)
 	}
 
-	// print subcommand help
-	fmt.Fprintf(os.Stderr, info.usage+"\n", os.Args[0])
-	fmt.Fprintln(os.Stderr, "Command line arguments:")
-	info.args.PrintDefaults()
-	fmt.Fprintln(os.Stderr, info.argHelp)
+	// Print subcommand help
+	fmt.Printf(info.usage+"\n", ExecName)
+	// fmt.Println("Command line arguments:")
+	// info.args.PrintDefaults()
+	// fmt.Println(info.argHelp)
 
 	return nil
 }
