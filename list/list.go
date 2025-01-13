@@ -18,23 +18,32 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help list` command
 var Usage = `
-USAGE: %s [-config <s3config-file>] list [prefix] (-url <uri> --datasets) (-url <uri> --dataset <dataset-id>) [-bytes]
+Usage: %s [-config CONFIGFILE] list [prefix] [OPTIONS]
 
-list:
-    Lists recursively all files under the user's folder in the Sensitive
-    Data Archive (SDA).  If the [prefix] parameter is used, only the
-    files under the specified path will be returned. If no config is
-	specified, the tool will look for a previous session. The --datasets
-	flag will list all datasets in the user's folder, given the url of
-	the	htsgetserver. The --dataset flag will list all files in the
-	specified dataset and the dataset size.
+Recursively list files and datasets in the user's folder in the Sensitive Data
+Archive (SDA). By default, it lists all files under the user's folder. Use the
+optional [prefix] argument to list files under a specific path. 
+
+Important:
+  If using '-datasets' or '-dataset', the '-url' flag is required to specify
+  the SDA download server URL.
+
+Global options:
+  -config CONFIGFILE      Path to the configuration file.
+
+Options:
+  -bytes                  Display file sizes in bytes instead of a human-readable format.
+  -dataset <dataset-id>   List all files in the specified dataset, including the dataset size.
+  -datasets               List all datasets available in the user's folder.
+  -url <uri>              Specify the SDA download server URL when using '-datasets' or '-dataset'.
+
+Arguments:
+  [prefix]                Optional prefix to filter results to a specific location or folder path.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help
-var ArgHelp = `
-    [prefix]
-        The location/folder of the s3 to list contents.`
+var ArgHelp = ""
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
