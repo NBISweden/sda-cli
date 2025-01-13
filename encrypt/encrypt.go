@@ -28,24 +28,35 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help encrypt` command
 var Usage = `
-USAGE: %s encrypt -key <public-key-file> (-target <target>) (-outdir <dir>) (-continue=true) [file(s)]
+Usage: %s encrypt [OPTIONS] [file(s)] 
 
-encrypt:
-    Encrypts files according to the crypt4gh standard used in the
-    Sensitive Data Archive (SDA).  Each given file will be encrypted
-    and written to <filename>.c4gh.  Both encrypted and unencrypted
-    checksums will be calculated and written to:
-        - checksum_unencrypted.md5
-        - checksum_encrypted.md5
-        - checksum_unencrypted.sha256
-        - checksum_encrypted.sha256
+Encrypt files according to the Crypt4GH standard used in the Sensitive Data
+Archive (SDA). Each input file will be encrypted and saved as '<filename>.c4gh'.
+Additionally, checksums for both encrypted and unencrypted files will be
+calculated and written to the following files:
+  - checksum_unencrypted.md5
+  - checksum_encrypted.md5
+  - checksum_unencrypted.sha256
+  - checksum_encrypted.sha256
+
+Important:
+  Exactly one of '-key' or '-target' must be specified.
+
+Options:
+  -key <public-key-file>   Public key file(s) to use for encryption. This flag can be specified 
+                           multiple times to encrypt files with multiple public keys.
+                           Key files may contain concatenated keys.
+  -target <target>         Client target associated with the public key.
+  -outdir <dir>            Output directory for encrypted files. Defaults to the current directory.
+  -continue=true|false     Skip files with errors and continue processing others. Defaults to 'false'.
+
+Arguments:
+  [file(s)]                List of file paths to be encrypted. All flagless arguments are treated as filenames.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help
-var ArgHelp = `
-    [files]
-        All flagless arguments will be used as filenames for encryption.`
+var ArgHelp = ""
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
@@ -54,14 +65,14 @@ var Args = flag.NewFlagSet("encrypt", flag.ExitOnError)
 var outDir = Args.String("outdir", "",
 	"Output directory for encrypted files.")
 
-var continueEncrypt = Args.Bool("continue", false, "Do not exit on file errors but skip and continue.")
+var continueEncrypt = Args.Bool("continue", false, "Skip files with errors and continue processing others. Defaults to 'false'.")
 
-var target = Args.String("target", "", "Client target for public key.")
+var target = Args.String("target", "", "Client target associated with the public key.")
 
 var publicKeyFileList []string
 
 func init() {
-	Args.Func("key", "Public key file(s) to use for encryption. Use multiple times to encrypt\nwith more public keys. Key file(s) may contain many concatenated keys.", func(s string) error {
+	Args.Func("key", "Public key file(s) to use for encryption. This flag can be specified\nmultiple times to encrypt files with multiple public keys. \nKey files may contain concatenated keys.", func(s string) error {
 		publicKeyFileList = append(publicKeyFileList, s)
 
 		return nil
