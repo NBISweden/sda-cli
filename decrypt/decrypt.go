@@ -14,19 +14,24 @@ import (
 	"github.com/neicnordic/crypt4gh/streaming"
 )
 
-// Help text and command line flags.
-
-// Usage text that will be displayed as command line help text when using the
-// `help decrypt` command
+// Usage text that will be displayed when the `help decrypt` command is invoked.
 var Usage = `
-USAGE: %s decrypt -key <private-key-file> (--force-overwrite) (--clean) [file(s)]
+Usage: %s decrypt -key <private-key-file> [OPTIONS] [file(s)]
 
-decrypt:
-    Decrypts files from the Sensitive Data Archive (SDA) with the
-    provided private key.  If the private key is encrypted, the password
-    can be supplied in the C4GH_PASSWORD environment variable, or at the
-    interactive password prompt. The --force-overwrite flag will overwrite
-	existing files, and the --clean flag will remove the encrypted file.
+Decrypt files from the Sensitive Data Archive (SDA) using the specified private key.
+If the private key is password-protected, the password can be provided via the
+C4GH_PASSWORD environment variable or an interactive password prompt.
+
+Required options:
+  -key <private-key-file>  The private key to use for decryption.
+
+Optional options:
+  -force-overwrite         Overwrite existing files without confirmation.
+  -clean                   Remove the encrypted files after successful decryption.
+
+Arguments:
+  [file(s)]                One or more files to decrypt. All flagless arguments are
+                           treated as filenames for decryption.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
