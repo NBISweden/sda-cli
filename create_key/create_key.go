@@ -13,28 +13,30 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Help text and command line flags.
-
-// Usage text that will be displayed as command line help text when using the
-// `help encrypt` command
+// Usage text that will be displayed when the `help createKey` command is invoked.
 var Usage = `
-USAGE: %s createKey (-outdir <dirname>) <name>
+Usage: %s createKey [OPTIONS] NAME 
 
-createKey:
-    Creates a crypt4gh encryption key pair, and saves it to
-    <name>.pub.pem, and <name>.sec.pem.
+Generate a Crypt4GH encryption key pair and saves the keys as:
+  - <name>.pub.pem (public key)
+  - <name>.sec.pem (private key)
 
-    NOTE:
-        Keys created using this function should not be used when
-        encrypting submission files, they should only be used for
-        decrypting files downloaded from the archive.
+Important:
+  Keys generated with this command are intended for decrypting files 
+  downloaded from the archive. They should NOT be used for encrypting 
+  submission files.
+
+Options:
+  -outdir <dirname>  Directory where the generated keys will be saved. 
+                     If not specified, the current directory is used.
+
+Arguments:
+    NAME             The basename of the keyfiles to generate.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help.
-var ArgHelp = `
-    [name]
-        The basename of the keyfiles to generate.`
+var ArgHelp = "" 
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
