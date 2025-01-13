@@ -1,5 +1,3 @@
-
-
 # personal files
 .vscode/
 personal/
@@ -9,3 +7,7 @@ sda-cli
 sda-cli.exe
 
 dist/
+
+# key files
+*.pub.pem
+*.sec.pem
