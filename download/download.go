@@ -26,33 +26,42 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-USAGE: %s -config <s3config-file> download -dataset-id <datasetID> -url <uri> (--pubkey <public-key-file>) (-outdir <dir>) ([filepath(s) or fileid(s)] or --dataset or --recursive <dirpath>) or --from-file <list-filepath>
+Usage: %s [-config CONFIGFILE] download [OPTIONS] [ARGUMENTS]
 
-download:
-	Downloads files from the Sensitive Data Archive (SDA) by using APIs from the given url. The user
-	must have been granted access to the datasets (visas) that are to be downloaded.
-	The files will be downloaded in the current directory, if outdir is not defined.
-	When the -pubkey flag is used, the downloaded files will be server-side encrypted with the given public key.
-    If the --dataset flag is used, all files in the dataset will be downloaded.
-    If the --recursive flag is used, all files in the directory will be downloaded.
-    If the --from-file flag is used, all the files that are in the file will be downloaded.
-    `
+Download files from the Sensitive Data Archive (SDA) using APIs at the
+specified URL. The user must have the necessary access rights (visas) to the
+datasets being downloaded.
+
+Important:
+  Provide exactly one of the following options to specify files to download:
+    - [filepath(s) or fileid(s)] 
+    - --dataset 
+    - --recursive <dirpath> 
+    - --from-file <list-filepath>
+
+Global options:
+  -config CONFIGFILE     Path to the configuration file. 
+  
+Required options: 
+  -dataset-id <datasetID>      Dataset ID for the file(s) to download. 
+  -url <uri>                   The url of the download server. 
+
+Optional options:
+  --pubkey <public-key-file>   Encrypt downloaded files server-side using the specified public key.
+  -outdir <dir>                Directory to save the downloaded files.
+                               If not specified, files will be saved in the current directory.
+  --dataset                    Download all files in the dataset specified by '-dataset-id'.
+  --recursive <dirpath>        Download all files recursively from the given directory path.
+  --from-file <list-filepath>  Download all files listed in the specified file.
+
+Arguments:
+  [filepath(s)]          Specific file paths to download.
+  [fileid(s)]            File IDs of files to download.
+`
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help
-var ArgHelp = `
-	[datasetID]
-		The ID of the dataset that the file is part of.
-	[uri]
-		All flagless arguments will be used as download uri.
-	[filepath(s)]
-		The filepath of the file to download.
-    	[fileid(s)]
-        	The file ID of the file to download.
-    	[dirpath]
-        	The directory path to download all files recursively.
-        [list-filepath]
-            The path to the file that contains the list of files to download.`
+var ArgHelp = ""
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
