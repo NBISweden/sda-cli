@@ -20,28 +20,30 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help htsget` command
 var Usage = `
-USAGE: %s -config testing/s3cmd.conf htsget [-dataset <datasetID>] [-filename <filename>] (-reference <referenceName>) [-htsgethost <htsget-hostname>] [-pubkey <public-key-file>] (-output <file>) (--force-overwrite)
+Usage: %s [-config CONFIGFILE] htsget [OPTIONS]
 
-htsget:
-	Htsget downloads files from the Sensitive Data Archive (SDA), using the
-	htsget server. A dataset and a filename must be provided in order to 
-	download the file. The files will be downloaded in the current
-	directory, if output is not defined.
+Download files from the Sensitive Data Archive (SDA) using the htsget server.
+
+Global options:
+  -config CONFIGFILE     Path to the configuration file. 
+
+Required options:
+  -dataset <datasetID>        Dataset ID for the file to download.
+  -filename <filename>        Name of the file to download.
+  -host <hostname>            Hostname of the htsget server to use.
+  -pubkey <public-key-file>   Encrypt downloaded files server-side using the specified public key.
+
+Optional options:
+  -reference <referenceName>  Specify a reference name to download a partial file. 
+  -output <file>              Output name for the downloaded file. 
+                              If not specified, the file will be downloaded to the current directory
+                              as the original filename.
+  --force-overwrite           Overwrite existing files without prompting.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help
-var ArgHelp = `
-    [dataset]
-        The ID of the dataset that the file is part of.
-    [filename]
-        The name of the file to download.
-    [reference]
-        The reference number of the file to download.
-    [host]
-        The hostname of the htsget server to use.
-    [pubkey]
-        The public key file to use for the htsget request.`
+var ArgHelp = ""
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
