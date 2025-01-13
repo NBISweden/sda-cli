@@ -25,20 +25,38 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help upload` command
 var Usage = `
-USAGE: %s -config <s3config-file> upload (-accessToken <access-token>) (--encrypt-with-key <public-key-file>) (--force-overwrite) (--force-unencrypted) (-r) [file(s) | folder(s)] (-targetDir <upload-directory>)
+Usage: %s -config CONFIGFILE upload [OPTIONS] [file(s)|folder(s)]
 
-upload:
-    Uploads files to the Sensitive Data Archive (SDA).
-    All files to upload are required to be crypt4gh encrypted when the flag -encrypt-with-key is not set.
-    On the other hand, non-encrypted files should be provided when the flag -encrypt-with-key is set.
+Upload files or directories to the Sensitive Data Archive (SDA). 
+
+Important:
+  - Files must be encrypted (Crypt4GH standard) unless the '-encrypt-with-key' flag is set.
+  - When using the '-encrypt-with-key' flag, ensure that only unencrypted files are provided.
+  - Use the '-force-unencrypted' flag with caution to upload unencrypted files explicitly.
+
+Options:
+  -accessToken <access-token>      Access token for the SDA inbox service. This is optional 
+                                   if already set in the config file or as the 'ACCESSTOKEN' 
+                                   environment variable.
+  -encrypt-with-key <public-key-file>
+                                   Encrypt files using the specified public key before upload. 
+                                   The key file may contain multiple concatenated public keys. 
+                                   Only unencrypted files should be provided when this flag is used.
+  -force-overwrite                 Overwrite existing files in the target directory without confirmation.
+  -force-unencrypted               Allow uploading unencrypted files (use with caution).
+  -r                               Upload directories recursively. Without this flag, directories 
+                                   will be skipped.
+  -targetDir <upload-directory>    Specify the target directory for uploaded files or folders. 
+                                   Defaults to the user's base directory if not set.
+
+Arguments:
+  [file(s) | folder(s)]            List of files or directories to upload. Directories are 
+                                   skipped unless the '-r' flag is provided.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help
-var ArgHelp = `
-    [file(s)|folder(s)]
-        All flagless arguments will be used as file or directory names
-        to upload.  Directories will be skipped if '-r' is not provided.`
+var ArgHelp = ""
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
