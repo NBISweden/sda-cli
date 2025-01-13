@@ -25,18 +25,18 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help login` command
 var Usage = `
+Usage: %s login <login-target>
 
-USAGE: %s login <login-target>
+Authenticates the user with the Sensitive Data Archive (SDA) using the specified login target.
 
-login:
-    logs in to the SDA using the provided login target.
+Arguments:
+  <login-target>   The base URL of the service to log in to. This is required 
+                   and determines the SDA service to authenticate against.
 `
 
 // ArgHelp is the suffix text that will be displayed after the argument list in
 // the module help
-var ArgHelp = `
-    [login-target]
-        The login target is the base URL of the service.`
+var ArgHelp = ""
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
