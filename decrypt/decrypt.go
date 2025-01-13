@@ -31,14 +31,7 @@ Optional options:
 
 Arguments:
   [file(s)]                One or more files to decrypt. All flagless arguments are
-                           treated as filenames for decryption.
-`
-
-// ArgHelp is the suffix text that will be displayed after the argument list in
-// the module help
-var ArgHelp = `
-    [file(s)]
-        All flagless arguments will be used as filenames for decryption.`
+                           treated as filenames for decryption.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help

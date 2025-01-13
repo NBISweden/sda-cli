@@ -31,12 +31,7 @@ Authenticates the user with the Sensitive Data Archive (SDA) using the specified
 
 Arguments:
   <login-target>   The base URL of the service to log in to. This is required 
-                   and determines the SDA service to authenticate against.
-`
-
-// ArgHelp is the suffix text that will be displayed after the argument list in
-// the module help
-var ArgHelp = ""
+                   and determines the SDA service to authenticate against.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help

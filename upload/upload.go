@@ -51,12 +51,7 @@ Options:
 
 Arguments:
   [file(s) | folder(s)]            List of files or directories to upload. Directories are 
-                                   skipped unless the '-r' flag is provided.
-`
-
-// ArgHelp is the suffix text that will be displayed after the argument list in
-// the module help
-var ArgHelp = ""
+                                   skipped unless the '-r' flag is provided.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help

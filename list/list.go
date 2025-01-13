@@ -38,12 +38,7 @@ Options:
   -url <uri>              Specify the SDA download server URL when using '-datasets' or '-dataset'.
 
 Arguments:
-  [prefix]                Optional prefix to filter results to a specific location or folder path.
-`
-
-// ArgHelp is the suffix text that will be displayed after the argument list in
-// the module help
-var ArgHelp = ""
+  [prefix]                Optional prefix to filter results to a specific location or folder path.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help

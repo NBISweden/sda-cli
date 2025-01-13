@@ -18,6 +18,7 @@ import (
 )
 
 var Version = "0-development"
+
 const ExecName = "sda-cli"
 
 var Usage = fmt.Sprintf(`
@@ -49,21 +50,20 @@ Run '%s help <command>' for more information on a command.
 
 // Map of the sub-commands, and their arguments and usage text strings
 type commandInfo struct {
-	args    *flag.FlagSet
-	usage   string
-	argHelp string
+	args  *flag.FlagSet
+	usage string
 }
 
 var Commands = map[string]commandInfo{
-	"encrypt":   {encrypt.Args, encrypt.Usage, encrypt.ArgHelp},
-	"createKey": {createKey.Args, createKey.Usage, createKey.ArgHelp},
-	"decrypt":   {decrypt.Args, decrypt.Usage, decrypt.ArgHelp},
-	"upload":    {upload.Args, upload.Usage, upload.ArgHelp},
-	"list":      {list.Args, list.Usage, list.ArgHelp},
-	"htsget":    {htsget.Args, htsget.Usage, htsget.ArgHelp},
-	"login":     {login.Args, login.Usage, login.ArgHelp},
-	"download":  {download.Args, download.Usage, download.ArgHelp},
-	"version":   {version.Args, version.Usage, version.ArgHelp},
+	"encrypt":   {encrypt.Args, encrypt.Usage},
+	"createKey": {createKey.Args, createKey.Usage},
+	"decrypt":   {decrypt.Args, decrypt.Usage},
+	"upload":    {upload.Args, upload.Usage},
+	"list":      {list.Args, list.Usage},
+	"htsget":    {htsget.Args, htsget.Usage},
+	"login":     {login.Args, login.Usage},
+	"download":  {download.Args, download.Usage},
+	"version":   {version.Args, version.Usage},
 }
 
 // Main does argument parsing, then delegates to one of the sub modules
@@ -197,9 +197,6 @@ func Help(command string) error {
 
 	// Print subcommand help
 	fmt.Printf(info.usage+"\n", ExecName)
-	// fmt.Println("Command line arguments:")
-	// info.args.PrintDefaults()
-	// fmt.Println(info.argHelp)
 
 	return nil
 }

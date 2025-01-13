@@ -15,7 +15,7 @@ import (
 
 // Usage text that will be displayed when the `help createKey` command is invoked.
 var Usage = `
-Usage: %s createKey [OPTIONS] NAME 
+Usage: %s createKey [OPTIONS] <name>
 
 Generate a Crypt4GH encryption key pair and saves the keys as:
   - <name>.pub.pem (public key)
@@ -31,12 +31,7 @@ Options:
                      If not specified, the current directory is used.
 
 Arguments:
-    NAME             The basename of the keyfiles to generate.
-`
-
-// ArgHelp is the suffix text that will be displayed after the argument list in
-// the module help.
-var ArgHelp = "" 
+    <name>           The basename of the keyfiles to generate.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help

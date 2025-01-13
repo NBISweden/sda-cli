@@ -51,12 +51,8 @@ Options:
   -continue=true|false     Skip files with errors and continue processing others. Defaults to 'false'.
 
 Arguments:
-  [file(s)]                List of file paths to be encrypted. All flagless arguments are treated as filenames.
-`
-
-// ArgHelp is the suffix text that will be displayed after the argument list in
-// the module help
-var ArgHelp = ""
+  [file(s)]                List of file paths to be encrypted.
+                           All flagless arguments are treated as filenames.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
