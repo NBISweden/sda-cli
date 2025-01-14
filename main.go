@@ -33,7 +33,6 @@ Commands:
   encrypt     Encrypt files
   htsget      Get files using htsget
   list        List files in the SDA
-  login       Login to the SDA
   upload      Upload files to the SDA
 
 Global options:
