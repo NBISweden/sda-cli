@@ -38,7 +38,7 @@ Optional options:
   -output <file>              Output name for the downloaded file. 
                               If not specified, the file will be downloaded to the current directory
                               as the original filename.
-  --force-overwrite           Overwrite existing files without prompting.`
+  -force-overwrite            Overwrite existing files without prompting.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
@@ -169,7 +169,7 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 	}
 
 	if helpers.FileExists(filenameToUse) && !*forceOverwrite {
-		return fmt.Errorf("local file already exists, use --force-overwrite to overwrite")
+		return fmt.Errorf("local file already exists, use -force-overwrite to overwrite")
 	}
 	out, err := os.OpenFile(filenameToUse, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {

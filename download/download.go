@@ -35,24 +35,24 @@ datasets being downloaded.
 Important:
   Provide exactly one of the following options to specify files to download:
     - [filepath(s) or fileid(s)] 
-    - --dataset 
-    - --recursive <dirpath> 
-    - --from-file <list-filepath>
+    - -dataset
+    - -recursive <dirpath>
+    - -from-file <list-filepath>
 
 Global options:
   -config CONFIGFILE     Path to the configuration file. 
   
 Required options: 
-  -dataset-id <datasetID>      Dataset ID for the file(s) to download. 
-  -url <uri>                   The url of the download server. 
+  -dataset-id <datasetID>     Dataset ID for the file(s) to download.
+  -url <uri>                  The url of the download server.
 
 Optional options:
-  --pubkey <public-key-file>   Encrypt downloaded files server-side using the specified public key.
-  -outdir <dir>                Directory to save the downloaded files.
-                               If not specified, files will be saved in the current directory.
-  --dataset                    Download all files in the dataset specified by '-dataset-id'.
-  --recursive <dirpath>        Download all files recursively from the given directory path.
-  --from-file <list-filepath>  Download all files listed in the specified file.
+  -pubkey <public-key-file>   Encrypt downloaded files server-side using the specified public key.
+  -outdir <dir>               Directory to save the downloaded files.
+                              If not specified, files will be saved in the current directory.
+  -dataset                    Download all files in the dataset specified by '-dataset-id'.
+  -recursive <dirpath>        Download all files recursively from the given directory path.
+  -from-file <list-filepath>  Download all files listed in the specified file.
 
 Arguments:
   [filepath(s)]          Specific file paths to download.
@@ -109,12 +109,12 @@ func Download(args []string, configPath string) error {
 		return fmt.Errorf("missing required arguments, dataset, config and url are required")
 	}
 
-	// Check if both --recursive and --dataset flags are set
+	// Check if both -recursive and -dataset flags are set
 	if *recursiveDownload && *datasetdownload {
-		return fmt.Errorf("both --recursive and --dataset flags are set, choose one of them")
+		return fmt.Errorf("both -recursive and -dataset flags are set, choose one of them")
 	}
 
-	// Check that file(s) are not missing if the --dataset flag is not set
+	// Check that file(s) are not missing if the -dataset flag is not set
 	if len(Args.Args()) == 0 && !*datasetdownload {
 		if !*recursiveDownload {
 			return fmt.Errorf("no files provided for download")
@@ -123,17 +123,17 @@ func Download(args []string, configPath string) error {
 		return fmt.Errorf("no folders provided for recursive download")
 	}
 
-	// Check if --dataset flag is set and files are provided
+	// Check if -dataset flag is set and files are provided
 	if *datasetdownload && len(Args.Args()) > 0 {
 		return fmt.Errorf(
-			"files provided with --dataset flag, add either the flag or the file(s), not both",
+			"files provided with -dataset flag, add either the flag or the file(s), not both",
 		)
 	}
 
-	// Check if --from-file flag is set and only one file is provided
+	// Check if -from-file flag is set and only one file is provided
 	if *fromFile && len(Args.Args()) != 1 {
 		return fmt.Errorf(
-			"one file should be provided with --from-file flag",
+			"one file should be provided with -from-file flag",
 		)
 	}
 
@@ -150,11 +150,11 @@ func Download(args []string, configPath string) error {
 	}
 
 	switch {
-	// Case where the user is setting the --dataset flag
+	// Case where the user is setting the -dataset flag
 	// then download all the files in the dataset.
-	// Case where the user is setting the --recursive flag
+	// Case where the user is setting the -recursive flag
 	// then download the content of the path
-	// Case where the user is setting the --from-file flag
+	// Case where the user is setting the -from-file flag
 	// then download the files from the file list
 	// Default case, download the provided files.
 	case *datasetdownload:
