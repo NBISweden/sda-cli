@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	createKey "github.com/NBISweden/sda-cli/create_key"
 	"github.com/NBISweden/sda-cli/decrypt"
@@ -186,6 +187,13 @@ func Help(command string) error {
 
 		// print main help
 		fmt.Println(Usage)
+
+		// Print link to the README
+		readmeURL := "https://github.com/NBISweden/sda-cli/blob/main/README.md"
+		if !strings.Contains(Version, "development") {
+			readmeURL = fmt.Sprintf("https://github.com/NBISweden/sda-cli/blob/%s/README.md", Version)
+		}
+		fmt.Println("For more information, see the README at:", readmeURL)
 
 		if command == "help" {
 			return nil
