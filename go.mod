@@ -3,7 +3,7 @@ module github.com/NBISweden/sda-cli
 go 1.22.3
 
 require (
-	github.com/aws/aws-sdk-go v1.55.5
+	github.com/aws/aws-sdk-go v1.55.6
 	github.com/dustin/go-humanize v1.0.1
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/hashicorp/go-version v1.7.0
