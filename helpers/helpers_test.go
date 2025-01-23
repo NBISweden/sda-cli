@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"runtime"
@@ -326,10 +327,40 @@ func (suite *HelperTests) TestTokenExpiration() {
 	err = CheckTokenExpiration(token)
 	assert.EqualError(suite.T(), err, "the provided access token has expired, please renew it")
 
-	// Token with valid expiration
-	token = generateDummyToken(time.Now().Add(time.Hour * 72).Unix())
+	// Token with valid expiration, less than 2 hours
+	token = generateDummyToken(time.Now().Add(time.Hour).Unix())
+
+	storeStderr := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+
 	err = CheckTokenExpiration(token)
 	assert.NoError(suite.T(), err)
+
+	w.Close()
+	out, _ := io.ReadAll(r)
+	os.Stderr = storeStderr
+
+	msg := "WARNING! The provided access token expires in only 0 hours and 59 minutes."
+	assert.Contains(suite.T(), string(out), msg)
+
+	// Token with valid expiration, more than a day
+	exp := time.Now().Add(time.Hour * 72)
+	token = generateDummyToken(exp.Unix())
+
+	storeStderr = os.Stderr
+	r, w, _ = os.Pipe()
+	os.Stderr = w
+
+	err = CheckTokenExpiration(token)
+	assert.NoError(suite.T(), err)
+
+	w.Close()
+	out, _ = io.ReadAll(r)
+	os.Stderr = storeStderr
+
+	msg = "The provided access token expires on " + exp.Format("2006-01-02")
+	assert.Contains(suite.T(), string(out), msg)
 }
 
 func (suite *HelperTests) TestPubKeyEmptyField() {
