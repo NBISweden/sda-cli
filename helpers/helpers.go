@@ -398,27 +398,27 @@ func CheckTokenExpiration(accessToken string) error {
 	}
 
 	switch untilExp := time.Until(expiration); {
-	case untilExp <= 0:
-		return fmt.Errorf("the provided access token has expired, please renew it")
-	case untilExp > 0 && untilExp < 2*time.Hour:
+	case untilExp >= 1*time.Minute && untilExp < 2*time.Hour:
 		fmt.Fprintf(
 			os.Stderr,
 			"WARNING! The provided access token expires in only %d hour and %d minutes.\n",
 			int(untilExp.Hours()), int(untilExp.Minutes())-(int(untilExp.Hours())*60),
 		)
 		fmt.Fprintln(os.Stderr, "Consider renewing the token.")
-	case untilExp >= 2*time.Hour && untilExp < 24*time.Hour:
+	case untilExp >= 2*time.Hour && untilExp <= 24*time.Hour:
 		fmt.Fprintf(
 			os.Stderr,
 			"The provided access token expires in %d hours and %d minutes.\n",
 			int(untilExp.Hours()), int(untilExp.Minutes())-(int(untilExp.Hours())*60),
 		)
 		fmt.Fprintln(os.Stderr, "Consider renewing the token.")
-	default:
+	case untilExp > 24*time.Hour:
 		fmt.Fprintf(
 			os.Stderr,
 			"The provided access token expires on %s.\n", expiration.Format(time.RFC1123),
 		)
+	default:
+		return fmt.Errorf("the provided access token has expired, please renew it")
 	}
 
 	return nil
