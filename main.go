@@ -23,7 +23,7 @@ var Version = "0-development"
 const ExecName = "sda-cli"
 
 var Usage = fmt.Sprintf(`
-Usage: %s [-config CONFIGFILE] <command> [OPTIONS]
+Usage: %s [-config <config-file>] <command> [OPTIONS]
 
 A tool for common tasks with the Sensitive Data Archive (SDA)
 
@@ -37,9 +37,9 @@ Commands:
   upload      Upload files to the SDA
 
 Global options:
-  -config CONFIGFILE  Path to the configuration file
-  -h, -help           Show this help message
-  -v, -version        Show the version of the tool
+  -config <config-file>  Path to the configuration file
+  -h, -help              Show this help message
+  -v, -version           Show the version of the tool
 
 Additional commands:
   version          Show the version of the tool

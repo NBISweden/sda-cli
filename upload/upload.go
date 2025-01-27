@@ -25,7 +25,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help upload` command
 var Usage = `
-Usage: %s -config CONFIGFILE upload [OPTIONS] [file(s)|folder(s)]
+Usage: %s -config <config-file> upload [OPTIONS] [file(s) | folder(s)]
 
 Upload files or directories to the Sensitive Data Archive (SDA). 
 
@@ -33,6 +33,9 @@ Important:
   - Files must be encrypted (Crypt4GH standard) unless the '-encrypt-with-key' flag is set.
   - When using the '-encrypt-with-key' flag, ensure that only unencrypted files are provided.
   - Use the '-force-unencrypted' flag with caution to upload unencrypted files explicitly.
+
+Global options:
+  -config <config-file>       	   Path to the configuration file. 
 
 Options:
   -accessToken <access-token>      Access token for the SDA inbox service. This is optional 

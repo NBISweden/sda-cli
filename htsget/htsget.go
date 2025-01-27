@@ -20,12 +20,12 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help htsget` command
 var Usage = `
-Usage: %s [-config CONFIGFILE] htsget [OPTIONS]
+Usage: %s [-config <config-file>] htsget [OPTIONS]
 
 Download files from the Sensitive Data Archive (SDA) using the htsget server.
 
 Global options:
-  -config CONFIGFILE     Path to the configuration file. 
+  -config <config-file>       Path to the configuration file. 
 
 Required options:
   -dataset <datasetID>        Dataset ID for the file to download.

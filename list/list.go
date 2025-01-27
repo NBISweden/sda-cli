@@ -18,7 +18,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help list` command
 var Usage = `
-Usage: %s [-config CONFIGFILE] list [prefix] [OPTIONS]
+Usage: %s [-config <config-file>] list [prefix] [OPTIONS]
 
 Recursively list files and datasets in the user's folder in the Sensitive Data
 Archive (SDA). By default, it lists all files under the user's folder. Use the
@@ -29,7 +29,7 @@ Important:
   the SDA download server URL.
 
 Global options:
-  -config CONFIGFILE      Path to the configuration file.
+  -config <config-file>   Path to the configuration file.
 
 Options:
   -bytes                  Display file sizes in bytes instead of a human-readable format.

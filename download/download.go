@@ -26,7 +26,7 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help download` command
 var Usage = `
-Usage: %s [-config CONFIGFILE] download [OPTIONS] [ARGUMENTS]
+Usage: %s [-config <config-file>] download [OPTIONS] [ARGUMENTS]
 
 Download files from the Sensitive Data Archive (SDA) using APIs at the
 specified URL. The user must have the necessary access rights (visas) to the
@@ -40,7 +40,7 @@ Important:
     - -from-file <list-filepath>
 
 Global options:
-  -config CONFIGFILE     Path to the configuration file. 
+  -config <config-file>       Path to the configuration file. 
   
 Required options: 
   -dataset-id <datasetID>     Dataset ID for the file(s) to download.
