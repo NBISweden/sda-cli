@@ -201,7 +201,7 @@ services:
       - GRPC_PORT=50051
       - GRPC_HOST=reencrypt
       - APP_SERVEUNENCRYPTEDDATA=true
-    image: "ghcr.io/neicnordic/sensitive-data-archive:${TAG}-download"
+    image: "ghcr.io/neicnordic/sensitive-data-archive:v0.3.179-download" #this is the last version that supports /s3-encrypted
     volumes:
       - ./archive_data/4293c9a7-dc50-46db-b79a-27ddc0dad1c6:/tmp/4293c9a7-dc50-46db-b79a-27ddc0dad1c6
     mem_limit: 256m
