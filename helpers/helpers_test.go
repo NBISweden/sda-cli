@@ -341,7 +341,7 @@ func (suite *HelperTests) TestTokenExpiration() {
 	out, _ := io.ReadAll(r)
 	os.Stderr = storeStderr
 
-	msg := "WARNING! The provided access token expires in only 0 hour and 59 minutes."
+	msg := "WARNING! The provided access token expires in only 59 minutes."
 	assert.Contains(suite.T(), string(out), msg)
 
 	// Token with valid expiration, more than a day
