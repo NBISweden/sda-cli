@@ -159,8 +159,7 @@ separated by spaces, as shown below:
 **Note**:
 
 - By default, files are uploaded to the user's base directory on the archive.
-- If the input contains unencrypted files, the process will exit early. To
-override this behavior, use the `-force-unencrypted` flag.
+- If the input contains unencrypted files, the process will exit early.
 
 ### Upload folders
 
@@ -411,6 +410,11 @@ After a successful download, the encrypted files will be saved to `<outdir>`,
 maintaining their original folder structure. These files can then be
 [decrypted](#decrypt-files) using the private key corresponding to the provided
 public key.
+
+**Note**: Downloading encrypted files for an entire folder recursively, similar
+*to [downloading unencrypted files](#download-files-recursively), is still not
+*supported. To download multiple encrypted files, you must specify them as
+*arguments, as shown in the example above.
 
 ## Create Crypt4GH key pair
 
