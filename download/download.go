@@ -133,7 +133,7 @@ func Download(args []string, configPath string) error {
 	// Check if -from-file flag is set and only one file is provided
 	if *fromFile && len(Args.Args()) != 1 {
 		return fmt.Errorf(
-			"one file should be provided with -from-file flag",
+			"one file should be provided with the -from-file flag",
 		)
 	}
 

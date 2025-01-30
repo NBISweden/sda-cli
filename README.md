@@ -20,10 +20,9 @@ To get help using the tool, run the following command
 
 The main functionalities of this tool are explained in the following sections.
 
-If any command is unclear, guidance on how to interpret it is available
-[here](https://ftpdocs.broadcom.com/cadocs/0/CA%20ARCserve%20%20Backup%2015-ENU/Bookshelf_Files/HTML/CMD_Ref/command_line_syntax_characters.htm)
+Users unfamiliar with using a command line tools in a terminal window, may find the contents of [this article](https://ftpdocs.broadcom.com/cadocs/0/CA%20ARCserve%20%20Backup%2015-ENU/Bookshelf_Files/HTML/CMD_Ref/command_line_syntax_characters.htm)
 and
-[here](https://medium.com/@jaewei.j.w/how-to-read-man-page-synopsis-3408e7fd0e42).
+[this](https://medium.com/@jaewei.j.w/how-to-read-man-page-synopsis-3408e7fd0e42) helpful.
 
 ## Encrypt
 
@@ -260,7 +259,7 @@ Before using the `list` functionality, ensure you have [downloaded the configura
 
 ### List uploaded files
 
-You can retrieves all the files along with their sizes in the user's inbox,
+You can retrieve all the files along with their sizes in the user's inbox,
 including those in subdirectories, recursively using the following command:
 
 ```bash
@@ -309,7 +308,7 @@ Before using the `download` functionality, ensure you have [downloaded the confi
 Depending on the setup of the SDA/BP services, files can be downloaded
 unencrypted or encrypted.
 
-If the service is configured for encrypted downloads, you can download files
+If the download service is configured for encrypted downloads, you can download files
 encrypted on the server-side by providing a
 [public key file](#create-crypt4gh-key-pair) using the `-pubkey` flag. For
 detailed instructions, refer to [download encrypted files](#download-encrypted-files).
@@ -444,7 +443,7 @@ the following command:
 
 where `<private-key-file>` is the private key of the [Crypt4GH key
 pair](#create-crypt4gh-key-pair) created along with the public key that has been
-used to to [download the file](#download-encrypted-files).
+used to [download the file](#download-encrypted-files).
 
 By default, the command skips decrypting a file if its unencrypted counterpart
 already exists. To override this behavior, use the `-force-overwrite` flag.
