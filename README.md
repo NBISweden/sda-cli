@@ -543,3 +543,14 @@ project.
 This will open a link where the user can log in.
 After login is complete, a configuration file named `.sda-cli-session` will be
 created in the tool's directory.
+
+## Features for testing
+
+### Upload unencrypted files
+
+By default, `sda-cli` allows uploading only encrypted files. To override this
+restriction, use the `-force-unencrypted` flag. For example:
+
+```bash
+./sda-cli -config <configuration_file> upload -force-unencrypted <unencrypted_file_1> <unencrypted_file_2>
+```
