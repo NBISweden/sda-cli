@@ -18,16 +18,9 @@ import (
 // Usage text that will be displayed as command line help text when using the
 // `help version` command
 var Usage = `
-USAGE: %s version
+Usage: %s version
 
-version:
-    Returns the version of the sda-cli tool.
-`
-
-// ArgHelp is the suffix text that will be displayed after the argument list in
-// the module help
-var ArgHelp = `
-    version does not take any arguments`
+Show the version of the sda-cli tool.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
