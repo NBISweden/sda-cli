@@ -401,7 +401,7 @@ func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (strin
 	if pubKeyBase64 == "" {
 		url = baseURL + "/files/" + datasetFiles[idx].FileID
 	} else {
-		url = baseURL + "/s3-encrypted/" + dataset + "/" + filename
+		url = baseURL + "/s3/" + dataset + "/" + filename
 	}
 
 	return url, datasetFiles[idx].FilePath, nil

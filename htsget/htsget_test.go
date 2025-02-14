@@ -134,7 +134,7 @@ KKj6NUcJGZ2/HeqkYbxm57ZaFLP5cIHsdK+0nQubFVs=
         "url": "data:;base64,Y3J5cHQ0Z2gBAAAAAgAAAA=="
       },
       {
-        "url": "http://localhost/s3-encrypted/DATASET0001/htsnexus_test_NA12878.bam.c4gh",
+        "url": "http://localhost/s3/DATASET0001/htsnexus_test_NA12878.bam.c4gh",
         "headers": {
           "Range": "bytes=16-123",
           "accept-encoding": "gzip",
@@ -148,7 +148,7 @@ KKj6NUcJGZ2/HeqkYbxm57ZaFLP5cIHsdK+0nQubFVs=
         "url": "data:;base64,ZAAAAAAAAAB7zX5e64IzHWf5/X8nkdCKpwsX0eT4/AHU77sh2+EdIXwkSEyPQ5ZP2+vRHvytn6H1hf63Wo7gPdDc59KZfz+10kjywPqQUXYOoSbeQ6cxx2dxmf2nSwSd2Wh1jA=="
       },
       {
-        "url": "http://localhost/s3-encrypted/DATASET0001/htsnexus_test_NA12878.bam.c4gh",
+        "url": "http://localhost/s3/DATASET0001/htsnexus_test_NA12878.bam.c4gh",
         "headers": {
           "Range": "bytes=124-1049147",
           "accept-encoding": "gzip",
@@ -159,7 +159,7 @@ KKj6NUcJGZ2/HeqkYbxm57ZaFLP5cIHsdK+0nQubFVs=
         }
       },
       {
-        "url": "http://localhost/s3-encrypted/DATASET0001/htsnexus_test_NA12878.bam.c4gh",
+        "url": "http://localhost/s3/DATASET0001/htsnexus_test_NA12878.bam.c4gh",
         "headers": {
           "Range": "bytes=2557120-2598042",
           "accept-encoding": "gzip",

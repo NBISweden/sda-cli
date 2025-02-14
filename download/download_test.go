@@ -171,7 +171,7 @@ func (suite *TestSuite) TestDownloadUrl() {
 	//-----------------------------------------------
 	// Test using a nonempty public key
 	// Test with valid base_url, token, dataset, and filename
-	expectedURL = baseURL + "/s3-encrypted/" + datasetID + "/" + filepath
+	expectedURL = baseURL + "/s3/" + datasetID + "/" + filepath
 	pubKey := "test-public-key"
 	url, _, err = getFileIDURL(baseURL, token, pubKey, datasetID, filepath)
 	assert.NoError(suite.T(), err)
@@ -179,7 +179,7 @@ func (suite *TestSuite) TestDownloadUrl() {
 
 	// Test with url as dataset
 	datasetID = "https://doi.example/another/url/001"
-	expectedURL = baseURL + "/s3-encrypted/" + datasetID + "/" + filepath
+	expectedURL = baseURL + "/s3/" + datasetID + "/" + filepath
 	url, _, err = getFileIDURL(baseURL, token, pubKey, datasetID, filepath)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expectedURL, url)
