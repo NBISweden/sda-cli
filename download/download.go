@@ -396,13 +396,7 @@ func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (strin
 		return "", "", fmt.Errorf("File not found in dataset %s", filename)
 	}
 
-	var url string
-	// If no public key is provided, retrieve the unencrypted file
-	if pubKeyBase64 == "" {
-		url = baseURL + "/files/" + datasetFiles[idx].FileID
-	} else {
-		url = baseURL + "/s3/" + dataset + "/" + filename
-	}
+	url := baseURL + "/s3/" + dataset + "/" + filename
 
 	return url, datasetFiles[idx].FilePath, nil
 }

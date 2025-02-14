@@ -138,7 +138,7 @@ func (suite *TestSuite) TestDownloadUrl() {
 	token := suite.accessToken
 	datasetID := "test-dataset"
 	filepath := "path/to/file1"
-	expectedURL := "https://some/url/files/file1id"
+	expectedURL := "https://some/url/s3/test-dataset/path/to/file1.c4gh"
 
 	//-----------------------------------------------
 	// Test with an empty public key
