@@ -47,7 +47,8 @@ Required options:
   -url <uri>                  The url of the download server.
 
 Optional options:
-  -pubkey <public-key-file>   Encrypt downloaded files server-side using the specified public key.
+  -pubkey <public-key-file>   Key to use for encrypting downloaded files server-side.
+                              This key must be given here or in the config file.
   -outdir <dir>               Directory to save the downloaded files.
                               If not specified, files will be saved in the current directory.
   -dataset                    Download all files in the dataset specified by '-dataset-id'.
@@ -188,6 +189,10 @@ func datasetCase(token string) error {
 	if err != nil {
 		return err
 	}
+	pubKeyBase64, err := getPublicKey64()
+	if err != nil {
+		return err
+	}
 	// Loop through the files and download them
 	for _, file := range files {
 		// Download URL for the file
@@ -217,6 +222,10 @@ func recursiveCase(token string) error {
 			path += "/"
 		}
 		dirPaths = append(dirPaths, path)
+	}
+	pubKeyBase64, err := getPublicKey64()
+	if err != nil {
+		return err
 	}
 	var missingPaths []string
 	// Loop over all the files of the dataset and
@@ -269,15 +278,9 @@ func fileCase(token string, fileList bool) error {
 		files = append(files, Args.Args()...)
 	}
 
-	*pubKeyPath = strings.TrimSpace(*pubKeyPath)
-	var pubKeyBase64 string
-	if *pubKeyPath != "" {
-		// Read the public key
-		pubKey, err := os.ReadFile(*pubKeyPath)
-		if err != nil {
-			return fmt.Errorf("failed to read public key, reason: %v", err)
-		}
-		pubKeyBase64 = base64.StdEncoding.EncodeToString(pubKey)
+	pubKeyBase64, err := getPublicKey64()
+	if err != nil {
+		return err
 	}
 
 	// Loop through the files and download them
@@ -503,4 +506,31 @@ func GetURLsFile(urlsFilePath string) (urlsList []string, err error) {
 	}
 
 	return urlsList, scanner.Err()
+}
+
+func AnonymizeFilepath(filePath string) string {
+	filePathSplit := strings.Split(filePath, "/")
+	if strings.Contains(filePathSplit[0], "_") {
+		_, err := mail.ParseAddress(strings.ReplaceAll(filePathSplit[0], "_", "@"))
+		if err == nil {
+			filePath = strings.Join(filePathSplit[1:], "/")
+		}
+	}
+
+	return filePath
+}
+
+func getPublicKey64() (string, error) {
+	*pubKeyPath = strings.TrimSpace(*pubKeyPath)
+	var pubKeyBase64 string
+	if *pubKeyPath != "" {
+		// Read the public key
+		pubKey, err := os.ReadFile(*pubKeyPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to read public key, reason: %v", err)
+		}
+		pubKeyBase64 = base64.StdEncoding.EncodeToString(pubKey)
+	}
+
+	return pubKeyBase64, nil
 }
