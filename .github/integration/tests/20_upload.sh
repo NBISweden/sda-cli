@@ -8,7 +8,7 @@ user=test_dummy.org
 
 
 # Create folder with subfolder structure and add some encrypted files
-mkdir data_files_enc/dir1 data_files_enc/dir1/dir2
+mkdir -p data_files_enc/dir1 data_files_enc/dir1/dir2
 cp data_files_enc/data_file.c4gh data_files_enc/data_file3.c4gh
 cp data_files_enc/data_file.c4gh data_files_enc/dir1/data_file.c4gh
 cp data_files_enc/data_file.c4gh data_files_enc/dir1/dir2/data_file.c4gh
@@ -19,10 +19,19 @@ cp data_files_enc/data_file.c4gh data_files_enc/dir1/dir2/data_file2.c4gh
 ./sda-cli -config testing/s3cmd.conf upload data_file.c4gh
 check_uploaded_file "test/$user/data_file.c4gh" data_file.c4gh
 
+# Upload the file twice check that this returns an error
+msg=$(./sda-cli -config testing/s3cmd.conf upload data_file.c4gh 2>&1 | tail -1 || true)
+if ! grep -q "Error:" <<< "$msg"
+then
+    echo "wrong error message: $msg"
+    exit 1
+fi
 
-# Try to upload a file twice with the --force-overwrite flag
+# Upload a file twice with the --force-overwrite flag
 ./sda-cli -config testing/s3cmd.conf upload --force-overwrite data_file.c4gh
 
+# Upload an already uploaded file and a new one using the --continue flag (useful for resuming uploads)
+./sda-cli -config testing/s3cmd.conf upload data_file.c4gh data_files_enc/data_file1.c4gh --continue
 
 # Test upload all files from a folder, one by one
 for k in data_file.c4gh data_file1.c4gh
@@ -31,8 +40,6 @@ do
     ./sda-cli -config testing/s3cmd.conf upload --force-overwrite "data_files_enc/$k"
     check_uploaded_file "test/$user/$k" "$k"
 done
-
-
 
 # Upload a folder recursively and a single file
 ./sda-cli -config testing/s3cmd.conf upload -r data_files_enc/dir1 data_files_enc/data_file3.c4gh
