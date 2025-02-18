@@ -170,10 +170,12 @@ func (suite *TestSuite) TestDownloadUrl() {
 
 	//-----------------------------------------------
 	// Test using a nonempty public key
-	// Test with valid base_url, token, dataset, and filename
+	// Test with valid base_url, token, dataset, and fileid
+	filepath = "path/to/file1.c4gh"
+	fileid := "file1id"
 	expectedURL = baseURL + "/s3/" + datasetID + "/" + filepath
 	pubKey := "test-public-key"
-	url, _, err = getFileIDURL(baseURL, token, pubKey, datasetID, filepath)
+	url, _, err = getFileIDURL(baseURL, token, pubKey, datasetID, fileid)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expectedURL, url)
 
