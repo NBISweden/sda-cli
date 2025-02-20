@@ -128,8 +128,10 @@ fi
 
 # Make sure files cannot be downloaded without giving a public key
 if ./sda-cli -config testing/s3cmd-download.conf download -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh; then
-  echo "Downloaded a file without using a public key"
-  exit 1
+    echo "Downloaded a file without using a public key"
+    exit 1
+else
+    echo "Error expected, continue."
 fi
 
 rm -r download-from-file
