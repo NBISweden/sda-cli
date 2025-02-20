@@ -2,14 +2,12 @@ package download
 
 import (
 	"bufio"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
-	"net/mail"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -77,6 +75,8 @@ var pubKeyPath = Args.String("pubkey", "",
 var recursiveDownload = Args.Bool("recursive", false, "Download content of the folder.")
 
 var fromFile = Args.Bool("from-file", false, "Download files from file list.")
+
+var pubKeyBase64 string
 
 // necessary for mocking in testing
 var getResponseBody = getBody
@@ -149,6 +149,10 @@ func Download(args []string, configPath string) error {
 	if err != nil {
 		return err
 	}
+	pubKeyBase64, err = helpers.GetPublicKey64(pubKeyPath)
+	if err != nil {
+		return err
+	}
 
 	switch {
 	// Case where the user is setting the -dataset flag
@@ -189,14 +193,10 @@ func datasetCase(token string) error {
 	if err != nil {
 		return err
 	}
-	pubKeyBase64, err := getPublicKey64()
-	if err != nil {
-		return err
-	}
 	// Loop through the files and download them
 	for _, file := range files {
 		// Download URL for the file
-		fileName := AnonymizeFilepath(file.FilePath)
+		fileName := helpers.AnonymizeFilepath(file.FilePath)
 		fileURL := *URL + "/s3/" + file.DatasetID + "/" + fileName
 		if err != nil {
 			return err
@@ -227,10 +227,6 @@ func recursiveCase(token string) error {
 		}
 		dirPaths = append(dirPaths, path)
 	}
-	pubKeyBase64, err := getPublicKey64()
-	if err != nil {
-		return err
-	}
 	var missingPaths []string
 	// Loop over all the files of the dataset and
 	// check if the provided path is part of their filepath.
@@ -240,7 +236,7 @@ func recursiveCase(token string) error {
 		for _, file := range files {
 			if strings.Contains(file.FilePath, dirPath) {
 				pathExists = true
-				fileName := AnonymizeFilepath(file.FilePath)
+				fileName := helpers.AnonymizeFilepath(file.FilePath)
 				fileURL := *URL + "/s3/" + file.DatasetID + "/" + fileName
 				err = downloadFile(fileURL, token, pubKeyBase64, file.FilePath)
 				if err != nil {
@@ -283,11 +279,6 @@ func fileCase(token string, fileList bool) error {
 		files = append(files, Args.Args()...)
 	}
 
-	pubKeyBase64, err := getPublicKey64()
-	if err != nil {
-		return err
-	}
-
 	// Loop through the files and download them
 	for _, filePath := range files {
 		fileIDURL, apiFilePath, err := getFileIDURL(*URL, token, pubKeyBase64, *datasetID, filePath)
@@ -308,7 +299,7 @@ func fileCase(token string, fileList bool) error {
 func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	// Check if the file path contains a userID and if it does,
 	// do not keep it in the file path
-	filePath = AnonymizeFilepath(filePath)
+	filePath = helpers.AnonymizeFilepath(filePath)
 
 	outFilename := filePath
 	if *outDir != "" {
@@ -398,7 +389,7 @@ func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (strin
 		return "", "", fmt.Errorf("File not found in dataset %s", filename)
 	}
 
-	fileName := AnonymizeFilepath(datasetFiles[idx].FilePath)
+	fileName := helpers.AnonymizeFilepath(datasetFiles[idx].FilePath)
 	url := baseURL + "/s3/" + dataset + "/" + fileName
 
 	return url, fileName, nil
@@ -506,31 +497,4 @@ func GetURLsFile(urlsFilePath string) (urlsList []string, err error) {
 	}
 
 	return urlsList, scanner.Err()
-}
-
-func AnonymizeFilepath(filePath string) string {
-	filePathSplit := strings.Split(filePath, "/")
-	if strings.Contains(filePathSplit[0], "_") {
-		_, err := mail.ParseAddress(strings.ReplaceAll(filePathSplit[0], "_", "@"))
-		if err == nil {
-			filePath = strings.Join(filePathSplit[1:], "/")
-		}
-	}
-
-	return filePath
-}
-
-func getPublicKey64() (string, error) {
-	*pubKeyPath = strings.TrimSpace(*pubKeyPath)
-	var pubKeyBase64 string
-	if *pubKeyPath != "" {
-		// Read the public key
-		pubKey, err := os.ReadFile(*pubKeyPath)
-		if err != nil {
-			return "", fmt.Errorf("failed to read public key, reason: %v", err)
-		}
-		pubKeyBase64 = base64.StdEncoding.EncodeToString(pubKey)
-	}
-
-	return pubKeyBase64, nil
 }
