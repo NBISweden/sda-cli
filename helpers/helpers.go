@@ -1,12 +1,14 @@
 package helpers
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"net/mail"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -472,4 +474,35 @@ func CheckValidChars(filename string) error {
 	}
 
 	return nil
+}
+
+// AnonymizeFilepath checks if the filepath has a prefixed user ID
+// strips that, and then returns the filepath
+func AnonymizeFilepath(filePath string) string {
+	filePathSplit := strings.Split(filePath, "/")
+	if strings.Contains(filePathSplit[0], "_") {
+		// prefixed user IDs are email adresses with '@' replaced by '_'
+		_, err := mail.ParseAddress(strings.ReplaceAll(filePathSplit[0], "_", "@"))
+		if err == nil {
+			filePath = strings.Join(filePathSplit[1:], "/")
+		}
+	}
+
+	return filePath
+}
+
+// Reads the public key and encodes it in base64
+func GetPublicKey64(pubKeyPath *string) (string, error) {
+	*pubKeyPath = strings.TrimSpace(*pubKeyPath)
+	var pubKeyBase64 string
+	if *pubKeyPath != "" {
+		// Read the public key
+		pubKey, err := os.ReadFile(*pubKeyPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to read public key, reason: %v", err)
+		}
+		pubKeyBase64 = base64.StdEncoding.EncodeToString(pubKey)
+	}
+
+	return pubKeyBase64, nil
 }

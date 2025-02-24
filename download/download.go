@@ -2,14 +2,12 @@ package download
 
 import (
 	"bufio"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
-	"net/mail"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -47,7 +45,8 @@ Required options:
   -url <uri>                  The url of the download server.
 
 Optional options:
-  -pubkey <public-key-file>   Encrypt downloaded files server-side using the specified public key.
+  -pubkey <public-key-file>   Key to use for encrypting downloaded files server-side.
+                              This key must be given here or in the config file.
   -outdir <dir>               Directory to save the downloaded files.
                               If not specified, files will be saved in the current directory.
   -dataset                    Download all files in the dataset specified by '-dataset-id'.
@@ -76,6 +75,8 @@ var pubKeyPath = Args.String("pubkey", "",
 var recursiveDownload = Args.Bool("recursive", false, "Download content of the folder.")
 
 var fromFile = Args.Bool("from-file", false, "Download files from file list.")
+
+var pubKeyBase64 string
 
 // necessary for mocking in testing
 var getResponseBody = getBody
@@ -148,6 +149,10 @@ func Download(args []string, configPath string) error {
 	if err != nil {
 		return err
 	}
+	pubKeyBase64, err = helpers.GetPublicKey64(pubKeyPath)
+	if err != nil {
+		return err
+	}
 
 	switch {
 	// Case where the user is setting the -dataset flag
@@ -191,8 +196,12 @@ func datasetCase(token string) error {
 	// Loop through the files and download them
 	for _, file := range files {
 		// Download URL for the file
-		fileURL := *URL + "/files/" + file.FileID
-		err = downloadFile(fileURL, token, "", file.FilePath)
+		fileName := helpers.AnonymizeFilepath(file.FilePath)
+		fileURL := *URL + "/s3/" + file.DatasetID + "/" + fileName
+		if err != nil {
+			return err
+		}
+		err = downloadFile(fileURL, token, pubKeyBase64, file.FilePath)
 		if err != nil {
 			return err
 		}
@@ -227,8 +236,9 @@ func recursiveCase(token string) error {
 		for _, file := range files {
 			if strings.Contains(file.FilePath, dirPath) {
 				pathExists = true
-				fileURL := *URL + "/files/" + file.FileID
-				err = downloadFile(fileURL, token, "", file.FilePath)
+				fileName := helpers.AnonymizeFilepath(file.FilePath)
+				fileURL := *URL + "/s3/" + file.DatasetID + "/" + fileName
+				err = downloadFile(fileURL, token, pubKeyBase64, file.FilePath)
 				if err != nil {
 					return err
 				}
@@ -269,17 +279,6 @@ func fileCase(token string, fileList bool) error {
 		files = append(files, Args.Args()...)
 	}
 
-	*pubKeyPath = strings.TrimSpace(*pubKeyPath)
-	var pubKeyBase64 string
-	if *pubKeyPath != "" {
-		// Read the public key
-		pubKey, err := os.ReadFile(*pubKeyPath)
-		if err != nil {
-			return fmt.Errorf("failed to read public key, reason: %v", err)
-		}
-		pubKeyBase64 = base64.StdEncoding.EncodeToString(pubKey)
-	}
-
 	// Loop through the files and download them
 	for _, filePath := range files {
 		fileIDURL, apiFilePath, err := getFileIDURL(*URL, token, pubKeyBase64, *datasetID, filePath)
@@ -300,13 +299,7 @@ func fileCase(token string, fileList bool) error {
 func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	// Check if the file path contains a userID and if it does,
 	// do not keep it in the file path
-	filePathSplit := strings.Split(filePath, "/")
-	if strings.Contains(filePathSplit[0], "_") {
-		_, err := mail.ParseAddress(strings.ReplaceAll(filePathSplit[0], "_", "@"))
-		if err == nil {
-			filePath = strings.Join(filePathSplit[1:], "/")
-		}
-	}
+	filePath = helpers.AnonymizeFilepath(filePath)
 
 	outFilename := filePath
 	if *outDir != "" {
@@ -396,15 +389,10 @@ func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (strin
 		return "", "", fmt.Errorf("File not found in dataset %s", filename)
 	}
 
-	var url string
-	// If no public key is provided, retrieve the unencrypted file
-	if pubKeyBase64 == "" {
-		url = baseURL + "/files/" + datasetFiles[idx].FileID
-	} else {
-		url = baseURL + "/s3-encrypted/" + dataset + "/" + filename
-	}
+	fileName := helpers.AnonymizeFilepath(datasetFiles[idx].FilePath)
+	url := baseURL + "/s3/" + dataset + "/" + fileName
 
-	return url, datasetFiles[idx].FilePath, nil
+	return url, fileName, nil
 }
 
 func GetDatasets(baseURL, token string) ([]string, error) {
