@@ -149,6 +149,9 @@ func Download(args []string, configPath string) error {
 		return err
 	}
 
+	// print the host_base for the user
+	fmt.Printf("host_base: %s\n", config.HostBase)
+
 	switch {
 	// Case where the user is setting the -dataset flag
 	// then download all the files in the dataset.

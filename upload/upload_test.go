@@ -249,6 +249,10 @@ func (suite *TestSuite) TestFunctionality() {
 	msg = fmt.Sprintf("file uploaded to %s/dummy/%s/%s", ts.URL, filepath.ToSlash(targetPath), filepath.Base(testfile.Name()))
 	assert.Contains(suite.T(), logMsg, msg)
 
+	// check if the host_base is in the output
+	expectedHostBase := strings.TrimPrefix(ts.URL, "http://")
+	assert.Contains(suite.T(), logMsg, expectedHostBase)
+
 	// Check that file showed up in the s3 bucket correctly
 	result, err = s3Client.ListObjects(&s3.ListObjectsInput{
 		Bucket: aws.String("dummy"),

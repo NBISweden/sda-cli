@@ -2,7 +2,13 @@
 set -e
 
 # Download file by using the sda-cli download command
-./sda-cli -config testing/s3cmd-download.conf download -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh
+output=$(./sda-cli -config testing/s3cmd-download.conf download -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh)
+
+# Check if we print the host_base in the output
+if [[ $output != *"host_base: localhost:8000"* ]]; then
+    echo "host_base not found in the output"
+    exit 1
+fi
 
 # Check if file exists in the path
 if [ ! -f "test-download/main/subfolder/dummy_data" ]; then
