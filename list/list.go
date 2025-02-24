@@ -75,6 +75,10 @@ func List(args []string, configPath string) error {
 	if err != nil {
 		return err
 	}
+
+	// print the host_base for the user
+	fmt.Printf("host_base: %s\n", config.HostBase)
+
 	// case datasets
 	if *datasets {
 		err := Datasets(config.AccessToken)
