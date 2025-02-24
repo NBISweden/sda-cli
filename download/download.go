@@ -107,7 +107,7 @@ func Download(args []string, configPath string) error {
 	}
 
 	if *datasetID == "" || *URL == "" || configPath == "" {
-		return fmt.Errorf("missing required arguments, dataset, config and url are required")
+		return fmt.Errorf("missing required arguments, dataset-id, config and url are required")
 	}
 
 	// Check if both -recursive and -dataset flags are set
