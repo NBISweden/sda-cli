@@ -252,25 +252,31 @@ exit without further processing.
 - If a file has already been uploaded, the process will exit without further
 processing. To overwrite existing files, use the `-force-overwrite` flag.
 
-### Resume a multiple file upload
+### Resume a multiple-file upload
 
-It is possible to resume an interrupted upload from the last not uploaded file by adding the `-continue` flag which will prevent the `sda-cli` to return an error if a file is already uploaded on the target directory. For example:
+Suppose you run the following command to upload two encrypted files,
+
+```bash
+./sda-cli -config <configuration_file> upload <encrypted_file_to_upload_1> <encrypted_file_to_upload_2>
+```
+
+After <encrypted_file_to_upload_1> has been uploaded, the process is interrupted while uploading <encrypted_file_to_upload_2>. To resume the upload, simply add the `-continue` flag to the command, as shown below:
 
 ```bash
 ./sda-cli -config <configuration_file> upload <encrypted_file_to_re-upload> <encrypted_file_to_upload> -continue
 ```
 
-will skip `<encrypted_file_to_re-upload>` because it is already uploaded on the target directory and continue uploading `<encrypted_file_to_upload>`. Whereas:
+The `-continue` flag is especially useful when recursively uploading an entire folder with encrypted files. For example, the following command:
 
 ```bash
-./sda-cli -config <configuration_file> upload -r <folder_to_upload_with_unencrypted_data> -continue
+./sda-cli -config <configuration_file> upload -r <folder_to_upload_with_encrypted_data> -continue
 ```
 
-will skip uploading any files that are already uploaded to the target location and proceed with uploading the remaining files of `<folder_to_upload_with_unencrypted_data>`, effectively resuming the upload of the later in case this was previously interrupted.
+will skip uploading any files that are already uploaded to the target location and proceed with uploading the remaining files of `<folder_to_upload_with_encrypted_data>`, effectively resuming the upload of the later in case this was previously interrupted.
 
 Notes:
 
-- `-continue` can be combined with any of the available flags except from `-force-overwrite`. In this scenario, the latter has precedence.
+- `-continue` can be combined with any of the available flags except `-force-overwrite`. In this case, the latter takes precedence.
 - `-continue` will not resume partially uploaded files. Any such file will be re-uploaded.
 
 ## List
