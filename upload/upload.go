@@ -41,6 +41,8 @@ Options:
   -accessToken <access-token>      Access token for the SDA inbox service. This is optional 
                                    if already set in the config file or as the 'ACCESSTOKEN' 
                                    environment variable.
+  -continue                        Skip already uploaded files and continue with uploading the rest.
+                                   Useful for resuming an upload from a previous breakpoint.
   -encrypt-with-key <public-key-file>
                                    Encrypt files using the specified public key before upload. 
                                    The key file may contain multiple concatenated public keys. 
@@ -69,6 +71,8 @@ var targetDir = Args.String("targetDir", "",
 		"all data will be uploaded in the user's base directory.")
 
 var forceOverwrite = Args.Bool("force-overwrite", false, "Force overwrite existing files.")
+
+var continueUpload = Args.Bool("continue", false, "Skip existing files and continue with the rest.")
 
 var pubKeyPath = Args.String("encrypt-with-key", "",
 	"Public key file to use for encryption of files before upload.\n"+
@@ -145,30 +149,28 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 			return err
 		}
 
-		// Check if files exists in S3
-		var listPrefix string
-		if targetDir != "" {
-			listPrefix = targetDir + "/" + outFiles[k]
+		if *forceOverwrite {
+			fmt.Println("force-overwrite flag provided, continuing by overwritting target...")
 		} else {
-			listPrefix = outFiles[k]
-		}
-		fileExists, err := helpers.ListFiles(*config, listPrefix)
-		if err != nil {
-			return fmt.Errorf("listing uploaded files: %s", err.Error())
-		}
-		if len(fileExists.Contents) > 0 {
-			if aws.StringValue(
-				fileExists.Contents[0].Key,
-			) == filepath.Clean(
-				config.AccessKey+"/"+targetDir+"/"+outFiles[k],
-			) {
-				fmt.Printf("File %s is already uploaded!\n", filepath.Base(filename))
-				if !*forceOverwrite {
-					fmt.Println("Quitting...")
+			// Check if files exists in S3
+			listPrefix := outFiles[k]
+			if targetDir != "" {
+				listPrefix = targetDir + "/" + outFiles[k]
+			}
 
-					return errors.New("file already uploaded")
-				}
-				fmt.Println("force-overwrite flag provided, continuing...")
+			listResult, err := helpers.ListFiles(*config, listPrefix)
+			if err != nil {
+				return fmt.Errorf("listing uploaded files: %s", err.Error())
+			}
+
+			fileExists := len(listResult.Contents) > 0 && aws.StringValue(listResult.Contents[0].Key) == filepath.Clean(config.AccessKey+"/"+listPrefix)
+			switch {
+			case fileExists && *continueUpload:
+				fmt.Printf("File %s has already been uploaded, continuing with the next file...\n", filepath.Base(filename))
+
+				continue
+			case fileExists && !*continueUpload:
+				return fmt.Errorf("file %s is already uploaded", filepath.Base(filename))
 			}
 		}
 
