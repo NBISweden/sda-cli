@@ -42,7 +42,7 @@ Options:
                                    if already set in the config file or as the 'ACCESSTOKEN' 
                                    environment variable.
   -continue                        Skip already uploaded files and continue with uploading the rest.
-                                   Useful for resuming an upload from the previous breakpoint.
+                                   Useful for resuming an upload from a previous breakpoint.
   -encrypt-with-key <public-key-file>
                                    Encrypt files using the specified public key before upload. 
                                    The key file may contain multiple concatenated public keys. 
@@ -166,7 +166,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 			fileExists := len(listResult.Contents) > 0 && aws.StringValue(listResult.Contents[0].Key) == filepath.Clean(config.AccessKey+"/"+listPrefix)
 			switch {
 			case fileExists && *continueUpload:
-				fmt.Printf("File %s is already uploaded, continuing with next file...\n", filepath.Base(filename))
+				fmt.Printf("File %s has already been uploaded, continuing with the next file...\n", filepath.Base(filename))
 
 				continue
 			case fileExists && !*continueUpload:
