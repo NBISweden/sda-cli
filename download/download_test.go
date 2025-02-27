@@ -1,11 +1,13 @@
 package download
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -82,6 +84,28 @@ func (suite *TestSuite) TestInvalidUrl() {
 	)
 }
 
+func (suite *TestSuite) TestPrintHostBase() {
+	confPath := createConfigFile("s3cmd.conf", suite.accessToken)
+
+	os.Args = []string{
+		"download",
+		"-dataset-id",
+		"TES01",
+		"-url",
+		"https://some/url",
+		"file1",
+	}
+
+	var str bytes.Buffer
+	log.SetOutput(&str)
+	defer log.SetOutput(os.Stdout)
+
+	// check if the host_base is in the output
+	expectedHostBase := "host_base: inbox.dummy.org"
+	_ = Download(os.Args, confPath.Name())
+	logMsg := fmt.Sprintf("%v", strings.TrimSuffix(str.String(), "\n"))
+	assert.Contains(suite.T(), expectedHostBase, logMsg)
+}
 func (suite *TestSuite) TestGetBody() {
 	// Create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
