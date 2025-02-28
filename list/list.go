@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"strconv"
-
 	"strings"
 
 	"github.com/NBISweden/sda-cli/download"
@@ -100,9 +99,9 @@ func List(args []string, configPath string) error {
 		return err
 	}
 
-	for i := range result.Contents {
-		file := *result.Contents[i].Key
-		fmt.Printf("%s \t %s \n", bytesize.New(float64((*result.Contents[i].Size))), file[strings.Index(file, "/")+1:])
+	for i := range result {
+		file := *result[i].Key
+		fmt.Printf("%s \t %s \n", bytesize.New(float64((*result[i].Size))), file[strings.Index(file, "/")+1:])
 	}
 
 	return nil
