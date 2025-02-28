@@ -433,7 +433,7 @@ func CheckTokenExpiration(accessToken string) error {
 	return nil
 }
 
-func ListFiles(config Config, prefix string) (result *s3.ListObjectsV2Output, err error) {
+func ListFiles(config Config, prefix string) ([]*s3.Object, error) {
 	sess := session.Must(session.NewSession(&aws.Config{
 		// The region for the backend is always the specified one
 		// and not present in the configuration from auth - hardcoded
@@ -450,15 +450,31 @@ func ListFiles(config Config, prefix string) (result *s3.ListObjectsV2Output, er
 
 	svc := s3.New(sess)
 
-	result, err = svc.ListObjectsV2(&s3.ListObjectsV2Input{
-		Bucket: aws.String(config.AccessKey + "/"),
-		Prefix: aws.String(config.AccessKey + "/" + prefix),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list objects, reason: %v", err)
+	var continuationToken *string
+	var fullResult []*s3.Object
+
+	for {
+		result, err := svc.ListObjectsV2(&s3.ListObjectsV2Input{
+			Bucket:            aws.String(config.AccessKey + "/"),
+			Prefix:            aws.String(config.AccessKey + "/" + prefix),
+			ContinuationToken: continuationToken,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to list objects, reason: %v", err)
+		}
+
+		if result.Contents != nil {
+			fullResult = append(fullResult, result.Contents...)
+		}
+
+		if result.NextContinuationToken == nil {
+			break
+		}
+
+		continuationToken = result.NextContinuationToken
 	}
 
-	return result, nil
+	return fullResult, nil
 }
 
 // Check for invalid characters
