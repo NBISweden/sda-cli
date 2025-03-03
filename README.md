@@ -491,7 +491,7 @@ This section contains the information required to install, modify, and run the
 
 ## Requirements
 
-The `sda-cli` is written in Go. To modify, build, and run the tool, Go (>= 1.22)
+The `sda-cli` is written in Go. To modify, build, and run the tool, Go (>= 1.24)
 needs to be installed. Instructions for installing `Go` can be found
 [here](https://go.dev/doc/install).
 
