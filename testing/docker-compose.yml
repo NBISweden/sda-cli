@@ -1,4 +1,3 @@
-version: "3.7"
 services:
   s3_backend:
     command: server /data
@@ -130,7 +129,7 @@ services:
     command:
       - "/bin/sh"
       - "-c"
-      - if [ ! -f "/out/c4gh.sec.pem" ]; then wget -qO- "https://github.com/neicnordic/crypt4gh/releases/latest/download/crypt4gh_linux_x86_64.tar.gz" | tar zxf -;
+      - if [ ! -f "/shared/c4gh.sec.pem" ]; then wget -qO- "https://github.com/neicnordic/crypt4gh/releases/latest/download/crypt4gh_linux_x86_64.tar.gz" | tar zxf -;
         ./crypt4gh generate -n /shared/c4gh -p privatekeypass; fi;
     volumes:
       - shared:/shared
