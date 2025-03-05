@@ -433,7 +433,11 @@ func CheckTokenExpiration(accessToken string) error {
 	return nil
 }
 
-func ListFiles(config Config, prefix string) ([]*s3.Object, error) {
+// ListFiles returns a list for s3 objects that correspond to files with the specified prefix.
+// The maxKeys parameter can be used to limit the number of objects returned at each request and is exposed
+// here primarily for testing purposes. If not for testing, ListFiles should always be called with maxKeys = -1
+// so that the default MaxKeys value of aws SDK (which is 1000) will be used.
+func ListFiles(config Config, prefix string, maxKeys int64) ([]*s3.Object, error) {
 	sess := session.Must(session.NewSession(&aws.Config{
 		// The region for the backend is always the specified one
 		// and not present in the configuration from auth - hardcoded
@@ -453,12 +457,19 @@ func ListFiles(config Config, prefix string) ([]*s3.Object, error) {
 	var continuationToken *string
 	var fullResult []*s3.Object
 
+	params := &s3.ListObjectsV2Input{
+		Bucket:            aws.String(config.AccessKey + "/"),
+		Prefix:            aws.String(config.AccessKey + "/" + prefix),
+		ContinuationToken: continuationToken,
+	}
+	if maxKeys >= 0 {
+		params.MaxKeys = aws.Int64(maxKeys)
+	}
+
 	for {
-		result, err := svc.ListObjectsV2(&s3.ListObjectsV2Input{
-			Bucket:            aws.String(config.AccessKey + "/"),
-			Prefix:            aws.String(config.AccessKey + "/" + prefix),
-			ContinuationToken: continuationToken,
-		})
+		params.ContinuationToken = continuationToken
+
+		result, err := svc.ListObjectsV2(params)
 		if err != nil {
 			if strings.HasPrefix(err.Error(), "SerializationError") {
 				re := regexp.MustCompile(`(status code: \d*)`)

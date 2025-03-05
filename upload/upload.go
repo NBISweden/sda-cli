@@ -158,7 +158,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 				listPrefix = targetDir + "/" + outFiles[k]
 			}
 
-			listResult, err := helpers.ListFiles(*config, listPrefix)
+			listResult, err := helpers.ListFiles(*config, listPrefix, -1)
 			if err != nil {
 				return fmt.Errorf("listing uploaded files: %s", err.Error())
 			}
