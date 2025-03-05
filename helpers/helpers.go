@@ -244,6 +244,7 @@ type Config struct {
 	SocketTimeout        int    `ini:"socket_timeout"`
 	HumanReadableSizes   bool   `ini:"human_readable_sizes"`
 	PublicKey            string `ini:"public_key"`
+	MaxS3Keys            int64  // changes MaxKeys of the aws SDK, only used by tests
 }
 
 // LoadConfigFile loads ini configuration file to the Config struct
@@ -434,10 +435,7 @@ func CheckTokenExpiration(accessToken string) error {
 }
 
 // ListFiles returns a list for s3 objects that correspond to files with the specified prefix.
-// The maxKeys parameter can be used to limit the number of objects returned at each request and is exposed
-// here primarily for testing purposes. If not for testing, ListFiles should always be called with maxKeys = -1
-// so that the default MaxKeys value of aws SDK (which is 1000) will be used.
-func ListFiles(config Config, prefix string, maxKeys int64) ([]*s3.Object, error) {
+func ListFiles(config Config, prefix string) ([]*s3.Object, error) {
 	sess := session.Must(session.NewSession(&aws.Config{
 		// The region for the backend is always the specified one
 		// and not present in the configuration from auth - hardcoded
@@ -462,8 +460,12 @@ func ListFiles(config Config, prefix string, maxKeys int64) ([]*s3.Object, error
 		Prefix:            aws.String(config.AccessKey + "/" + prefix),
 		ContinuationToken: continuationToken,
 	}
-	if maxKeys >= 0 {
-		params.MaxKeys = aws.Int64(maxKeys)
+
+	// MaxS3Keys corresponds to the aws SDK MaxKeys that sets the limit of objects
+	// returned with every request. This is only set to >0 for testing purposes,
+	// otherwise the default MaxKeys value (which is 1000) will be used.
+	if config.MaxS3Keys > 0 {
+		params.MaxKeys = aws.Int64(config.MaxS3Keys)
 	}
 
 	for {

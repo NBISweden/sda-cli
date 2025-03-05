@@ -94,7 +94,7 @@ func List(args []string, configPath string) error {
 		return nil
 	}
 
-	result, err := helpers.ListFiles(*config, prefix, -1)
+	result, err := helpers.ListFiles(*config, prefix)
 	if err != nil {
 		return err
 	}
