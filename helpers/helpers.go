@@ -460,7 +460,7 @@ func ListFiles(config Config, prefix string) (result *s3.ListObjectsV2Output, er
 			re := regexp.MustCompile(`(status code: \d*)`)
 			errorCode := re.FindString(err.Error())
 			if errorCode != "" {
-				err = fmt.Errorf("Problem connecting to s3: %s", errorCode)
+				err = fmt.Errorf("problem connecting to s3: %s", errorCode)
 			}
 		}
 
