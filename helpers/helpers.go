@@ -244,7 +244,7 @@ type Config struct {
 	SocketTimeout        int    `ini:"socket_timeout"`
 	HumanReadableSizes   bool   `ini:"human_readable_sizes"`
 	PublicKey            string `ini:"public_key"`
-	MaxS3Keys            int64  // changes MaxKeys of the aws SDK, only used by tests
+	MaxS3Keys            int64  // changes MaxKeys of the aws SDK, only used by tests. Default is 1000.
 }
 
 // LoadConfigFile loads ini configuration file to the Config struct
