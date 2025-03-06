@@ -244,6 +244,7 @@ type Config struct {
 	SocketTimeout        int    `ini:"socket_timeout"`
 	HumanReadableSizes   bool   `ini:"human_readable_sizes"`
 	PublicKey            string `ini:"public_key"`
+	MaxS3Keys            int64  // changes MaxKeys of the aws SDK, only used by tests. Default is 1000.
 }
 
 // LoadConfigFile loads ini configuration file to the Config struct
@@ -433,7 +434,8 @@ func CheckTokenExpiration(accessToken string) error {
 	return nil
 }
 
-func ListFiles(config Config, prefix string) (result *s3.ListObjectsV2Output, err error) {
+// ListFiles returns a list for s3 objects that correspond to files with the specified prefix.
+func ListFiles(config Config, prefix string) ([]*s3.Object, error) {
 	sess := session.Must(session.NewSession(&aws.Config{
 		// The region for the backend is always the specified one
 		// and not present in the configuration from auth - hardcoded
@@ -450,24 +452,50 @@ func ListFiles(config Config, prefix string) (result *s3.ListObjectsV2Output, er
 
 	svc := s3.New(sess)
 
-	result, err = svc.ListObjectsV2(&s3.ListObjectsV2Input{
-		Bucket: aws.String(config.AccessKey + "/"),
-		Prefix: aws.String(config.AccessKey + "/" + prefix),
-	})
+	var continuationToken *string
+	var fullResult []*s3.Object
 
-	if err != nil {
-		if strings.HasPrefix(err.Error(), "SerializationError") {
-			re := regexp.MustCompile(`(status code: \d*)`)
-			errorCode := re.FindString(err.Error())
-			if errorCode != "" {
-				err = fmt.Errorf("problem connecting to s3: %s", errorCode)
-			}
-		}
-
-		return nil, fmt.Errorf("failed to list objects, reason: %v", err)
+	params := &s3.ListObjectsV2Input{
+		Bucket:            aws.String(config.AccessKey + "/"),
+		Prefix:            aws.String(config.AccessKey + "/" + prefix),
+		ContinuationToken: continuationToken,
 	}
 
-	return result, nil
+	// MaxS3Keys corresponds to the aws SDK MaxKeys that sets the limit of objects
+	// returned with every request. This is only set to >0 for testing purposes,
+	// otherwise the default MaxKeys value (which is 1000) will be used.
+	if config.MaxS3Keys > 0 {
+		params.MaxKeys = aws.Int64(config.MaxS3Keys)
+	}
+
+	for {
+		params.ContinuationToken = continuationToken
+
+		result, err := svc.ListObjectsV2(params)
+		if err != nil {
+			if strings.HasPrefix(err.Error(), "SerializationError") {
+				re := regexp.MustCompile(`(status code: \d*)`)
+				errorCode := re.FindString(err.Error())
+				if errorCode != "" {
+					err = fmt.Errorf("problem connecting to s3: %s", errorCode)
+				}
+			}
+
+			return nil, fmt.Errorf("failed to list objects, reason: %v", err)
+		}
+
+		if result.Contents != nil {
+			fullResult = append(fullResult, result.Contents...)
+		}
+
+		if result.NextContinuationToken == nil {
+			break
+		}
+
+		continuationToken = result.NextContinuationToken
+	}
+
+	return fullResult, nil
 }
 
 // Check for invalid characters
