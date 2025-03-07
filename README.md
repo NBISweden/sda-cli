@@ -252,6 +252,33 @@ exit without further processing.
 - If a file has already been uploaded, the process will exit without further
 processing. To overwrite existing files, use the `-force-overwrite` flag.
 
+### Resume a multiple-file upload
+
+Suppose you run the following command to upload two encrypted files,
+
+```bash
+./sda-cli -config <configuration_file> upload <encrypted_file_to_upload_1> <encrypted_file_to_upload_2>
+```
+
+After <encrypted_file_to_upload_1> has been uploaded, the process is interrupted while uploading <encrypted_file_to_upload_2>. To resume the upload, simply add the `-continue` flag to the command, as shown below:
+
+```bash
+./sda-cli -config <configuration_file> upload <encrypted_file_to_re-upload> <encrypted_file_to_upload> -continue
+```
+
+The `-continue` flag is especially useful when recursively uploading an entire folder with encrypted files. For example, the following command:
+
+```bash
+./sda-cli -config <configuration_file> upload -r <folder_to_upload_with_encrypted_data> -continue
+```
+
+will skip uploading any files that are already uploaded to the target location and proceed with uploading the remaining files of `<folder_to_upload_with_encrypted_data>`, effectively resuming the upload of the later in case this was previously interrupted.
+
+Notes:
+
+- `-continue` can be combined with any of the available flags except `-force-overwrite`. In this case, the latter takes precedence.
+- `-continue` will not resume partially uploaded files. Any such file will be re-uploaded.
+
 ## List
 
 Before using the `list` functionality, ensure you have [downloaded the configuration file](#download-the-configuration-file).
@@ -491,7 +518,7 @@ This section contains the information required to install, modify, and run the
 
 ## Requirements
 
-The `sda-cli` is written in Go. To modify, build, and run the tool, Go (>= 1.22)
+The `sda-cli` is written in Go. To modify, build, and run the tool, Go (>= 1.24)
 needs to be installed. Instructions for installing `Go` can be found
 [here](https://go.dev/doc/install).
 

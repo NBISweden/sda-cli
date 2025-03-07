@@ -9,7 +9,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        go-version: ["1.22"]
+        go-version: ["1.24"]
         os:
           - ubuntu-latest
           - windows-latest
@@ -32,7 +32,7 @@ jobs:
         run: go test -v -coverprofile=coverage -covermode=atomic ./...
 
       - name: Codecov
-        uses: codecov/codecov-action@v5.3.1
+        uses: codecov/codecov-action@v5.4.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage

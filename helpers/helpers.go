@@ -454,7 +454,16 @@ func ListFiles(config Config, prefix string) (result *s3.ListObjectsV2Output, er
 		Bucket: aws.String(config.AccessKey + "/"),
 		Prefix: aws.String(config.AccessKey + "/" + prefix),
 	})
+
 	if err != nil {
+		if strings.HasPrefix(err.Error(), "SerializationError") {
+			re := regexp.MustCompile(`(status code: \d*)`)
+			errorCode := re.FindString(err.Error())
+			if errorCode != "" {
+				err = fmt.Errorf("problem connecting to s3: %s", errorCode)
+			}
+		}
+
 		return nil, fmt.Errorf("failed to list objects, reason: %v", err)
 	}
 
