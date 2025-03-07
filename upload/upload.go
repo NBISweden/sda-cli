@@ -319,7 +319,7 @@ func Upload(args []string, configPath string) error {
 	}
 
 	// print the host_base for the user
-	fmt.Printf("host_base: %s\n", config.HostBase)
+	fmt.Printf("Remote server (host_base): %s\n", config.HostBase)
 
 	// Check that input file/folder list is not empty
 	if len(Args.Args()) == 0 {

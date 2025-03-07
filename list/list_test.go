@@ -152,6 +152,6 @@ func (suite *TestSuite) TestFunctionality() {
 	assert.Contains(suite.T(), string(listOutput), msg1)
 
 	// Check if host_base is in the output
-	expectedHostBase := strings.TrimPrefix(ts.URL, "http://")
+	expectedHostBase := "Remote server (host_base): " + strings.TrimPrefix(ts.URL, "http://")
 	assert.Contains(suite.T(), string(listOutput), expectedHostBase)
 }

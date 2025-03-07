@@ -3,11 +3,11 @@ package download
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -101,10 +101,20 @@ func (suite *TestSuite) TestPrintHostBase() {
 	defer log.SetOutput(os.Stdout)
 
 	// check if the host_base is in the output
-	expectedHostBase := "host_base: inbox.dummy.org"
+	rescueStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
 	_ = Download(os.Args, confPath.Name())
-	logMsg := fmt.Sprintf("%v", strings.TrimSuffix(str.String(), "\n"))
-	assert.Contains(suite.T(), expectedHostBase, logMsg)
+
+	w.Close()
+	os.Stdout = rescueStdout
+	uploadOutput, _ := io.ReadAll(r)
+
+	// check if the host_base is in the output
+
+	expectedHostBase := "Remote server (host_base): " + "inbox.dummy.org"
+	assert.Contains(suite.T(), string(uploadOutput), expectedHostBase)
 }
 func (suite *TestSuite) TestGetBody() {
 	// Create a test server
@@ -316,6 +326,5 @@ func (suite *TestSuite) TestGetDatasets() {
 	baseURL := "https://some/url"
 	datasets, err := GetDatasets(baseURL, token)
 	require.NoError(suite.T(), err)
-	// assert.Contains(suite.T(), datasets, "https://doi.example/ty009.sfrrss/600.45asasga")
 	assert.Equal(suite.T(), datasets, []string{"https://doi.example/ty009.sfrrss/600.45asasga"})
 }
