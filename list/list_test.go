@@ -150,4 +150,8 @@ func (suite *TestSuite) TestFunctionality() {
 	listOutput, _ := io.ReadAll(r)
 	msg1 := fmt.Sprintf("%v", filepath.Base(testfile.Name()))
 	assert.Contains(suite.T(), string(listOutput), msg1)
+
+	// Check if host_base is in the output
+	expectedHostBase := "Remote server (host_base): " + strings.TrimPrefix(ts.URL, "http://")
+	assert.Contains(suite.T(), string(listOutput), expectedHostBase)
 }

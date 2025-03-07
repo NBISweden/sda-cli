@@ -107,7 +107,7 @@ func Download(args []string, configPath string) error {
 	}
 
 	if *datasetID == "" || *URL == "" || configPath == "" {
-		return fmt.Errorf("missing required arguments, dataset, config and url are required")
+		return fmt.Errorf("missing required arguments, dataset-id, config and url are required")
 	}
 
 	// Check if both -recursive and -dataset flags are set
@@ -153,6 +153,9 @@ func Download(args []string, configPath string) error {
 	if err != nil {
 		return err
 	}
+
+	// print the host_base for the user
+	fmt.Printf("Remote server (host_base): %s\n", config.HostBase)
 
 	switch {
 	// Case where the user is setting the -dataset flag

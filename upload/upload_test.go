@@ -3,6 +3,7 @@ package upload
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -216,7 +217,6 @@ func (suite *TestSuite) TestFunctionality() {
 
 	var str bytes.Buffer
 	log.SetOutput(&str)
-	defer log.SetOutput(os.Stdout)
 
 	// Test recursive upload
 	os.Args = []string{"upload", "--force-unencrypted", "-r", dir}
@@ -299,6 +299,22 @@ func (suite *TestSuite) TestFunctionality() {
 	// Check that the respective unencrypted file was not uploaded
 	msg = fmt.Sprintf("Uploading %s with", testfile.Name())
 	assert.NotContains(suite.T(), logMsg, msg)
+
+	rescueStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	os.Args = []string{"upload", "--force-unencrypted", "-r", dir}
+	_ = Upload(os.Args, configPath.Name())
+
+	w.Close()
+	os.Stdout = rescueStdout
+	uploadOutput, _ := io.ReadAll(r)
+
+	// check if the host_base is in the output
+
+	expectedHostBase := "Remote server (host_base): " + strings.TrimPrefix(ts.URL, "http://")
+	assert.Contains(suite.T(), string(uploadOutput), expectedHostBase)
 
 	// Check that trying to encrypt already encrypted files returns error and aborts
 	newArgs = []string{"upload", "--encrypt-with-key", publicKey.Name(), dir, "-r"}
