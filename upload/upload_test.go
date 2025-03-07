@@ -217,7 +217,6 @@ func (suite *TestSuite) TestFunctionality() {
 
 	var str bytes.Buffer
 	log.SetOutput(&str)
-	//defer log.SetOutput(os.Stdout)
 
 	// Test recursive upload
 	os.Args = []string{"upload", "--force-unencrypted", "-r", dir}
