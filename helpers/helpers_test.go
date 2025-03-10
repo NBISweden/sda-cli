@@ -6,21 +6,31 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/golang-jwt/jwt"
+	"github.com/johannesboyne/gofakes3"
+	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
 type HelperTests struct {
 	suite.Suite
-	tempDir  string
-	testFile *os.File
+	tempDir     string
+	testFile    *os.File
+	testFile1   *os.File
+	accessToken string
 }
 
 // generate jwts for testing the expDate
@@ -68,17 +78,31 @@ func (suite *HelperTests) SetupTest() {
 	// create an existing test file with some known content
 	suite.testFile, err = os.CreateTemp(suite.tempDir, "testfile-")
 	if err != nil {
-		log.Fatal("cannot create temporary public key file", err)
+		log.Fatal("cannot create temporary file", err)
 	}
 
 	err = os.WriteFile(suite.testFile.Name(), []byte("content"), 0600)
 	if err != nil {
 		log.Fatalf("failed to write to testfile: %s", err)
 	}
+
+	// create another existing test file with some known content
+	suite.testFile1, err = os.CreateTemp(suite.tempDir, "testfile-")
+	if err != nil {
+		log.Fatal("cannot create temporary file", err)
+	}
+
+	err = os.WriteFile(suite.testFile1.Name(), []byte("more content"), 0600)
+	if err != nil {
+		log.Fatalf("failed to write to testfile1: %s", err)
+	}
+
+	suite.accessToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtleXN0b3JlLUNIQU5HRS1NRSJ9.eyJqdGkiOiJWTWpfNjhhcEMxR2FJbXRZdFExQ0ciLCJzdWIiOiJkdW1teSIsImlzcyI6Imh0dHA6Ly9vaWRjOjkwOTAiLCJpYXQiOjE3MDc3NjMyODksImV4cCI6MTg2NTU0NzkxOSwic2NvcGUiOiJvcGVuaWQgZ2E0Z2hfcGFzc3BvcnRfdjEgcHJvZmlsZSBlbWFpbCIsImF1ZCI6IlhDNTZFTDExeHgifQ.ZFfIAOGeM2I5cvqr1qJV74qU65appYjpNJVWevGHjGA5Xk_qoRMFJXmG6AiQnYdMKnJ58sYGNjWgs2_RGyw5NyM3-pgP7EKHdWU4PrDOU84Kosg4IPMSFxbBRAEjR5X04YX_CLYW2MFk_OyM9TIln522_JBVT_jA5WTTHSmBRHntVArYYHvQdF-oFRiqL8JXWlsUBh3tqQ33sZdqd9g64YhTk9a5lEC42gn5Hg9Hm_qvkl5orzEqIg7x9z5706IBE4Zypco5ohrAKsEbA8EKbEBb0jigGgCslQNde2owUyKIkvZYmxHA78X5xpymMp9K--PgbkyMS9GtA-YwOHPs-w"
 }
 
 func (suite *HelperTests) TearDownTest() {
 	os.Remove(suite.testFile.Name())
+	os.Remove(suite.testFile1.Name())
 	os.Remove(suite.tempDir)
 }
 
@@ -460,4 +484,92 @@ MzM5ZWIyYTQ1OGZlYzVlMjNhYThiNTdjZmNiMzVmMTA=
 	s := string(pubFile)
 	assert.Equal(suite.T(), expectedPubKey, s)
 	defer os.Remove(os.TempDir() + "/test_public_file.pub.pem")
+}
+
+func (suite *HelperTests) TestListFiles() {
+
+	// Create a fake s3 backend
+	backend := s3mem.New()
+	faker := gofakes3.New(backend)
+	ts := httptest.NewServer(faker.Server())
+	defer ts.Close()
+
+	// Configure S3 client
+	s3Config := &aws.Config{
+		Credentials:      credentials.NewStaticCredentials("dummy", "dummy", suite.accessToken),
+		Endpoint:         aws.String(ts.URL),
+		Region:           aws.String("eu-central-1"),
+		DisableSSL:       aws.Bool(true),
+		S3ForcePathStyle: aws.Bool(true),
+	}
+	newSession, _ := session.NewSession(s3Config)
+	s3Client := s3.New(newSession)
+
+	// Create bucket named dummy
+	cparams := &s3.CreateBucketInput{
+		Bucket: aws.String("dummy"),
+	}
+	_, err := s3Client.CreateBucket(cparams)
+	if err != nil {
+		log.Panic(err.Error())
+	}
+
+	// Upload two test files
+	file, err := os.Open(suite.testFile.Name())
+	if err != nil {
+		log.Panic(err.Error())
+	}
+	defer file.Close()
+
+	_, err = s3Client.PutObject(&s3.PutObjectInput{
+		Bucket: aws.String("dummy"),
+		Key:    aws.String("dummy/" + filepath.Base(suite.testFile.Name())),
+		Body:   file,
+	})
+	if err != nil {
+		log.Panic(err.Error())
+	}
+
+	file1, err := os.Open(suite.testFile1.Name())
+	if err != nil {
+		log.Panic(err.Error())
+	}
+	defer file1.Close()
+	_, err = s3Client.PutObject(&s3.PutObjectInput{
+		Bucket: aws.String("dummy"),
+		Key:    aws.String("dummy/" + filepath.Base(suite.testFile1.Name())),
+		Body:   file1,
+	})
+	if err != nil {
+		log.Panic(err.Error())
+	}
+
+	testConfig := &Config{
+		AccessToken: suite.accessToken,
+		AccessKey:   "dummy",
+		SecretKey:   "dummy",
+		HostBase:    strings.TrimPrefix(ts.URL, "http://"),
+		UseHTTPS:    false,
+	}
+
+	// Test list files
+	result, err := ListFiles(*testConfig, "")
+	assert.NoError(suite.T(), err, "failed when it shouldn't")
+	assert.Equal(suite.T(), len(result), 2)
+
+	// Test list files with prefix
+	result, err = ListFiles(*testConfig, filepath.Base(suite.testFile1.Name()))
+	assert.NoError(suite.T(), err, "failed when it shouldn't")
+	assert.Equal(suite.T(), len(result), 1)
+
+	// Test list pagination
+	testConfig.MaxS3Keys = 1
+	result, err = ListFiles(*testConfig, "")
+	assert.NoError(suite.T(), err, "failed when it shouldn't")
+	assert.Equal(suite.T(), len(result), 2, "list pagination failed: expected 2 files, got %v", len(result))
+
+	// Test list failure
+	testConfig.AccessKey = "wrong"
+	_, err = ListFiles(*testConfig, "")
+	assert.ErrorContains(suite.T(), err, "failed to list objects")
 }
