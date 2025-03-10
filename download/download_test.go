@@ -1,7 +1,9 @@
 package download
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -82,6 +84,38 @@ func (suite *TestSuite) TestInvalidUrl() {
 	)
 }
 
+func (suite *TestSuite) TestPrintHostBase() {
+	confPath := createConfigFile("s3cmd.conf", suite.accessToken)
+
+	os.Args = []string{
+		"download",
+		"-dataset-id",
+		"TES01",
+		"-url",
+		"https://some/url",
+		"file1",
+	}
+
+	var str bytes.Buffer
+	log.SetOutput(&str)
+	defer log.SetOutput(os.Stdout)
+
+	// check if the host_base is in the output
+	rescueStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	_ = Download(os.Args, confPath.Name())
+
+	w.Close()
+	os.Stdout = rescueStdout
+	uploadOutput, _ := io.ReadAll(r)
+
+	// check if the host_base is in the output
+
+	expectedHostBase := "Remote server (host_base): " + "inbox.dummy.org"
+	assert.Contains(suite.T(), string(uploadOutput), expectedHostBase)
+}
 func (suite *TestSuite) TestGetBody() {
 	// Create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -292,6 +326,5 @@ func (suite *TestSuite) TestGetDatasets() {
 	baseURL := "https://some/url"
 	datasets, err := GetDatasets(baseURL, token)
 	require.NoError(suite.T(), err)
-	// assert.Contains(suite.T(), datasets, "https://doi.example/ty009.sfrrss/600.45asasga")
 	assert.Equal(suite.T(), datasets, []string{"https://doi.example/ty009.sfrrss/600.45asasga"})
 }
