@@ -562,7 +562,10 @@ func (suite *HelperTests) TestListFiles() {
 	assert.NoError(suite.T(), err, "failed when it shouldn't")
 	assert.Equal(suite.T(), len(result), 1)
 
-	// Test list pagination
+	// Test list pagination.
+	// The used gofakeS3 version utilizes the continuationToken for paging.
+	// Therefore, here we also implicitely test that the ListFiles function
+	// reverts to using ListObjectsV2 when ListObjects paging fails.
 	testConfig.MaxS3Keys = 1
 	result, err = ListFiles(*testConfig, "")
 	assert.NoError(suite.T(), err, "failed when it shouldn't")
