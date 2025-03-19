@@ -452,47 +452,35 @@ func ListFiles(config Config, prefix string) ([]*s3.Object, error) {
 
 	svc := s3.New(sess)
 
-	var continuationToken *string
-	var fullResult []*s3.Object
-
-	params := &s3.ListObjectsV2Input{
-		Bucket:            aws.String(config.AccessKey + "/"),
-		Prefix:            aws.String(config.AccessKey + "/" + prefix),
-		ContinuationToken: continuationToken,
+	params := &s3.ListObjectsInput{
+		Bucket:  aws.String(config.AccessKey + "/"),
+		Prefix:  aws.String(config.AccessKey + "/" + prefix),
+		MaxKeys: aws.Int64(1000),
 	}
-
-	// MaxS3Keys corresponds to the aws SDK MaxKeys that sets the limit of objects
-	// returned with every request. This is only set to >0 for testing purposes,
-	// otherwise the default MaxKeys value (which is 1000) will be used.
+	// This is only set to >0 for unit testing purposes,
 	if config.MaxS3Keys > 0 {
 		params.MaxKeys = aws.Int64(config.MaxS3Keys)
 	}
 
-	for {
-		params.ContinuationToken = continuationToken
+	fullResult, err := paginateList(svc, params)
 
-		result, err := svc.ListObjectsV2(params)
-		if err != nil {
-			if strings.HasPrefix(err.Error(), "SerializationError") {
-				re := regexp.MustCompile(`(status code: \d*)`)
-				errorCode := re.FindString(err.Error())
-				if errorCode != "" {
-					err = fmt.Errorf("problem connecting to s3: %s", errorCode)
-				}
-			}
-
-			return nil, fmt.Errorf("failed to list objects, reason: %v", err)
+	// If list pagination fails try again using ListObjectsV2
+	if err != nil && strings.HasPrefix(err.Error(), "file markers not supported") {
+		params := &s3.ListObjectsV2Input{
+			Bucket: aws.String(config.AccessKey + "/"),
+			Prefix: aws.String(config.AccessKey + "/" + prefix),
+		}
+		// This is only set to >0 for unit testing purposes,
+		// otherwise the default MaxKeys value (which is 1000) will be used.
+		if config.MaxS3Keys > 0 {
+			params.MaxKeys = aws.Int64(config.MaxS3Keys)
 		}
 
-		if result.Contents != nil {
-			fullResult = append(fullResult, result.Contents...)
-		}
+		fullResult, err = paginateListV2(svc, params)
+	}
 
-		if result.NextContinuationToken == nil {
-			break
-		}
-
-		continuationToken = result.NextContinuationToken
+	if err != nil {
+		return nil, fmt.Errorf("failed to list objects, reason: %v", err)
 	}
 
 	return fullResult, nil
@@ -542,4 +530,82 @@ func GetPublicKey64(pubKeyPath *string) (string, error) {
 	}
 
 	return pubKeyBase64, nil
+}
+
+func paginateList(svc *s3.S3, params *s3.ListObjectsInput) ([]*s3.Object, error) {
+	var marker *string
+	var fullResult []*s3.Object
+
+	for {
+		params.Marker = marker
+		result, err := svc.ListObjects(params)
+
+		if err != nil {
+			if strings.HasPrefix(err.Error(), "SerializationError") {
+				re := regexp.MustCompile(`(status code: \d*)`)
+				errorCode := re.FindString(err.Error())
+				if errorCode != "" {
+					err = fmt.Errorf("problem connecting to s3: %s", errorCode)
+				}
+			}
+
+			return nil, fmt.Errorf("failed to list objects, reason: %v", err)
+		}
+
+		if result.Contents != nil {
+			fullResult = append(fullResult, result.Contents...)
+		}
+
+		if result.NextMarker == nil {
+			// Catch the false positive case where the server does not support V1 pagination
+			if *result.IsTruncated {
+				return nil, fmt.Errorf("file markers not supported by backend")
+			}
+
+			break
+		}
+
+		marker = result.NextMarker
+	}
+
+	return fullResult, nil
+}
+
+func paginateListV2(svc *s3.S3, params *s3.ListObjectsV2Input) ([]*s3.Object, error) {
+	var continuationToken *string
+	var fullResult []*s3.Object
+
+	for {
+		params.ContinuationToken = continuationToken
+		result, err := svc.ListObjectsV2(params)
+
+		if err != nil {
+			if strings.HasPrefix(err.Error(), "SerializationError") {
+				re := regexp.MustCompile(`(status code: \d*)`)
+				errorCode := re.FindString(err.Error())
+				if errorCode != "" {
+					err = fmt.Errorf("problem connecting to s3: %s", errorCode)
+				}
+			}
+
+			return nil, fmt.Errorf("failed to list objects, reason: %v", err)
+		}
+
+		if result.Contents != nil {
+			fullResult = append(fullResult, result.Contents...)
+		}
+
+		if result.NextContinuationToken == nil {
+			// Catch the false positive case where the server does not support V2 pagination
+			if *result.IsTruncated {
+				return nil, fmt.Errorf("continuation tokens not supported by backend")
+			}
+
+			break
+		}
+
+		continuationToken = result.NextContinuationToken
+	}
+
+	return fullResult, nil
 }
