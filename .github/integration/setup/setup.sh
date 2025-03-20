@@ -39,6 +39,10 @@ EOF
 
 chmod 444 c4gh.sec.pem
 
+# start the ceph container
+# shellcheck source=/dev/null
+source "$(pwd)/create_ceph_config.sh"
+
 # get latest image tag for s3inbox
 latest_tag=$(curl -s https://api.github.com/repos/neicnordic/sensitive-data-archive/tags | jq -r '.[0].name')
 
@@ -49,6 +53,18 @@ then
 else
     TAG=$latest_tag docker compose up -d
 fi
+
+RETRY_TIMES=0
+until docker ps -f name="ceph_proxy" --format "{{.Status}}" | grep "Up"; do
+    echo "waiting for ceph proxy to become ready"
+    RETRY_TIMES=$((RETRY_TIMES + 1))
+    if [ "$RETRY_TIMES" -eq 30 ]; then
+        # Time out
+        docker logs "ceph_proxy"
+        exit 1
+    fi
+    sleep 10
+done
 
 RETRY_TIMES=0
 until docker ps -f name="s3" --format "{{.Status}}" | grep "healthy"

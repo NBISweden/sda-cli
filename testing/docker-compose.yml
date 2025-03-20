@@ -45,6 +45,54 @@ services:
       interval: 5s
       timeout: 120s
       retries: 10
+  ceph:
+    container_name: ceph
+    environment:
+      - "RGW_NAME=ceph"
+      - "RGW_FRONTEND_PORT=8100"
+      - "SREE_PORT=5100"
+      - "RGW_CIVETWEB_PORT=5100"
+      - "DEBUG=verbose"
+      - "CEPH_DEMO_UID=nano"
+      - "EXPOSED_IP=127.0.0.1"
+      - "MON_IP=127.0.0.1"
+      - "CEPH_PUBLIC_NETWORK=0.0.0.0/0"
+      - "CEPH_DAEMON=demo"
+      - "DEMO_DAEMONS=mon,mgr,osd,rgw"
+      - "SREE_VERSION=v0.1"
+      - "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      - "CEPH_VERSION=pacific"
+      - "CEPH_POINT_RELEASE="
+      - "CEPH_DEVEL=false"
+      - "CEPH_REF=pacific"
+      - "OSD_FLAVOR=default"
+    healthcheck:
+      test: ["CMD", "stat", "/nano_user_details"]
+      interval: 5s
+      timeout: 20s
+      retries: 3
+    image: ceph/daemon
+    ports:
+      - "5100:5100"
+      - "8100:8100"
+  ceph_proxy:
+    image: "ghcr.io/neicnordic/sensitive-data-archive:${TAG}"
+    command: [ sda-s3inbox ]
+    container_name: ceph_proxy
+    depends_on:
+      ceph:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: always
+    volumes:
+      - ./keys/:/keys/
+      - ./ceph_proxy_config.yaml:/config.yaml
+    ports:
+      - "8800:8000"
+      - "8801:8001"
   s3_proxy:
     image: "ghcr.io/neicnordic/sensitive-data-archive:${TAG}"
     command: [ sda-s3inbox ]
