@@ -18,10 +18,10 @@ fi
 
 cp s3cmd-template.conf s3cmd.conf
 output=$(python sign_jwt.py)
-echo "access_token=$output" >> s3cmd.conf
+echo "access_token=$output" >>s3cmd.conf
 
 # Create crypt4gh keys for testing the download service
-cat << EOF > c4gh.pub.pem
+cat <<EOF >c4gh.pub.pem
 -----BEGIN CRYPT4GH PUBLIC KEY-----
 avFAerx0ZWuJE6fTI8S/0wv3yMo1n3SuNTV6zvKdxQc=
 -----END CRYPT4GH PUBLIC KEY-----
@@ -29,7 +29,7 @@ EOF
 
 chmod 444 c4gh.pub.pem
 
-cat << EOF > c4gh.sec.pem
+cat <<EOF >c4gh.sec.pem
 -----BEGIN CRYPT4GH ENCRYPTED PRIVATE KEY-----
 YzRnaC12MQAGc2NyeXB0ABQAAAAAwAs5mVkXda50vqeYv6tbkQARY2hhY2hhMjBf
 cG9seTEzMDUAPAd46aTuoVWAe+fMGl3VocCKCCWmgFUsFIHejJoWxNwy62c1L/Vc
@@ -47,8 +47,7 @@ source "$(pwd)/create_ceph_config.sh"
 latest_tag=$(curl -s https://api.github.com/repos/neicnordic/sensitive-data-archive/tags | jq -r '.[0].name')
 
 # check which compose syntax to use (useful for running locally)
-if command -v docker-compose >/dev/null 2>&1
-then
+if command -v docker-compose >/dev/null 2>&1; then
     TAG=$latest_tag docker-compose up -d
 else
     TAG=$latest_tag docker compose up -d
@@ -67,37 +66,37 @@ until docker ps -f name="ceph_proxy" --format "{{.Status}}" | grep "Up"; do
 done
 
 RETRY_TIMES=0
-until docker ps -f name="s3" --format "{{.Status}}" | grep "healthy"
-do echo "waiting for s3 to become ready"
-    RETRY_TIMES=$((RETRY_TIMES+1));
+until docker ps -f name="s3" --format "{{.Status}}" | grep "healthy"; do
+    echo "waiting for s3 to become ready"
+    RETRY_TIMES=$((RETRY_TIMES + 1))
     if [ "$RETRY_TIMES" -eq 30 ]; then
         # Time out
         docker logs "s3"
-        exit 1;
+        exit 1
     fi
     sleep 10
 done
 
 RETRY_TIMES=0
-until docker ps -f name="proxy" --format "{{.Status}}" | grep "Up "
-do echo "waiting for proxy to become ready"
-    RETRY_TIMES=$((RETRY_TIMES+1));
+until docker ps -f name="proxy" --format "{{.Status}}" | grep "Up "; do
+    echo "waiting for proxy to become ready"
+    RETRY_TIMES=$((RETRY_TIMES + 1))
     if [ "$RETRY_TIMES" -eq 30 ]; then
         # Time out
         docker logs "proxy"
-        exit 1;
+        exit 1
     fi
     sleep 10
 done
 
 RETRY_TIMES=0
-until docker logs buckets | grep "Access permission for"
-do echo "waiting for buckets to be created"
-    RETRY_TIMES=$((RETRY_TIMES+1));
+until docker logs buckets | grep "Access permission for"; do
+    echo "waiting for buckets to be created"
+    RETRY_TIMES=$((RETRY_TIMES + 1))
     if [ "$RETRY_TIMES" -eq 30 ]; then
         # Time out
         docker logs "buckets"
-        exit 1;
+        exit 1
     fi
     sleep 10
 done
@@ -138,7 +137,6 @@ if [ -z "$dataset_id" ]; then
     exit 1
 fi
 
-
 for file_id in $file_ids; do
     # Insert entry in sda.file_event_log
     docker run --rm --name client --network testing_default \
@@ -178,10 +176,10 @@ done
 s3cmd -c directS3 put --recursive archive_data/ s3://archive/
 
 # Get the correct token form mockoidc
-token=$(curl "http://localhost:8002/tokens" | jq -r  '.[0]')
+token=$(curl "http://localhost:8002/tokens" | jq -r '.[0]')
 
 # Create s3cmd-download.conf file for download
 cp s3cmd-template.conf s3cmd-download.conf
-echo "access_token=$token" >> s3cmd-download.conf
+echo "access_token=$token" >>s3cmd-download.conf
 
 docker ps
