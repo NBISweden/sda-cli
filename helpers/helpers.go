@@ -457,15 +457,14 @@ func ListFiles(config Config, prefix string) ([]*s3.Object, error) {
 		Prefix:  aws.String(config.AccessKey + "/" + prefix),
 		MaxKeys: aws.Int64(1000),
 	}
-	// This is only set to >0 for unit testing purposes,
+	// This is only set to >0 for unit testing purposes.
 	if config.MaxS3Keys > 0 {
 		params.MaxKeys = aws.Int64(config.MaxS3Keys)
 	}
 
 	fullResult, err := paginateList(svc, params)
-
-	// If list pagination fails try again using ListObjectsV2
 	if err != nil && strings.HasPrefix(err.Error(), "file markers not supported") {
+		// If list pagination fails try again using ListObjectsV2
 		params := &s3.ListObjectsV2Input{
 			Bucket: aws.String(config.AccessKey + "/"),
 			Prefix: aws.String(config.AccessKey + "/" + prefix),
@@ -479,11 +478,8 @@ func ListFiles(config Config, prefix string) ([]*s3.Object, error) {
 		fullResult, err = paginateListV2(svc, params)
 	}
 
-	if err != nil {
-		return nil, fmt.Errorf("failed to list objects, reason: %v", err)
-	}
-
-	return fullResult, nil
+	// let the returned error be handled where ListFiles is called
+	return fullResult, err
 }
 
 // Check for invalid characters
@@ -539,12 +535,10 @@ func paginateList(svc *s3.S3, params *s3.ListObjectsInput) ([]*s3.Object, error)
 	for {
 		params.Marker = marker
 		result, err := svc.ListObjects(params)
-
 		if err != nil {
 			if strings.HasPrefix(err.Error(), "SerializationError") {
 				re := regexp.MustCompile(`(status code: \d*)`)
-				errorCode := re.FindString(err.Error())
-				if errorCode != "" {
+				if errorCode := re.FindString(err.Error()); errorCode != "" {
 					err = fmt.Errorf("problem connecting to s3: %s", errorCode)
 				}
 			}
@@ -552,20 +546,16 @@ func paginateList(svc *s3.S3, params *s3.ListObjectsInput) ([]*s3.Object, error)
 			return nil, fmt.Errorf("failed to list objects, reason: %v", err)
 		}
 
-		if result.Contents != nil {
-			fullResult = append(fullResult, result.Contents...)
+		if result.NextMarker == nil && *result.IsTruncated {
+			// Catch the false positive case where the server does not support V1 pagination
+			return nil, fmt.Errorf("file markers not supported by backend")
 		}
 
-		if result.NextMarker == nil {
-			// Catch the false positive case where the server does not support V1 pagination
-			if *result.IsTruncated {
-				return nil, fmt.Errorf("file markers not supported by backend")
-			}
-
+		fullResult = append(fullResult, result.Contents...)
+		marker = result.NextMarker
+		if !*result.IsTruncated {
 			break
 		}
-
-		marker = result.NextMarker
 	}
 
 	return fullResult, nil
@@ -578,12 +568,10 @@ func paginateListV2(svc *s3.S3, params *s3.ListObjectsV2Input) ([]*s3.Object, er
 	for {
 		params.ContinuationToken = continuationToken
 		result, err := svc.ListObjectsV2(params)
-
 		if err != nil {
 			if strings.HasPrefix(err.Error(), "SerializationError") {
 				re := regexp.MustCompile(`(status code: \d*)`)
-				errorCode := re.FindString(err.Error())
-				if errorCode != "" {
+				if errorCode := re.FindString(err.Error()); errorCode != "" {
 					err = fmt.Errorf("problem connecting to s3: %s", errorCode)
 				}
 			}
@@ -591,20 +579,16 @@ func paginateListV2(svc *s3.S3, params *s3.ListObjectsV2Input) ([]*s3.Object, er
 			return nil, fmt.Errorf("failed to list objects, reason: %v", err)
 		}
 
-		if result.Contents != nil {
-			fullResult = append(fullResult, result.Contents...)
+		if result.NextContinuationToken == nil && *result.IsTruncated {
+			// Catch the false positive case where the server does not support V2 pagination
+			return nil, fmt.Errorf("continuation tokens not supported by backend")
 		}
 
-		if result.NextContinuationToken == nil {
-			// Catch the false positive case where the server does not support V2 pagination
-			if *result.IsTruncated {
-				return nil, fmt.Errorf("continuation tokens not supported by backend")
-			}
-
+		fullResult = append(fullResult, result.Contents...)
+		continuationToken = result.NextContinuationToken
+		if !*result.IsTruncated {
 			break
 		}
-
-		continuationToken = result.NextContinuationToken
 	}
 
 	return fullResult, nil
