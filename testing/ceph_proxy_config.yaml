@@ -16,7 +16,7 @@ db:
   sslmode: disable
 inbox:
   type: s3
-  url: http://ceph
+  url: http://ceph-octopus
   port: 8100
   accessKey: 
   secretKey: 

@@ -26,21 +26,21 @@ else
 fi
 
 RETRY_TIMES=0
-until docker ps -f name="ceph" --format "{{.Status}}" | grep -w "healthy"; do
+until docker ps -f name="ceph-octopus" --format "{{.Status}}" | grep -w "healthy"; do
     echo "waiting for ceph container to become ready"
     RETRY_TIMES=$((RETRY_TIMES + 1))
     if [ "$RETRY_TIMES" -eq 30 ]; then
         # Time out
-        docker logs "ceph"
+        docker logs "ceph-octopus"
         exit 1
     fi
     sleep 10
 done
 
 # Get the ceph credentials
-CEPH_ACCESS=$(docker exec ceph cat /nano_user_details | jq -r '.keys[0].access_key')
+CEPH_ACCESS=$(docker exec ceph-octopus cat /nano_user_details | jq -r '.keys[0].access_key')
 export CEPH_ACCESS
-CEPH_SECRET=$(docker exec ceph cat /nano_user_details | jq -r '.keys[0].secret_key')
+CEPH_SECRET=$(docker exec ceph-octopus cat /nano_user_details | jq -r '.keys[0].secret_key')
 export CEPH_SECRET
 
 yq --lua-unquoted -i '.inbox.accessKey = env(CEPH_ACCESS) | .inbox.secretKey = env(CEPH_SECRET)' ceph_proxy_config.yaml

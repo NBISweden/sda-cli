@@ -46,9 +46,9 @@ services:
       timeout: 120s
       retries: 10
   ceph:
-    container_name: ceph
+    container_name: ceph-octopus
     environment:
-      - "RGW_NAME=ceph"
+      - "RGW_NAME=ceph-octopus"
       - "RGW_FRONTEND_PORT=8100"
       - "SREE_PORT=5100"
       - "RGW_CIVETWEB_PORT=5100"
@@ -61,17 +61,17 @@ services:
       - "DEMO_DAEMONS=mon,mgr,osd,rgw"
       - "SREE_VERSION=v0.1"
       - "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      - "CEPH_VERSION=pacific"
+      - "CEPH_VERSION=octopus"
       - "CEPH_POINT_RELEASE="
       - "CEPH_DEVEL=false"
-      - "CEPH_REF=pacific"
+      - "CEPH_REF=octopus"
       - "OSD_FLAVOR=default"
     healthcheck:
       test: ["CMD", "stat", "/nano_user_details"]
       interval: 5s
       timeout: 20s
       retries: 3
-    image: ceph/daemon
+    image: ceph/daemon:v5.0.1-stable-5.0-octopus-centos-8-x86_64
     ports:
       - "5100:5100"
       - "8100:8100"

@@ -48,9 +48,9 @@ latest_tag=$(curl -s https://api.github.com/repos/neicnordic/sensitive-data-arch
 
 # check which compose syntax to use (useful for running locally)
 if command -v docker-compose >/dev/null 2>&1; then
-    TAG=$latest_tag docker-compose up -d
+    TAG=$latest_tag docker-compose up -d --no-recreate
 else
-    TAG=$latest_tag docker compose up -d
+    TAG=$latest_tag docker compose up -d --no-recreate
 fi
 
 RETRY_TIMES=0
