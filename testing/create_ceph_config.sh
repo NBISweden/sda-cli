@@ -26,7 +26,7 @@ else
 fi
 
 RETRY_TIMES=0
-until docker ps -f name="ceph" --format "{{.Status}}" | grep "healthy"; do
+until docker ps -f name="ceph" --format "{{.Status}}" | grep -w "healthy"; do
     echo "waiting for ceph container to become ready"
     RETRY_TIMES=$((RETRY_TIMES + 1))
     if [ "$RETRY_TIMES" -eq 30 ]; then
