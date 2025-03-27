@@ -28,8 +28,17 @@ func (suite *VersionTests) TestGetVersion() {
 	defer mockServer.Close()
 	url = mockServer.URL
 
+	storeStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
 	err := Version("1.0.0")
 	assert.NoError(suite.T(), err)
+
+	w.Close()
+	out, _ := io.ReadAll(r)
+	os.Stdout = storeStdout
+	assert.Contains(suite.T(), string(out), "version:  1.0.0")
 }
 
 func (suite *VersionTests) TestGetVersion_newerAvailable() {
