@@ -303,18 +303,25 @@ func (suite *TestSuite) TestFunctionality() {
 	rescueStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
+	rescueStderr := os.Stderr
+	errR, errW, _ := os.Pipe()
+	os.Stderr = errW
 
 	os.Args = []string{"upload", "--force-unencrypted", "-r", dir}
 	_ = Upload(os.Args, configPath.Name())
 
 	w.Close()
+	errW.Close()
 	os.Stdout = rescueStdout
+	os.Stderr = rescueStderr
 	uploadOutput, _ := io.ReadAll(r)
+	uploadError, _ := io.ReadAll(errR)
 
 	// check if the host_base is in the output
 
 	expectedHostBase := "Remote server (host_base): " + strings.TrimPrefix(ts.URL, "http://")
-	assert.Contains(suite.T(), string(uploadOutput), expectedHostBase)
+	assert.NotContains(suite.T(), string(uploadOutput), expectedHostBase)
+	assert.Contains(suite.T(), string(uploadError), expectedHostBase)
 
 	// Check that trying to encrypt already encrypted files returns error and aborts
 	newArgs = []string{"upload", "--encrypt-with-key", publicKey.Name(), dir, "-r"}

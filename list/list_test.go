@@ -141,6 +141,10 @@ func (suite *TestSuite) TestFunctionality() {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
+	rescueStderr := os.Stderr
+	errR, errW, _ := os.Pipe()
+	os.Stderr = errW
+
 	os.Args = []string{"list"}
 	err = List(os.Args, configPath.Name())
 	assert.NoError(suite.T(), err)
@@ -151,7 +155,12 @@ func (suite *TestSuite) TestFunctionality() {
 	msg1 := fmt.Sprintf("%v", filepath.Base(testfile.Name()))
 	assert.Contains(suite.T(), string(listOutput), msg1)
 
-	// Check if host_base is in the output
+	errW.Close()
+	os.Stderr = rescueStderr
+	listError, _ := io.ReadAll(errR)
+
+	// Check that host_base is in the error output, not in the stdout
 	expectedHostBase := "Remote server (host_base): " + strings.TrimPrefix(ts.URL, "http://")
-	assert.Contains(suite.T(), string(listOutput), expectedHostBase)
+	assert.NotContains(suite.T(), string(listOutput), expectedHostBase)
+	assert.Contains(suite.T(), string(listError), expectedHostBase)
 }
