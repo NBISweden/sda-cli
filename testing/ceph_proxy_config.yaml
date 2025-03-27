@@ -1,0 +1,29 @@
+broker:
+  host: rabbitmq
+  port: 5672
+  user: test
+  password: test
+  vhost: sda
+  exchange: sda
+  routingKey: inbox
+  ssl: False
+db:
+  host: postgres
+  port: 5432
+  user: postgres
+  password: rootpasswd
+  database: sda
+  sslmode: disable
+inbox:
+  type: s3
+  url: http://ceph-octopus
+  port: 8100
+  accessKey: 
+  secretKey: 
+  bucket: test
+  region: us-east-1
+log:
+  format: json
+  level: debug
+server:
+  jwtpubkeypath: /keys/
