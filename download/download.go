@@ -155,7 +155,7 @@ func Download(args []string, configPath string) error {
 	}
 
 	// print the host_base for the user
-	fmt.Printf("Remote server (host_base): %s\n", config.HostBase)
+	helpers.PrintHostBase(config.HostBase)
 
 	switch {
 	// Case where the user is setting the -dataset flag

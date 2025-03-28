@@ -76,7 +76,7 @@ func List(args []string, configPath string) error {
 	}
 
 	// print the host_base for the user
-	fmt.Printf("Remote server (host_base): %s\n", config.HostBase)
+	helpers.PrintHostBase(config.HostBase)
 
 	// case datasets
 	if *datasets {

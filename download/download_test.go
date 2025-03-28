@@ -100,21 +100,21 @@ func (suite *TestSuite) TestPrintHostBase() {
 	log.SetOutput(&str)
 	defer log.SetOutput(os.Stdout)
 
-	// check if the host_base is in the output
-	rescueStdout := os.Stdout
+	// check if the host_base is in the error output
+	rescueStderr := os.Stderr
 	r, w, _ := os.Pipe()
-	os.Stdout = w
+	os.Stderr = w
 
 	_ = Download(os.Args, confPath.Name())
 
 	w.Close()
-	os.Stdout = rescueStdout
-	uploadOutput, _ := io.ReadAll(r)
+	os.Stderr = rescueStderr
+	uploadError, _ := io.ReadAll(r)
 
 	// check if the host_base is in the output
 
 	expectedHostBase := "Remote server (host_base): " + "inbox.dummy.org"
-	assert.Contains(suite.T(), string(uploadOutput), expectedHostBase)
+	assert.Contains(suite.T(), string(uploadError), expectedHostBase)
 }
 func (suite *TestSuite) TestGetBody() {
 	// Create a test server

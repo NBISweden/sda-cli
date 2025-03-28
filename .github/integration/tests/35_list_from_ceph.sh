@@ -11,7 +11,7 @@ for n in {1..10}; do
     rm "data_file-$n.c4gh"
 done
 
-if [ "$(./sda-cli -config testing/ceph.conf list | wc -l)" -ne 11 ]; then
+if [ "$(./sda-cli -config testing/ceph.conf list | wc -l)" -ne 10 ]; then
     echo "Wrong number of files returned from ceph backend"
     exit 1
 fi

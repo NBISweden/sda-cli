@@ -593,3 +593,7 @@ func paginateListV2(svc *s3.S3, params *s3.ListObjectsV2Input) ([]*s3.Object, er
 
 	return fullResult, nil
 }
+
+func PrintHostBase(hostBase string) {
+	fmt.Fprintf(os.Stderr, "Remote server (host_base): %s\n", hostBase)
+}
