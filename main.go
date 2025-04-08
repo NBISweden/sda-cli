@@ -134,6 +134,11 @@ func ParseArgs() (string, []string, string) {
 
 	// Extract the command from the 1st argument, then remove it
 	// from list of arguments.
+	if len(os.Args) < 2 {
+		fmt.Fprintf(os.Stderr, "Error: no command given\n")
+		os.Exit(1)
+
+	}
 	command := os.Args[1]
 	os.Args = append(os.Args[:1], os.Args[2:]...)
 
