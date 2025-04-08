@@ -164,6 +164,11 @@ func ParseArgs(args []string, argFlags *flag.FlagSet) error {
 	pos, args = getPositional(args)
 	// append positional args back at the end of args
 	args = append(args, pos...)
+	for _, item := range args {
+		if item == "-config" || item == "--config" {
+			return fmt.Errorf("the config flag should come before the subcommand. Eg 'sda-cli -config s3cfg %s'", argFlags.Name())
+		}
+	}
 	err := argFlags.Parse(args[1:])
 
 	return err
