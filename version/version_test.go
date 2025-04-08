@@ -60,7 +60,7 @@ func (suite *VersionTests) TestGetVersion_newerAvailable() {
 	out, _ := io.ReadAll(r)
 	os.Stdout = storeStdout
 
-	assert.Contains(suite.T(), string(out), "Newer version of sda-cli is available")
+	assert.Contains(suite.T(), string(out), "A newer version (v0.1.3)")
 }
 
 func (suite *VersionTests) TestGetVersion_badGateway() {
