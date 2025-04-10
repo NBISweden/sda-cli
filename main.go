@@ -137,7 +137,6 @@ func ParseArgs() (string, []string, string) {
 	if len(os.Args) < 2 {
 		fmt.Fprintf(os.Stderr, "Error: no command given\n")
 		os.Exit(1)
-
 	}
 	command := os.Args[1]
 	os.Args = append(os.Args[:1], os.Args[2:]...)
