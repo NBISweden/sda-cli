@@ -102,9 +102,9 @@ func Version(ver string) error {
 	if appVer.LessThan(ghVer) {
 		pt, _ := time.Parse(time.RFC3339, ghVersion.Published)
 		fmt.Printf("Current sda-cli version: %v \n\n", ver)
-		fmt.Printf("Newer version of sda-cli is available, %s\n", ghVersion.Name)
-		fmt.Printf("Published: %s\n", pt.Format(time.DateTime))
-		fmt.Printf("Download it from here: %s\n", ghVersion.URL)
+		fmt.Printf("A newer version (%s) is available\n", ghVersion.Name)
+		fmt.Printf("Released on: %s\n", pt.Format(time.DateTime))
+		fmt.Printf("Download the latest version here: %s\n", ghVersion.URL)
 
 		return nil
 	}
