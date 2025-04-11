@@ -60,7 +60,7 @@ Arguments:
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
-var Args = flag.NewFlagSet("upload", flag.ExitOnError)
+var Args = flag.NewFlagSet("upload", flag.ContinueOnError)
 
 var forceUnencrypted = Args.Bool("force-unencrypted", false, "Force uploading unencrypted files.")
 
