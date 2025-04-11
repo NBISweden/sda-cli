@@ -59,7 +59,7 @@ Arguments:
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
-var Args = flag.NewFlagSet("download", flag.ExitOnError)
+var Args = flag.NewFlagSet("download", flag.ContinueOnError)
 
 var datasetID = Args.String("dataset-id", "", "Dataset ID for the file to download.")
 
