@@ -104,4 +104,16 @@ done
 
 echo "Could decrypt with all keys from concatenated key"
 
+if ./sda-cli decrypt -key $key.sec.pem data_file_keys.c4gh -config  testing/s3cmd.conf 2> >(grep "the config flag should come before the subcommand. Eg 'sda-cli -config s3cfg decrypt" > /dev/null ) -ne 1
+then
+    echo "Unexpected error message"
+    exit 1
+fi
+if ./sda-cli encrypt -key $key.sec.pem data_file_keys.c4gh -config  testing/s3cmd.conf 2> >(grep "the config flag should come before the subcommand. Eg 'sda-cli -config s3cfg encrypt" > /dev/null ) -ne 1
+then
+    echo "Unexpected error message"
+    exit 1
+fi
+
+
 echo "Integration tests for sda-cli encrypt finished successfully"

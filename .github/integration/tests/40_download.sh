@@ -134,6 +134,12 @@ else
     echo "Error expected, continue."
 fi
 
+if ./sda-cli download -dataset-id https://doi .example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -config  testing/s3cmd.conf 2> >(grep "the config flag should come before the subcommand. Eg 'sda-cli -config s3cfg download" > /dev/null ) -ne 1
+then
+    echo "Unexpected error message"
+    exit 1
+fi
+
 rm -r download-from-file
 rm -r test-download
 

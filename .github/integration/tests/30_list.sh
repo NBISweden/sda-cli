@@ -30,4 +30,10 @@ else
     exit 1
 fi
 
+if ./sda-cli list --datasets -url http://localhost:8080 -config  testing/s3cmd.conf 2> >(grep "the config flag should come before the subcommand. Eg 'sda-cli -config s3cfg list" > /dev/null ) -ne 1
+then
+    echo "Unexpected error message"
+    exit 1
+fi
+
 echo "Integration tests for sda-cli list finished successfully"
