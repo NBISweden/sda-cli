@@ -101,4 +101,10 @@ else
     exit 1
 fi
 
+if ./sda-cli upload -targitDir "$uploadDir" -r -config  testing/s3cmd.conf 2> >(grep "the config flag should come before the subcommand. Eg 'sda-cli -config s3cfg upload" > /dev/null ) -ne 1
+then
+    echo "Unexpected error message"
+    exit 1
+fi
+
 echo "Integration tests for sda-cli upload finished successfully"
