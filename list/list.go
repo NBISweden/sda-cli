@@ -41,7 +41,7 @@ Arguments:
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
-var Args = flag.NewFlagSet("list", flag.ExitOnError)
+var Args = flag.NewFlagSet("list", flag.ContinueOnError)
 
 var URL = Args.String("url", "", "The url of the sda-download server")
 

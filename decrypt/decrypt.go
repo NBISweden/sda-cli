@@ -35,7 +35,7 @@ Arguments:
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
-var Args = flag.NewFlagSet("decrypt", flag.ExitOnError)
+var Args = flag.NewFlagSet("decrypt", flag.ContinueOnError)
 
 var privateKeyFile = Args.String("key", "", "Private key to use for decrypting files.")
 var forceOverwrite = Args.Bool("force-overwrite", false, "Force overwrite existing files.")

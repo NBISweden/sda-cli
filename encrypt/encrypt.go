@@ -56,7 +56,7 @@ Arguments:
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
-var Args = flag.NewFlagSet("encrypt", flag.ExitOnError)
+var Args = flag.NewFlagSet("encrypt", flag.ContinueOnError)
 
 var outDir = Args.String("outdir", "",
 	"Output directory for encrypted files.")

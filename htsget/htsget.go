@@ -42,7 +42,7 @@ Optional options:
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
-var Args = flag.NewFlagSet("htsget", flag.ExitOnError)
+var Args = flag.NewFlagSet("htsget", flag.ContinueOnError)
 var datasetID = Args.String("dataset", "", "Dataset ID for the file to download")
 var fileName = Args.String("filename", "", "The name of the file to download")
 var referenceName = Args.String("reference", "", "The reference number of the file to download")
