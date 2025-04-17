@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/mail"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -499,6 +500,21 @@ func CheckValidChars(filename string) error {
 	}
 
 	return nil
+}
+
+// AnonymizeFilepath checks if the filepath has a prefixed user ID
+// strips that, and then returns the filepath
+func AnonymizeFilepath(filePath string) string {
+	filePathSplit := strings.Split(filePath, "/")
+	if strings.Contains(filePathSplit[0], "_") {
+		// prefixed user IDs are email adresses with '@' replaced by '_'
+		_, err := mail.ParseAddress(strings.ReplaceAll(filePathSplit[0], "_", "@"))
+		if err == nil {
+			filePath = strings.Join(filePathSplit[1:], "/")
+		}
+	}
+
+	return filePath
 }
 
 // Reads the public key and encodes it in base64
