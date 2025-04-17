@@ -158,21 +158,21 @@ func (suite *TestSuite) TestDownloadUrl() {
 	defer func() { getResponseBody = getBody }()
 	getResponseBody = func(_, _, _ string) ([]byte, error) {
 		return []byte(`[
-            {
-                "fileId": "file1id",
-				"datasetId": "TES01",
-				"displayName": "file1",
-                "filePath": "path/to/file1.c4gh",
-				"fileName": "4293c9a7-re60-46ac-b79a-40ddc0ddd1c6"
-            }
+{
+    "fileId": "file1id",
+    "datasetId": "TES01",
+    "displayName": "file1",
+    "filePath": "dataset_alias/path/to/file1.c4gh",
+    "fileName": "4293c9a7-re60-46ac-b79a-40ddc0ddd1c6"
+}
         ]`), nil
 	}
 
 	baseURL := "https://some/url"
 	token := suite.accessToken
 	datasetID := "test-dataset"
-	filepath := "path/to/file1"
-	expectedURL := "https://some/url/s3/test-dataset/path/to/file1.c4gh"
+	filepath := "dataset_alias/path/to/file1"
+	expectedURL := "https://some/url/s3/test-dataset/dataset_alias/path/to/file1.c4gh"
 
 	//-----------------------------------------------
 	// Test with an empty public key
@@ -205,7 +205,7 @@ func (suite *TestSuite) TestDownloadUrl() {
 	//-----------------------------------------------
 	// Test using a nonempty public key
 	// Test with valid base_url, token, dataset, and fileid
-	filepath = "path/to/file1.c4gh"
+	filepath = "dataset_alias/path/to/file1.c4gh"
 	fileid := "file1id"
 	expectedURL = baseURL + "/s3/" + datasetID + "/" + filepath
 	pubKey := "test-public-key"
