@@ -298,6 +298,10 @@ func fileCase(token string, fileList bool) error {
 
 // downloadFile downloads the file by using the download URL
 func downloadFile(uri, token, pubKeyBase64, filePath string) error {
+	// Check if the file path contains a userID and if it does,
+	// do not keep it in the file path
+	filePath = helpers.AnonymizeFilepath(filePath)
+
 	outFilename := filePath
 	if *outDir != "" {
 		outFilename = *outDir + "/" + filePath
