@@ -45,6 +45,7 @@ Required options:
   -url <uri>                  The url of the download server.
 
 Optional options:
+  -continue                   Skip already downloaded files and continue with downloading the rest.
   -pubkey <public-key-file>   Key to use for encrypting downloaded files server-side.
                               This key must be given here or in the config file.
   -outdir <dir>               Directory to save the downloaded files.
@@ -77,6 +78,8 @@ var recursiveDownload = Args.Bool("recursive", false, "Download content of the f
 var fromFile = Args.Bool("from-file", false, "Download files from file list.")
 
 var pubKeyBase64 string
+
+var continueDownload = Args.Bool("continue", false, "Skip existing files and continue with the rest.")
 
 // necessary for mocking in testing
 var getResponseBody = getBody
@@ -327,6 +330,15 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	if pubKeyBase64 != "" {
 		filePath += ".c4gh"
 	}
+
+	if *continueDownload {
+		if _, err := os.Stat(filePath); !errors.Is(err, os.ErrNotExist) {
+			fmt.Printf("Skipping download to %s, file already exists\n", filePath)
+
+			return nil
+		}
+	}
+
 	outfile, err := os.Create(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to create file, reason: %v", err)
