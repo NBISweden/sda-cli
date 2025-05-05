@@ -202,8 +202,7 @@ func datasetCase(token string) error {
 	// Loop through the files and download them
 	for _, file := range files {
 		// Download URL for the file
-		fileName := helpers.AnonymizeFilepath(file.FilePath)
-		fileURL := *URL + "/s3/" + file.DatasetID + "/" + fileName
+		fileURL := *URL + "/s3/" + file.DatasetID + "/" + file.FilePath
 		if err != nil {
 			return err
 		}
@@ -242,8 +241,7 @@ func recursiveCase(token string) error {
 		for _, file := range files {
 			if strings.Contains(file.FilePath, dirPath) {
 				pathExists = true
-				fileName := helpers.AnonymizeFilepath(file.FilePath)
-				fileURL := *URL + "/s3/" + file.DatasetID + "/" + fileName
+				fileURL := *URL + "/s3/" + file.DatasetID + "/" + file.FilePath
 				err = downloadFile(fileURL, token, pubKeyBase64, file.FilePath)
 				if err != nil {
 					return err
@@ -404,10 +402,9 @@ func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (strin
 		return "", "", fmt.Errorf("File not found in dataset %s", filename)
 	}
 
-	fileName := helpers.AnonymizeFilepath(datasetFiles[idx].FilePath)
-	url := baseURL + "/s3/" + dataset + "/" + fileName
+	url := baseURL + "/s3/" + dataset + "/" + datasetFiles[idx].FilePath
 
-	return url, fileName, nil
+	return url, datasetFiles[idx].FilePath, nil
 }
 
 func GetDatasets(baseURL, token string) ([]string, error) {
