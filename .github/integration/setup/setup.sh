@@ -109,13 +109,13 @@ file_ids=$(docker run --rm --name client --network testing_default \
     -t -q -c "INSERT INTO sda.files (stable_id, submission_user, \
         submission_file_path, submission_file_size, archive_file_path, \
         archive_file_size, decrypted_file_size, backup_path, header, \
-        encryption_method) VALUES ('urn:neic:001-001', 'integration-test', '5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8_elixir-europe.org/main/subfolder/dummy_data.c4gh', \
+        encryption_method) VALUES ('urn:neic:001-001', 'integration-test', '5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8_elixir-europe.org/main_folder/subfolder/dummy_data.c4gh', \
         1048729, '4293c9a7-dc50-46db-b79a-27ddc0dad1c6', 1049081, 1048605, \
         '', '637279707434676801000000010000006c000000000000006af1407abc74656b8913a7d323c4bfd30bf7c8ca359f74ae35357acef29dc5073799e207ec5d022b2601340585ff082565e55fbff5b6cdbbbe6b12a0d0a19ef325a219f8b62344325e22c8d26a8e82e45f053f4dcee10c0ec4bb9e466d5253f139dcd4be', 'CRYPT4GH'),
-        ('urn:neic:001-002', 'integration-test', '5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8_elixir-europe.org/main/subfolder2/dummy_data2.c4gh', \
+        ('urn:neic:001-002', 'integration-test', '5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8_elixir-europe.org/main_folder/subfolder2/dummy_data2.c4gh', \
         1048729, 'f2e8b1d3-7a5c-4e0d-9c9a-8b4e3d7a5c4e', 1049081, 1048605, \
         '', '637279707434676801000000010000006c000000000000006af1407abc74656b8913a7d323c4bfd30bf7c8ca359f74ae35357acef29dc5073799e207ec5d022b2601340585ff082565e55fbff5b6cdbbbe6b12a0d0a19ef325a219f8b62344325e22c8d26a8e82e45f053f4dcee10c0ec4bb9e466d5253f139dcd4be', 'CRYPT4GH'),
-        ('urn:neic:001-003', 'integration-test', '5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8_elixir-europe.org/main/subfolder2/random/dummy_data3.c4gh', \
+        ('urn:neic:001-003', 'integration-test', '5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8_elixir-europe.org/main_folder/subfolder2/random/dummy_data3.c4gh', \
         1048729, 'd9ab71e9-3884-429a-a6b7-bd63eeafe4a9', 1049081, 1048605, \
         '', '637279707434676801000000010000006c000000000000006af1407abc74656b8913a7d323c4bfd30bf7c8ca359f74ae35357acef29dc5073799e207ec5d022b2601340585ff082565e55fbff5b6cdbbbe6b12a0d0a19ef325a219f8b62344325e22c8d26a8e82e45f053f4dcee10c0ec4bb9e466d5253f139dcd4be', 'CRYPT4GH') RETURNING id;" | xargs)
 
