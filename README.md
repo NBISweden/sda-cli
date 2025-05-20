@@ -346,7 +346,7 @@ The following options are available for downloading files:
 
 The file paths and fileIDs can be obtained by [listing files of a dataset](#list-files-within-a-dataset).
 
-**Note**: the `userID` prefix in the file path should be removed before passing it to the download command. For example, if the file path `1212121212121212121212121212121212121212_elixir-europe.org/main/subfolder/dummy_data.c4gh` was obtained from the list command, you should pass `main/subfolder/dummy_data.c4gh` to the download command.
+**Note**: the `userID` prefix in the file path should be removed before passing it to the download command. For example, if the file path `1212121212_elixir-europe.org/main/subfolder/dummy_data.c4gh` was obtained from the list command, you should pass `main/subfolder/dummy_data.c4gh` to the download command.
 
 ### Download specific files of a dataset
 
