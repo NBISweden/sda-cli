@@ -323,7 +323,7 @@ the previous command):
 ./sda-cli -config <configuration_file> list -dataset <datasetID> (-bytes) -url <download-service-url>
 ```
 
-This command returns a list of files within the sepcified dataset, including
+This command returns a list of files within the specified dataset, including
 file IDs, sizes, and paths. The `-bytes` flag is optional and displays file
 sizes in bytes.
 
@@ -331,13 +331,10 @@ sizes in bytes.
 
 Before using the `download` functionality, ensure you have [downloaded the configuration file](#download-the-configuration-file).
 
-Depending on the setup of the SDA/BP services, files can be downloaded
-unencrypted or encrypted.
+Depending on the setup of the SDA/BP services, files may be downloaded either
+encrypted or unencrypted. By default, only encrypted files can be downloaded.
 
-If the download service is configured for encrypted downloads, you can download files
-encrypted on the server-side by providing a
-[public key file](#create-crypt4gh-key-pair) using the `-pubkey` flag. For
-detailed instructions, refer to [download encrypted files](#download-encrypted-files).
+Downloaded files are encrypted server-side using the [public key](#create-crypt4gh-key-pair) specified with the `-pubkey` flag.
 
 The following options are available for downloading files:
 
@@ -349,6 +346,8 @@ The following options are available for downloading files:
 
 The file paths and fileIDs can be obtained by [listing files of a dataset](#list-files-within-a-dataset).
 
+**Note**: the `userID` prefix in the file path should be removed before passing it to the download command. For example, if the file path `1212121212_elixir-europe.org/main/subfolder/dummy_data.c4gh` was obtained from the list command, you should pass `main/subfolder/dummy_data.c4gh` to the download command.
+
 ### Download specific files of a dataset
 
 #### Using file paths
@@ -357,11 +356,13 @@ To download a specific file from a dataset by their file path, use the following
 command:
 
 ```bash
-./sda-cli -config <configuration_file> download -dataset-id <datasetID> -url <download-service-URL> <filepath>
+./sda-cli -config <configuration_file> download -pubkey <public-key-file> -dataset-id <datasetID> -url <download-service-URL> <filepath>
 ```
 
 where `<configuration_file>` refers to the configuration file downloaded in the
-[previous step](#download-the-configuration-file), `<datasetID>` is the ID of
+[previous step](#download-the-configuration-file), `<public-key-file>` is a file
+containing the [public key](#create-crypt4gh-key-pair) used to server-side
+encrypt the file to be downloaded,  `<datasetID>` is the ID of
 the dataset, and `<filepath>` is the path of the file in the dataset that you
 want to download.
 
@@ -369,7 +370,7 @@ To download multiple files using their file paths, list them separated by
 spaces.
 
 ```bash
-./sda-cli -config <configuration_file> download -dataset-id <datasetID> -url <download-service-url> <filepath_1> <filepath_2>
+./sda-cli -config <configuration_file> download -pubkey <public-key-file> -dataset-id <datasetID> -url <download-service-url> <filepath_1> <filepath_2>
 ```
 
 By default, files are downloaded to the current directory. To specify a custom
@@ -390,7 +391,7 @@ To download the contents of a folder, including all subfolders, use the
 `-recursive` flag followed by the folder path. For example:
 
 ```bash
-./sda-cli -config <configuration_file> download -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> -recursive <path_to_folder> 
+./sda-cli -config <configuration_file> download -pubkey <public-key-file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> -recursive <path_to_folder>
 ```
 
 This command preserves the folder structure of the specified directories during
@@ -405,43 +406,27 @@ paths. Each path should be on a separate line. Use the `-from-file` flag followe
 by the path to the text file, as shown below:
 
 ```bash
-./sda-cli -config <configuration_file> download -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> -from-file <path_to_list_file>
+./sda-cli -config <configuration_file> download -pubkey <public-key-file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> -from-file <path_to_list_file>
 ```
 
 This approach simplifies downloading large numbers of files.
 
-### Download all the files of a dataset
+### Download all files of a dataset
 
 To download all files in a dataset, use the `-dataset` flag without providing
 any argument.
 
 ```bash
-./sda-cli -config <configuration_file> download -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> -dataset
+./sda-cli -config <configuration_file> download -pubkey <public-key-file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> -dataset
 ```
 
 The dataset will be downloaded to the `<outdir>`, preserving its original folder
 structure.
 
-### Download encrypted files
+**Notes**:
 
-When a [public key](#create-crypt4gh-key-pair) is provided, you can download
-files encrypted on the server-side with that key. The syntax is similar to
-downloading unencrypted files, but includes the `-pubkey` flag to specify the
-public key. For example:
-
-```bash
-./sda-cli -config <configuration_file> download -pubkey <public-key-file> -dataset-id <datasetID> -url <download-service-url> -outdir <outdir> <filepath_1> <filepath_2>
-```
-
-After a successful download, the encrypted files will be saved to `<outdir>`,
-maintaining their original folder structure. These files can then be
-[decrypted](#decrypt-files) using the private key corresponding to the provided
-public key.
-
-**Note**: Downloading encrypted files for an entire folder recursively, similar
-*to [downloading unencrypted files](#download-files-recursively), is still not
-*supported. To download multiple encrypted files, you must specify them as
-*arguments, as shown in the example above.
+- If the `-pubkey` flag is not provided, the command will be aborted with an error.
+- If the files to be downloaded already exist in your local folder, they will be overwritten.
 
 ## Create Crypt4GH key pair
 
