@@ -21,6 +21,8 @@ import (
 	"github.com/neicnordic/crypt4gh/keys"
 	"github.com/neicnordic/crypt4gh/streaming"
 	log "github.com/sirupsen/logrus"
+	"github.com/vbauerster/mpb/v8"
+	"github.com/vbauerster/mpb/v8/decor"
 )
 
 // Help text and command line flags.
@@ -420,6 +422,9 @@ func generatePrivateKey() (*[32]byte, error) {
 // Encrypts the data from `filename` into `outFilename` for the given `pubKey`,
 // using the given `privateKey`.
 func encrypt(filename, outFilename string, pubKeyList [][32]byte, privateKey [32]byte) error {
+	// create new progressbar instance
+	p := mpb.New()
+
 	// check if outfile exists
 	if helpers.FileExists(outFilename) {
 		return fmt.Errorf("outfile %s already exists", outFilename)
@@ -456,8 +461,25 @@ func encrypt(filename, outFilename string, pubKeyList [][32]byte, privateKey [32
 	}
 	defer crypt4GHWriter.Close()
 
+	fileInfo, err := inFile.Stat()
+	if err != nil {
+		return err
+	}
+
+	// Create a mpb *Bar so we can track encryption progress with one progress bar per file being encrypted
+	bar := p.AddBar(fileInfo.Size(),
+		mpb.PrependDecorators(
+			decor.Name(inFile.Name(), decor.WC{W: len(inFile.Name()) + 1, C: decor.DindentRight}),
+			decor.Name("encrypting", decor.WCSyncSpaceR),
+			decor.Counters(decor.SizeB1024(0), "% .1f / % .1f"),
+		),
+		mpb.AppendDecorators(
+			decor.OnComplete(decor.Percentage(decor.WC{W: 5}), "done"),
+		),
+	)
+
 	// Encrypt the data
-	_, err = io.Copy(crypt4GHWriter, inFile)
+	_, err = io.Copy(crypt4GHWriter, bar.ProxyReader(inFile))
 	if err != nil {
 		return err
 	}
