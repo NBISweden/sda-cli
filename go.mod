@@ -13,7 +13,7 @@ require (
 	github.com/neicnordic/crypt4gh v1.14.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
-	github.com/vbauerster/mpb/v8 v8.10.1
+	github.com/vbauerster/mpb/v8 v8.10.2
 	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1
 	gopkg.in/ini.v1 v1.67.0
 )
