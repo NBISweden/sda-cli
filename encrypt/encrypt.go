@@ -305,58 +305,49 @@ func checkFiles(files []helpers.EncryptionFileSet) error {
 }
 
 // Calculates md5 and sha256 hashes for the unencrypted and encrypted files
-func calculateHashes(fileSet helpers.EncryptionFileSet) (*hashSet, error) {
+func calculateHashes(unencryptedReader io.Reader, encryptFunc func(io.Writer) (io.WriteCloser, error)) (*hashSet, error) {
+	hashes := &hashSet{}
 
-	hashes := hashSet{"", "", "", ""}
+	// Hashers for unencrypted data
+	unencMD5 := md5.New()
+	unencSHA := sha256.New()
 
-	// open infile
-	unencryptedFile, err := os.Open(fileSet.Unencrypted)
+	// Hashers for encrypted data
+	encMD5 := md5.New()
+	encSHA := sha256.New()
+
+	// Pipe: connects encrypted output to its hashers
+	encPipeReader, encPipeWriter := io.Pipe()
+
+	// Setup encryption, encryptFunc will write encrypted data into encPipeWriter
+	encryptWriter, err := encryptFunc(encPipeWriter)
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err := unencryptedFile.Close(); err != nil {
-			log.Errorf("Error closing file: %s\n", err)
+
+	go func() {
+		defer encPipeWriter.Close()
+		defer encryptWriter.Close()
+		// Copy unencrypted input into the encrypting writer & hash the encrypted data
+		_, err := io.Copy(io.MultiWriter(unencMD5, unencSHA, encryptWriter), unencryptedReader)
+		if err != nil {
+			encPipeWriter.CloseWithError(err)
 		}
 	}()
 
-	// unencrypted md5 and sha256 checksums
-	md5Hash := md5.New()
-	shaHash := sha256.New()
-
-	tee := io.TeeReader(unencryptedFile, md5Hash)
-
-	_, err = io.Copy(shaHash, tee)
+	// On main goroutine: read encrypted output and hash it
+	_, err = io.Copy(io.MultiWriter(encMD5, encSHA), encPipeReader)
 	if err != nil {
 		return nil, err
 	}
-	hashes.unencryptedMd5 = hex.EncodeToString(md5Hash.Sum(nil))
-	hashes.unencryptedSha256 = hex.EncodeToString(shaHash.Sum(nil))
 
-	// encrypted md5 and sha256 checksums
-	encryptedFile, err := os.Open(fileSet.Encrypted)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err := encryptedFile.Close(); err != nil {
-			log.Errorf("Error closing file: %s\n", err)
-		}
-	}()
+	// Store all hashes
+	hashes.unencryptedMd5 = hex.EncodeToString(unencMD5.Sum(nil))
+	hashes.unencryptedSha256 = hex.EncodeToString(unencSHA.Sum(nil))
+	hashes.encryptedMd5 = hex.EncodeToString(encMD5.Sum(nil))
+	hashes.encryptedSha256 = hex.EncodeToString(encSHA.Sum(nil))
 
-	// encrypted md5
-	md5Hash.Reset()
-	shaHash.Reset()
-
-	tee = io.TeeReader(encryptedFile, md5Hash)
-	_, err = io.Copy(shaHash, tee)
-	if err != nil {
-		return nil, err
-	}
-	hashes.encryptedMd5 = hex.EncodeToString(md5Hash.Sum(nil))
-	hashes.encryptedSha256 = hex.EncodeToString(shaHash.Sum(nil))
-
-	return &hashes, nil
+	return hashes, nil
 }
 
 // Reads a public key from a file using the crypt4gh keys module
