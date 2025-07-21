@@ -189,42 +189,42 @@ func Encrypt(args []string) error {
 	}
 
 	// Open all checksum files
-	ChecksumFileUnencMd5, err := os.OpenFile("checksum_unencrypted.md5", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	checksumFileUnencMd5, err := os.OpenFile("checksum_unencrypted.md5", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		if err := ChecksumFileUnencMd5.Close(); err != nil {
+		if err := checksumFileUnencMd5.Close(); err != nil {
 			log.Errorf("Error closing file: %s\n", err)
 		}
 	}()
 
-	ChecksumFileUnencSha256, err := os.OpenFile("checksum_unencrypted.sha256", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	checksumFileUnencSha256, err := os.OpenFile("checksum_unencrypted.sha256", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		if err := ChecksumFileUnencSha256.Close(); err != nil {
+		if err := checksumFileUnencSha256.Close(); err != nil {
 			log.Errorf("Error closing file: %s\n", err)
 		}
 	}()
 
-	ChecksumFileEncMd5, err := os.OpenFile("checksum_encrypted.md5", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	checksumFileEncMd5, err := os.OpenFile("checksum_encrypted.md5", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		if err := ChecksumFileEncMd5.Close(); err != nil {
+		if err := checksumFileEncMd5.Close(); err != nil {
 			log.Errorf("Error closing file: %s\n", err)
 		}
 	}()
 
-	ChecksumFileEncSha256, err := os.OpenFile("checksum_encrypted.sha256", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	checksumFileEncSha256, err := os.OpenFile("checksum_encrypted.sha256", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		if err := ChecksumFileEncSha256.Close(); err != nil {
+		if err := checksumFileEncSha256.Close(); err != nil {
 			log.Errorf("Error closing file: %s\n", err)
 		}
 	}()
@@ -246,19 +246,19 @@ func Encrypt(args []string) error {
 		}
 
 		// Write hashes
-		if _, err := ChecksumFileUnencMd5.WriteString(fmt.Sprintf("%s %s\n", hashes.unencryptedMd5, file.Unencrypted)); err != nil {
+		if _, err := fmt.Fprintf(checksumFileUnencMd5, "%s %s\n", hashes.unencryptedMd5, file.Unencrypted); err != nil {
 			return err
 		}
 
-		if _, err := ChecksumFileUnencSha256.WriteString(fmt.Sprintf("%s %s\n", hashes.unencryptedSha256, file.Unencrypted)); err != nil {
+		if _, err := fmt.Fprintf(checksumFileUnencSha256, "%s %s\n", hashes.unencryptedSha256, file.Unencrypted); err != nil {
 			return err
 		}
 
-		if _, err := ChecksumFileEncMd5.WriteString(fmt.Sprintf("%s %s\n", hashes.encryptedMd5, file.Encrypted)); err != nil {
+		if _, err := fmt.Fprintf(checksumFileEncMd5, "%s %s\n", hashes.encryptedMd5, file.Encrypted); err != nil {
 			return err
 		}
 
-		if _, err := ChecksumFileEncSha256.WriteString(fmt.Sprintf("%s %s\n", hashes.encryptedSha256, file.Encrypted)); err != nil {
+		if _, err := fmt.Fprintf(checksumFileEncSha256, "%s %s\n", hashes.encryptedSha256, file.Encrypted); err != nil {
 			return err
 		}
 	}
