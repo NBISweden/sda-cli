@@ -9,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"hash"
 	"io"
 	"os"
 	"path"
@@ -21,6 +22,7 @@ import (
 	"github.com/neicnordic/crypt4gh/keys"
 	"github.com/neicnordic/crypt4gh/streaming"
 	log "github.com/sirupsen/logrus"
+	"github.com/smallnest/ringbuffer"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 )
@@ -572,4 +574,51 @@ type hashSet struct {
 type keySpecs struct {
 	rgx    *regexp.Regexp // text pattern to match
 	nbytes int            // first n bytes of file to parse
+}
+
+func Stream(file *os.File, pubKeyList [][32]byte) (FileStream, error) {
+	if len(pubKeyList) == 0 {
+		return FileStream{}, errors.New("no public key supplied")
+	}
+	privateKey, err := generatePrivateKey()
+	if err != nil {
+		return FileStream{}, err
+	}
+
+	unencryptedMD5 := md5.New()
+	unencryptedSha256 := sha256.New()
+	unecryptedWriter := io.MultiWriter(unencryptedMD5, unencryptedSha256)
+	unencryptedReader := io.TeeReader(file, unecryptedWriter)
+
+	encryptedData := ringbuffer.New(1024 * 1024).SetBlocking(true)
+	encryptedMD5 := md5.New()
+	encryptedSha256 := sha256.New()
+	encryptedWriter := io.MultiWriter(encryptedData, encryptedMD5, encryptedSha256)
+
+	crypt4GHWriter, err := streaming.NewCrypt4GHWriter(encryptedWriter, *privateKey, pubKeyList, nil)
+	if err != nil {
+		return FileStream{}, err
+	}
+	go func() {
+		_, _ = io.Copy(crypt4GHWriter, unencryptedReader)
+		defer encryptedData.CloseWriter()
+	}()
+
+	fs := FileStream{
+		EncryptedMD5:      encryptedMD5,
+		EncryptedSha256:   encryptedSha256,
+		Reader:            encryptedData,
+		UnencryptedMD5:    unencryptedMD5,
+		UnencryptedSha256: unencryptedSha256,
+	}
+
+	return fs, nil
+}
+
+type FileStream struct {
+	EncryptedMD5      hash.Hash
+	EncryptedSha256   hash.Hash
+	Reader            io.Reader
+	UnencryptedMD5    hash.Hash
+	UnencryptedSha256 hash.Hash
 }
