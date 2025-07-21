@@ -114,7 +114,7 @@ func GetAuthInfo(baseURL string) (*AuthInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 	var result AuthInfo
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -154,7 +154,7 @@ func (login *DeviceLogin) UpdateConfigFile() error {
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer out.Close() //nolint:errcheck
 
 	return nil
 }
@@ -296,7 +296,7 @@ func (login *DeviceLogin) getUserInfo() (*UserInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
@@ -324,7 +324,7 @@ func (login *DeviceLogin) getWellKnown() (*OIDCWellKnown, error) {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
@@ -365,7 +365,7 @@ func (login *DeviceLogin) startDeviceLogin() (*DeviceLoginResponse, error) {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
@@ -408,7 +408,7 @@ func (login *DeviceLogin) waitForLogin() (*Result, error) {
 		}
 
 		if resp.StatusCode == 200 {
-			defer resp.Body.Close()
+			defer resp.Body.Close() //nolint:errcheck
 			respBody, err := io.ReadAll(resp.Body)
 			if err != nil {
 				return nil, err

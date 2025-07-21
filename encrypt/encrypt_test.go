@@ -116,11 +116,11 @@ func (suite *EncryptTests) SetupTest() {
 }
 
 func (suite *EncryptTests) TearDownTest() {
-	os.Remove("checksum_encrypted.md5")
-	os.Remove("checksum_encrypted.sha256")
-	os.Remove("checksum_unencrypted.md5")
-	os.Remove("checksum_unencrypted.sha256")
-	os.RemoveAll(suite.tempDir)
+	os.Remove("checksum_encrypted.md5")      //nolint:errcheck
+	os.Remove("checksum_encrypted.sha256")   //nolint:errcheck
+	os.Remove("checksum_unencrypted.md5")    //nolint:errcheck
+	os.Remove("checksum_unencrypted.sha256") //nolint:errcheck
+	os.RemoveAll(suite.tempDir)              //nolint:errcheck
 }
 
 func (suite *EncryptTests) TestcheckFiles() {
@@ -151,7 +151,7 @@ func (suite *EncryptTests) TestreadPublicKeyFile() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer file.Close()
+	defer file.Close() //nolint:errcheck
 	publicKey, err := readPublicKeyFile(file.Name())
 	assert.NoError(suite.T(), err)
 	suite.Equal(*publicKey, suite.pubKeyData)
@@ -254,10 +254,10 @@ func (suite *EncryptTests) TestPubKeyFromInfo() {
 	os.Args = []string{"encrypt", "-target", mockServer.URL, suite.fileOk.Name()}
 	assert.NoError(suite.T(), Encrypt(os.Args), "Encrypt from info failed unexpectedly")
 
-	os.Setenv("C4GH_PASSWORD", "")
+	os.Setenv("C4GH_PASSWORD", "") //nolint:errcheck
 	if runtime.GOOS != "windows" {
 		// verify that the file can be decrypted
-		os.Remove(suite.fileOk.Name())
+		os.Remove(suite.fileOk.Name()) //nolint:errcheck
 		os.Args = []string{"decrypt", "-key", suite.privateKey.Name(), fmt.Sprintf("%s.c4gh", suite.fileOk.Name())}
 		assert.NoError(suite.T(), decrypt.Decrypt(os.Args), "decrypting encrypted file failed unexpectedly")
 	}

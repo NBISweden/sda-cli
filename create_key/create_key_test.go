@@ -32,7 +32,7 @@ func (suite *CreateKeyTests) SetupTest() {
 }
 
 func (suite *CreateKeyTests) TearDownTest() {
-	os.Remove(suite.tempDir)
+	os.Remove(suite.tempDir) //nolint:errcheck
 }
 
 func (suite *CreateKeyTests) TestgenerateKeyPair() {
@@ -48,12 +48,12 @@ func (suite *CreateKeyTests) TestgenerateKeyPair() {
 	assert.EqualError(suite.T(), err, fmt.Sprintf("key pair with name '%v' seems to already exist, refusing to overwrite", testFileName))
 
 	// remove the public key to test the private key exists error
-	os.Remove(fmt.Sprintf("%s.pub.pem", testFileName))
+	os.Remove(fmt.Sprintf("%s.pub.pem", testFileName)) //nolint:errcheck
 	err = GenerateKeyPair(testFileName, "")
 	assert.EqualError(suite.T(), err, fmt.Sprintf("key pair with name '%v' seems to already exist, refusing to overwrite", testFileName))
 
 	// remove the private key so we can try again
-	os.Remove(fmt.Sprintf("%s.sec.pem", testFileName))
+	os.Remove(fmt.Sprintf("%s.sec.pem", testFileName)) //nolint:errcheck
 
 	password := "testPassword"
 

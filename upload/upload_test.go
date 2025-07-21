@@ -34,7 +34,7 @@ func TestConfigTestSuite(t *testing.T) {
 }
 
 func (suite *TestSuite) SetupTest() {
-	os.Setenv("ACCESSTOKEN", "")
+	os.Setenv("ACCESSTOKEN", "") //nolint:errcheck
 	*accessToken = ""
 	suite.accessToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtleXN0b3JlLUNIQU5HRS1NRSJ9.eyJqdGkiOiJWTWpfNjhhcEMxR2FJbXRZdFExQ0ciLCJzdWIiOiJkdW1teSIsImlzcyI6Imh0dHA6Ly9vaWRjOjkwOTAiLCJpYXQiOjE3MDc3NjMyODksImV4cCI6MTg2NTU0NzkxOSwic2NvcGUiOiJvcGVuaWQgZ2E0Z2hfcGFzc3BvcnRfdjEgcHJvZmlsZSBlbWFpbCIsImF1ZCI6IlhDNTZFTDExeHgifQ.ZFfIAOGeM2I5cvqr1qJV74qU65appYjpNJVWevGHjGA5Xk_qoRMFJXmG6AiQnYdMKnJ58sYGNjWgs2_RGyw5NyM3-pgP7EKHdWU4PrDOU84Kosg4IPMSFxbBRAEjR5X04YX_CLYW2MFk_OyM9TIln522_JBVT_jA5WTTHSmBRHntVArYYHvQdF-oFRiqL8JXWlsUBh3tqQ33sZdqd9g64YhTk9a5lEC42gn5Hg9Hm_qvkl5orzEqIg7x9z5706IBE4Zypco5ohrAKsEbA8EKbEBb0jigGgCslQNde2owUyKIkvZYmxHA78X5xpymMp9K--PgbkyMS9GtA-YwOHPs-w"
 }
@@ -63,7 +63,7 @@ func (suite *TestSuite) TestSampleNoFiles() {
 		log.Fatal(err)
 	}
 
-	defer os.Remove(configPath.Name())
+	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
@@ -110,13 +110,13 @@ func (suite *TestSuite) TestcreateFilePaths() {
 	if err != nil {
 		log.Panic(err)
 	}
-	defer os.RemoveAll(dir)
+	defer os.RemoveAll(dir) //nolint:errcheck
 
 	testfile, err := os.CreateTemp(dir, "testfile")
 	if err != nil {
 		log.Panic(err)
 	}
-	defer os.Remove(testfile.Name())
+	defer os.Remove(testfile.Name()) //nolint:errcheck
 
 	// Input is a file
 	_, _, err = createFilePaths(testfile.Name())
@@ -191,7 +191,7 @@ func (suite *TestSuite) TestFunctionality() {
 	if err != nil {
 		log.Panic(err)
 	}
-	defer os.Remove(configPath.Name())
+	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
@@ -203,7 +203,7 @@ func (suite *TestSuite) TestFunctionality() {
 	if err != nil {
 		log.Panic(err)
 	}
-	defer os.RemoveAll(dir)
+	defer os.RemoveAll(dir) //nolint:errcheck
 
 	testfile, err := os.CreateTemp(dir, "testfile")
 	if err != nil {
@@ -213,7 +213,7 @@ func (suite *TestSuite) TestFunctionality() {
 	if err != nil {
 		log.Printf("failed to write temp config file, %v", err)
 	}
-	defer os.Remove(testfile.Name())
+	defer os.Remove(testfile.Name()) //nolint:errcheck
 
 	var str bytes.Buffer
 	log.SetOutput(&str)
@@ -310,8 +310,8 @@ func (suite *TestSuite) TestFunctionality() {
 	os.Args = []string{"upload", "--force-unencrypted", "-r", dir}
 	_ = Upload(os.Args, configPath.Name())
 
-	w.Close()
-	errW.Close()
+	w.Close()    //nolint:errcheck
+	errW.Close() //nolint:errcheck
 	os.Stdout = rescueStdout
 	os.Stderr = rescueStderr
 	uploadOutput, _ := io.ReadAll(r)
@@ -367,13 +367,13 @@ func (suite *TestSuite) TestFunctionality() {
 	newArgs = []string{"upload", testfile.Name()}
 	assert.EqualError(suite.T(), Upload(newArgs, configPath.Name()), "no access token supplied")
 
-	os.Setenv("ACCESSTOKEN", "BadToken")
+	_ = os.Setenv("ACCESSTOKEN", "BadToken")
 	// Supplying an accesstoken as a ENV overrules the one in the config file
 	newArgs = []string{"upload", testfile.Name()}
 	assert.EqualError(suite.T(), Upload(newArgs, configPath.Name()), "could not parse token, reason: token contains an invalid number of segments")
 
 	suite.SetupTest()
-	os.Setenv("ACCESSTOKEN", suite.accessToken)
+	_ = os.Setenv("ACCESSTOKEN", suite.accessToken)
 	newArgs = []string{"upload", testfile.Name()}
 	assert.NoError(suite.T(), Upload(newArgs, configPath.Name()))
 
@@ -451,7 +451,7 @@ func (suite *TestSuite) TestRecursiveToDifferentTarget() {
 	if err != nil {
 		log.Print(err.Error())
 	}
-	defer os.Remove(configPath.Name())
+	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
@@ -463,7 +463,7 @@ func (suite *TestSuite) TestRecursiveToDifferentTarget() {
 	if err != nil {
 		log.Println(err)
 	}
-	defer os.RemoveAll(dir)
+	defer os.RemoveAll(dir) //nolint:errcheck
 
 	testfile, err := os.CreateTemp(dir, "testfile")
 	if err != nil {
@@ -473,7 +473,7 @@ func (suite *TestSuite) TestRecursiveToDifferentTarget() {
 	if err != nil {
 		log.Printf("failed to write temp config file, %v", err)
 	}
-	defer os.Remove(testfile.Name())
+	defer os.Remove(testfile.Name()) //nolint:errcheck
 
 	var str bytes.Buffer
 	log.SetOutput(&str)
@@ -528,7 +528,7 @@ func (suite *TestSuite) TestUploadInvalidCharacters() {
 	if err != nil {
 		log.Panic(err)
 	}
-	defer os.Remove(configPath.Name())
+	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
@@ -540,7 +540,7 @@ func (suite *TestSuite) TestUploadInvalidCharacters() {
 	if err != nil {
 		log.Panic(err)
 	}
-	defer os.RemoveAll(dir)
+	defer os.RemoveAll(dir) //nolint:errcheck
 
 	// Create a test file
 	testfilepath := "testfile"
@@ -553,7 +553,7 @@ func (suite *TestSuite) TestUploadInvalidCharacters() {
 	if err != nil {
 		log.Panic(err)
 	}
-	defer os.Remove(testfile.Name())
+	defer os.Remove(testfile.Name()) //nolint:errcheck
 
 	// Check that target dir names with invalid characters will not be accepted
 	badchars := ":*?"
@@ -588,7 +588,7 @@ func (suite *TestSuite) TestUploadInvalidCharacters() {
 		if err != nil {
 			log.Panic(err)
 		}
-		defer os.Remove(testfile.Name())
+		defer os.Remove(testfile.Name()) //nolint:errcheck
 
 		os.Args = []string{"upload", "--force-unencrypted", "-r", testfile.Name()}
 		err = Upload(os.Args, configPath.Name())

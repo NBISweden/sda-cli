@@ -461,7 +461,7 @@ func encrypt(filename, outFilename string, pubKeyList [][32]byte, privateKey [32
 	if err != nil {
 		return err
 	}
-	defer crypt4GHWriter.Close()
+	defer crypt4GHWriter.Close() //nolint:errcheck
 
 	fileInfo, err := inFile.Stat()
 	if err != nil {

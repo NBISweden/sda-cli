@@ -101,9 +101,9 @@ func (suite *HelperTests) SetupTest() {
 }
 
 func (suite *HelperTests) TearDownTest() {
-	os.Remove(suite.testFile.Name())
-	os.Remove(suite.testFile1.Name())
-	os.Remove(suite.tempDir)
+	os.Remove(suite.testFile.Name())  //nolint:errcheck
+	os.Remove(suite.testFile1.Name()) //nolint:errcheck
+	os.Remove(suite.tempDir)          //nolint:errcheck
 }
 
 func (suite *HelperTests) TestFileExists() {
@@ -188,7 +188,7 @@ func (suite *HelperTests) TestParseS3ErrorResponse() {
 	// check bad response body by creating and passing
 	// a dummy faulty io.Reader
 	f, _ := os.Open(`doesn't exist`)
-	defer f.Close()
+	defer f.Close() //nolint:errcheck
 	msg, err := ParseS3ErrorResponse(f)
 	suite.Equal("", msg)
 	suite.ErrorContains(err, "failed to read from response body")
@@ -237,7 +237,7 @@ encrypt = False
 		log.Fatal(err)
 	}
 
-	defer os.Remove(configPath.Name())
+	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
@@ -263,7 +263,7 @@ func (suite *HelperTests) TestConfigS3cmdFileFormat() {
 		log.Fatal(err)
 	}
 
-	defer os.Remove(configPath.Name())
+	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
@@ -281,7 +281,7 @@ func (suite *HelperTests) TestConfigMissingCredentials() {
 		log.Fatal(err)
 	}
 
-	defer os.Remove(configPath.Name())
+	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	_, err = LoadConfigFile(configPath.Name())
 	assert.EqualError(suite.T(), err, "failed to find credentials in configuration file")
@@ -297,7 +297,7 @@ access_key = someUser
 		log.Fatal(err)
 	}
 
-	defer os.Remove(configPath.Name())
+	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	if err := os.WriteFile(configPath.Name(), []byte(confFile), 0600); err != nil {
 		log.Printf("failed to write temp config file, %v", err)
@@ -329,7 +329,7 @@ encrypt = False
 		log.Fatal(err)
 	}
 
-	defer os.Remove(configPath.Name())
+	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
@@ -361,7 +361,7 @@ func (suite *HelperTests) TestTokenExpiration() {
 	err = CheckTokenExpiration(token)
 	assert.NoError(suite.T(), err)
 
-	w.Close()
+	w.Close() //nolint:errcheck
 	out, _ := io.ReadAll(r)
 	os.Stderr = storeStderr
 
@@ -379,7 +379,7 @@ func (suite *HelperTests) TestTokenExpiration() {
 	err = CheckTokenExpiration(token)
 	assert.NoError(suite.T(), err)
 
-	w.Close()
+	w.Close() //nolint:errcheck
 	out, _ = io.ReadAll(r)
 	os.Stderr = storeStderr
 
@@ -409,7 +409,7 @@ encrypt = False
 		log.Fatal(err)
 	}
 
-	defer os.Remove(configPath.Name())
+	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
@@ -444,7 +444,7 @@ public_key = 27be42445fd9e39c9be39e6b36a55e61e3801fc845f63781a813d3fe9977e17a
 		log.Fatal(err)
 	}
 
-	defer os.Remove(configPath.Name())
+	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
@@ -455,7 +455,7 @@ public_key = 27be42445fd9e39c9be39e6b36a55e61e3801fc845f63781a813d3fe9977e17a
 	assert.NoError(suite.T(), err)
 
 	if assert.FileExists(suite.T(), "key-from-oidc.pub.pem") {
-		os.Remove("key-from-oidc.pub.pem")
+		os.Remove("key-from-oidc.pub.pem") //nolint:errcheck
 	}
 }
 
@@ -483,7 +483,7 @@ MzM5ZWIyYTQ1OGZlYzVlMjNhYThiNTdjZmNiMzVmMTA=
 	pubFile, _ := os.ReadFile(os.TempDir() + "/test_public_file.pub.pem")
 	s := string(pubFile)
 	assert.Equal(suite.T(), expectedPubKey, s)
-	defer os.Remove(os.TempDir() + "/test_public_file.pub.pem")
+	defer os.Remove(os.TempDir() + "/test_public_file.pub.pem") //nolint:errcheck
 }
 
 func (suite *HelperTests) TestListFiles() {
@@ -519,7 +519,7 @@ func (suite *HelperTests) TestListFiles() {
 	if err != nil {
 		log.Panic(err.Error())
 	}
-	defer file.Close()
+	defer file.Close() //nolint:errcheck
 
 	_, err = s3Client.PutObject(&s3.PutObjectInput{
 		Bucket: aws.String("dummy"),
@@ -534,7 +534,7 @@ func (suite *HelperTests) TestListFiles() {
 	if err != nil {
 		log.Panic(err.Error())
 	}
-	defer file1.Close()
+	defer file1.Close() //nolint:errcheck
 	_, err = s3Client.PutObject(&s3.PutObjectInput{
 		Bucket: aws.String("dummy"),
 		Key:    aws.String("dummy/" + filepath.Base(suite.testFile1.Name())),

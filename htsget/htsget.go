@@ -117,7 +117,7 @@ func Htsget(args []string, configPath string) error {
 	if res.StatusCode != 200 {
 		return fmt.Errorf("failed to get the file, status code: %v", res.StatusCode)
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
@@ -175,7 +175,7 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer out.Close() //nolint:errcheck
 
 	// read public key from file
 	publickey, err := os.ReadFile(*publicKeyFile)
@@ -233,7 +233,7 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 
 			return fmt.Errorf("failed to get the file, status code: %v", res)
 		}
-		defer res.Body.Close()
+		defer res.Body.Close() //nolint:errcheck
 
 		// Write the body to file
 		_, err = io.Copy(out, res.Body)
