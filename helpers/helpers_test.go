@@ -181,7 +181,6 @@ module:
 `, os.Args[0])
 	testCorrect := FormatSubcommandUsage(correctUsage)
 	suite.Equal(correctFormat, testCorrect)
-
 }
 
 func (suite *HelperTests) TestParseS3ErrorResponse() {

@@ -39,7 +39,6 @@ func TestEncryptTestSuite(t *testing.T) {
 }
 
 func (suite *EncryptTests) SetupTest() {
-
 	var err error
 
 	// Generate a crypt4gh key pair
@@ -143,7 +142,6 @@ func (suite *EncryptTests) TestcheckFiles() {
 	verifyUnencrypted := helpers.EncryptionFileSet{Unencrypted: suite.encryptedFile.Name(), Encrypted: "does-not-exist"}
 	err = checkFiles([]helpers.EncryptionFileSet{verifyUnencrypted})
 	assert.EqualError(suite.T(), err, fmt.Sprintf("input file %s is already encrypted(.c4gh)", suite.encryptedFile.Name()))
-
 }
 
 func (suite *EncryptTests) TestreadPublicKeyFile() {

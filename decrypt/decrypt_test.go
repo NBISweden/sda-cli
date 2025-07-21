@@ -285,7 +285,6 @@ func TestDecryptCleanTestSuite(t *testing.T) {
 
 // test decrypt with clean flag
 func (suite *DecryptCleanTests) TestDecryptClean() {
-
 	var err error
 	// Create a temporary directory for our files
 	suite.tempDir, err = os.MkdirTemp(os.TempDir(), "sda-cli-test-decrypt-clean")

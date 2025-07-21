@@ -40,7 +40,6 @@ func (suite *TestSuite) SetupTest() {
 }
 
 func (suite *TestSuite) TestSampleNoFiles() {
-
 	confFile := fmt.Sprintf(`
 	access_token = %[1]s
 	host_base = someHostBase
@@ -104,7 +103,6 @@ func (suite *TestSuite) TestSampleNoFiles() {
 }
 
 func (suite *TestSuite) TestcreateFilePaths() {
-
 	// Create temp dir with file
 	dir, err := os.MkdirTemp(os.TempDir(), "test")
 	if err != nil {
@@ -141,7 +139,6 @@ func (suite *TestSuite) TestcreateFilePaths() {
 }
 
 func (suite *TestSuite) TestFunctionality() {
-
 	// Create a fake s3 backend
 	backend := s3mem.New()
 	faker := gofakes3.New(backend)
@@ -499,7 +496,6 @@ func (suite *TestSuite) TestRecursiveToDifferentTarget() {
 }
 
 func (suite *TestSuite) TestUploadInvalidCharacters() {
-
 	// Create a fake s3 backend
 	backend := s3mem.New()
 	faker := gofakes3.New(backend)
@@ -595,5 +591,4 @@ func (suite *TestSuite) TestUploadInvalidCharacters() {
 		assert.Error(suite.T(), err)
 		assert.Equal(suite.T(), fmt.Sprintf("filepath %v contains disallowed characters: %+v", testfilepath, badchar), err.Error())
 	}
-
 }

@@ -496,7 +496,6 @@ func getBody(url, token, pubKeyBase64 string) ([]byte, error) {
 
 // GetURLsFile reads the urls_list.txt file and returns the urls of the files in a list
 func GetURLsFile(urlsFilePath string) (urlsList []string, err error) {
-
 	urlsFile, err := os.Open(filepath.Clean(urlsFilePath))
 	if err != nil {
 		return nil, err

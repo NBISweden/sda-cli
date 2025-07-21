@@ -36,7 +36,6 @@ func (suite *TestSuite) SetupTest() {
 }
 
 func (suite *TestSuite) TestNoConfig() {
-
 	os.Args = []string{"list"}
 
 	err := List(os.Args, "")
@@ -44,7 +43,6 @@ func (suite *TestSuite) TestNoConfig() {
 }
 
 func (suite *TestSuite) TestFunctionality() {
-
 	// Create a fake s3 backend
 	backend := s3mem.New()
 	faker := gofakes3.New(backend)

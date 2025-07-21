@@ -23,7 +23,6 @@ func TestCreateKeyTestSuite(t *testing.T) {
 }
 
 func (suite *CreateKeyTests) SetupTest() {
-
 	var err error
 
 	// Create a temporary directory for our files
@@ -36,7 +35,6 @@ func (suite *CreateKeyTests) TearDownTest() {
 }
 
 func (suite *CreateKeyTests) TestgenerateKeyPair() {
-
 	testFileName := filepath.Join(suite.tempDir, "keyfile")
 
 	// none of the target files exist, no password used
@@ -70,7 +68,6 @@ func (suite *CreateKeyTests) TestgenerateKeyPair() {
 }
 
 func (suite *CreateKeyTests) TestgenerateKeyPairPermission() {
-
 	testFileName := filepath.Join(suite.tempDir, "keyfile")
 
 	// none of the target files exist, no password used

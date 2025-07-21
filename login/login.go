@@ -130,7 +130,6 @@ func GetAuthInfo(baseURL string) (*AuthInfo, error) {
 
 // creates a .sda-cli-session file and updates its values
 func (login *DeviceLogin) UpdateConfigFile() error {
-
 	out, err := os.Create(".sda-cli-session")
 	if err != nil {
 		return err
@@ -176,7 +175,6 @@ func NewLogin(args []string) error {
 // NewDeviceLogin() returns a new `DeviceLogin` with the given `url` and
 // `clientID` set.
 func NewDeviceLogin(args []string) (DeviceLogin, error) {
-
 	var loginURL string
 	err := Args.Parse(args[1:])
 	if err != nil {
@@ -215,7 +213,6 @@ func open(url string) error {
 // Login() does a full login by fetching the remote configuration, starting the
 // login procedure, and then waiting for the user to complete login.
 func (login *DeviceLogin) Login() error {
-
 	var err error
 	login.wellKnown, err = login.getWellKnown()
 	if err != nil {
@@ -256,7 +253,6 @@ func (login *DeviceLogin) Login() error {
 // S3Config() returns a new `S3Config` with the values from the `DeviceLogin`
 func (login *DeviceLogin) GetS3Config() (*S3Config, error) {
 	if login.LoginResult.AccessToken == "" {
-
 		return nil, errors.New("no login token available for config")
 	}
 
@@ -280,7 +276,6 @@ func (login *DeviceLogin) GetS3Config() (*S3Config, error) {
 }
 
 func (login *DeviceLogin) getUserInfo() (*UserInfo, error) {
-
 	if login.LoginResult.AccessToken == "" {
 		return nil, errors.New("login token required to fetch userinfo")
 	}
@@ -317,7 +312,6 @@ func (login *DeviceLogin) getUserInfo() (*UserInfo, error) {
 // getWellKnown() makes a GET request to the `.well-known/openid-configuration`
 // endpoint of BaseURL and returns the result as `OIDCWellKnown`.
 func (login *DeviceLogin) getWellKnown() (*OIDCWellKnown, error) {
-
 	wellKnownURL := fmt.Sprintf("%v/.well-known/openid-configuration", login.BaseURL)
 	resp, err := http.Get(wellKnownURL)
 	if err != nil {
@@ -339,7 +333,6 @@ func (login *DeviceLogin) getWellKnown() (*OIDCWellKnown, error) {
 // startDeviceLogin() starts a device login towards the URLs in login.wellKnown
 // and sets the login.deviceLogin
 func (login *DeviceLogin) startDeviceLogin() (*DeviceLoginResponse, error) {
-
 	var (
 		err           error
 		codeChallenge string
@@ -386,7 +379,6 @@ func (login *DeviceLogin) startDeviceLogin() (*DeviceLoginResponse, error) {
 // waitForLogin() waits for the remote OIDC server to verify the completed login
 // by polling
 func (login *DeviceLogin) waitForLogin() (*Result, error) {
-
 	body := fmt.Sprintf("grant_type=urn:ietf:params:oauth:grant-type:device_code"+
 		"&client_id=%v&device_code=%v&code_verifier=%v", login.ClientID, login.deviceLogin.DeviceCode, login.CodeVerifier)
 
@@ -424,7 +416,6 @@ func (login *DeviceLogin) waitForLogin() (*Result, error) {
 		}
 
 		if expirationTime <= time.Now().Unix() {
-
 			break
 		}
 	}
@@ -433,7 +424,6 @@ func (login *DeviceLogin) waitForLogin() (*Result, error) {
 }
 
 func generatePKCE(count int) (string, string, error) {
-
 	// generate code verifier
 	buf := make([]byte, count)
 	_, err := io.ReadFull(rand.Reader, buf)

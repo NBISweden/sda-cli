@@ -151,7 +151,6 @@ func Encrypt(args []string) error {
 	// Args() returns the non-flag arguments, which we assume are filenames.
 	log.Info("Checking files")
 	for _, filename := range Args.Args() {
-
 		// Set directory for the output file
 		outFilename := filename + ".c4gh"
 		if *outDir != "" {
@@ -269,7 +268,6 @@ func Encrypt(args []string) error {
 // Checks that all the input files exist, are readable and not already encrypted,
 // and that the output files do not exist
 func checkFiles(files []helpers.EncryptionFileSet) error {
-
 	for _, file := range files {
 		// check that the input file exists and is readable
 		if !helpers.FileIsReadable(file.Unencrypted) {
@@ -308,7 +306,6 @@ func checkFiles(files []helpers.EncryptionFileSet) error {
 
 // Calculates md5 and sha256 hashes for the unencrypted and encrypted files
 func calculateHashes(fileSet helpers.EncryptionFileSet) (*hashSet, error) {
-
 	hashes := hashSet{"", "", "", ""}
 
 	// open infile
@@ -527,7 +524,6 @@ func createPubKeyList(publicKeyFileList []string, c4ghKeySpecs keySpecs) ([][32]
 	pubKeyList := [][32]byte{}
 
 	for _, pubkey := range publicKeyFileList {
-
 		// Check that pub key file(s) have a valid format. This ensures that some large
 		// datafile is not read in by user's mistake before we read in the whole file below.
 		fileSize, err := checkKeyFile(pubkey, c4ghKeySpecs)
