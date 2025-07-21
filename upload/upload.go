@@ -1,6 +1,7 @@
 package upload
 
 import (
+	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/neicnordic/crypt4gh/keys"
 	log "github.com/sirupsen/logrus"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
@@ -104,23 +106,27 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		if err != nil {
 			return err
 		}
-		// Check if the file is encrypted and warn if not
-		// Extracting the first 8 bytes of the header - crypt4gh
-		magicWord := make([]byte, 8)
-		_, err = f.Read(magicWord)
-		if err != nil {
-			fmt.Printf("error reading input file %s, reason: %v", filename, err)
-		}
-		if string(magicWord) != "crypt4gh" {
-			fmt.Printf("Input file %s is not encrypted\n", filename)
-			log.Infof("input file %s is not encrypted", filepath.Clean(filename))
-			if !*forceUnencrypted {
-				fmt.Println("Quitting...")
 
-				return errors.New("unencrypted file found")
+		if *pubKeyPath == "" {
+			// Check if the file is encrypted and warn if not
+			// Extracting the first 8 bytes of the header - crypt4gh
+			magicWord := make([]byte, 8)
+			_, err = f.Read(magicWord)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error reading input file %s, reason: %v\n", filename, err)
 			}
-			fmt.Println("force-unencrypted flag provided, continuing...")
+			if string(magicWord) != "crypt4gh" {
+				fmt.Fprintf(os.Stderr, "input file %s is not encrypted\n", filename)
+				log.Infof("input file %s is not encrypted\n", filepath.Clean(filename))
+				if !*forceUnencrypted {
+					fmt.Println("Quitting...")
+
+					return errors.New("unencrypted file found")
+				}
+				fmt.Fprintf(os.Stderr, "force-unencrypted flag provided, continuing...\n")
+			}
 		}
+		_ = f.Close()
 	}
 
 	// The session the S3 Uploader will use
@@ -140,7 +146,6 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 	// Create an uploader with the session and default options
 	uploader := s3manager.NewUploader(sess)
 	for k, filename := range files {
-
 		// create progress bar instance
 		p := mpb.New()
 
@@ -178,29 +183,60 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		if err != nil {
 			return err
 		}
-		file := fmt.Sprintf("File %s:", filepath.Base(filename))
-		// Creates a custom reader. The progress bar starts with the file name,
-		// followed by the uploading status and the progress bar itself.
-		// It is marked as done when the upload is complete
-		reader := helpers.CustomReader{
-			Fp:      f,
-			Size:    fileInfo.Size(),
-			SignMap: map[int64]struct{}{},
-			Bar: p.AddBar(fileInfo.Size(),
-				mpb.PrependDecorators(
-					decor.Name(file, decor.WC{W: len(file) + 1, C: decor.DindentRight}),
-					decor.Name("uploading", decor.WCSyncSpaceR),
-					decor.Counters(decor.SizeB1024(0), "% .1f / % .1f"),
-				),
-				mpb.AppendDecorators(
-					decor.OnComplete(decor.Percentage(decor.WC{W: 5}), "done"),
-				),
-			),
+
+		fs := encrypt.FileStream{}
+		switch {
+		case *pubKeyPath != "":
+			magicWord := make([]byte, 8)
+			_, err := f.Read(magicWord)
+			if err != nil {
+				return err
+			}
+			if string(magicWord) == "crypt4gh" {
+				return errors.New("aborting, file is already encrypted")
+			}
+
+			_, err = f.Seek(0, 0)
+			if err != nil {
+				return err
+			}
+
+			var pubKeyList [][32]byte
+			pubkey, err := os.Open(filepath.Clean(*pubKeyPath))
+			if err != nil {
+				return err
+			}
+
+			publicKey, err := keys.ReadPublicKey(pubkey)
+			if err != nil {
+				return fmt.Errorf(err.Error()+", file: %s", *pubKeyPath)
+			}
+			pubKeyList = append(pubKeyList, publicKey)
+			_ = pubkey.Close()
+
+			fs, err = encrypt.Stream(f, pubKeyList)
+			if err != nil {
+				return err
+			}
+		default:
+			fs.Reader = f
 		}
+
+		file := fmt.Sprintf("File %s:", filepath.Base(filename))
+		bar := p.AddBar(fileInfo.Size(),
+			mpb.PrependDecorators(
+				decor.Name(file, decor.WC{W: len(file) + 1, C: decor.DindentRight}),
+				decor.Name("uploading", decor.WCSyncSpaceR),
+				decor.Counters(decor.SizeB1024(0), "% .1f / % .1f"),
+			),
+			mpb.AppendDecorators(
+				decor.OnComplete(decor.Percentage(decor.WC{W: 5}), "done"),
+			),
+		)
 
 		// Upload the file to S3.
 		result, err := uploader.Upload(&s3manager.UploadInput{
-			Body:            &reader,
+			Body:            bar.ProxyReader(fs.Reader),
 			Bucket:          aws.String(config.AccessKey),
 			Key:             aws.String(targetDir + "/" + outFiles[k]),
 			ContentEncoding: aws.String(config.Encoding),
@@ -217,6 +253,45 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 			return err
 		}
 		log.Infof("file uploaded to %s\n", string(aws.StringValue(&result.Location)))
+
+		if *pubKeyPath != "" {
+			checksumFileUnencMd5, err := os.OpenFile("checksum_unencrypted.md5", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+			if err != nil {
+				return err
+			}
+			defer checksumFileUnencMd5.Close() //nolint:errcheck
+			if _, err := fmt.Fprintf(checksumFileUnencMd5, "%s %s\n", hex.EncodeToString(fs.UnencryptedMD5.Sum(nil)), filename); err != nil {
+				return err
+			}
+
+			checksumFileUnencSha256, err := os.OpenFile("checksum_unencrypted.sha256", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+			if err != nil {
+				return err
+			}
+			defer checksumFileUnencSha256.Close() //nolint:errcheck
+			if _, err := fmt.Fprintf(checksumFileUnencSha256, "%s %s\n", hex.EncodeToString(fs.UnencryptedSha256.Sum(nil)), filename); err != nil {
+				return err
+			}
+
+			checksumFileEncMd5, err := os.OpenFile("checksum_encrypted.md5", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+			if err != nil {
+				return err
+			}
+			defer checksumFileEncMd5.Close() //nolint:errcheck
+			if _, err := fmt.Fprintf(checksumFileEncMd5, "%s %s\n", hex.EncodeToString(fs.EncryptedMD5.Sum(nil)), filename); err != nil {
+				return err
+			}
+
+			checksumFileEncSha256, err := os.OpenFile("checksum_encrypted.sha256", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+			if err != nil {
+				return err
+			}
+			defer checksumFileEncSha256.Close() //nolint:errcheck
+			if _, err := fmt.Fprintf(checksumFileEncSha256, "%s %s\n", hex.EncodeToString(fs.EncryptedSha256.Sum(nil)), filename); err != nil {
+				return err
+			}
+		}
+
 		p.Shutdown()
 	}
 
@@ -366,17 +441,7 @@ func Upload(args []string, configPath string) error {
 	}
 
 	if *pubKeyPath != "" {
-		// Prepare input arg list for Encrypt function
-		encryptArgs := []string{args[0], "-key", *pubKeyPath}
-		encryptArgs = append(encryptArgs, files...)
-
-		if err = encrypt.Encrypt(encryptArgs); err != nil {
-			return err
-		}
-
-		// Modify slices so that we upload only the encrypted files
 		for k := 0; k < len(files); k++ {
-			files[k] += ".c4gh"
 			outFiles[k] += ".c4gh"
 		}
 	}

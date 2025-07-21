@@ -324,8 +324,17 @@ func (suite *TestSuite) TestFunctionality() {
 	assert.Contains(suite.T(), string(uploadError), expectedHostBase)
 
 	// Check that trying to encrypt already encrypted files returns error and aborts
-	newArgs = []string{"upload", "--encrypt-with-key", publicKey.Name(), dir, "-r"}
-	assert.EqualError(suite.T(), Upload(newArgs, configPath.Name()), "aborting")
+	encFile, err := os.CreateTemp(dir, "encFile")
+	if err != nil {
+		log.Panic(err)
+	}
+	err = os.WriteFile(encFile.Name(), []byte("crypt4gh"), 0600)
+	if err != nil {
+		log.Printf("failed to write temp config file, %v", err)
+	}
+	defer os.Remove(testfile.Name()) //nolint:errcheck
+	newArgs = []string{"upload", "--encrypt-with-key", publicKey.Name(), encFile.Name()}
+	assert.EqualError(suite.T(), Upload(newArgs, configPath.Name()), "aborting, file is already encrypted")
 
 	// Check handling of passing source files as pub key
 	// (code checks first for errors related with file args)
