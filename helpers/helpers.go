@@ -14,7 +14,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -25,7 +24,6 @@ import (
 	"github.com/manifoldco/promptui"
 	"github.com/neicnordic/crypt4gh/keys"
 	log "github.com/sirupsen/logrus"
-	"github.com/vbauerster/mpb/v8"
 	"golang.org/x/exp/slices"
 	"gopkg.in/ini.v1"
 )
@@ -190,47 +188,6 @@ type XMLerrorResponse struct {
 	Code     string `xml:"Code"`
 	Message  string `xml:"Message"`
 	Resource string `xml:"Resource"`
-}
-
-// progress bar definitions
-// Produces a progress bar with decorators that can produce different styles
-// Check https://github.com/vbauerster/mpb for more info and how to use it
-type CustomReader struct {
-	Fp      *os.File
-	Size    int64
-	Reads   int64
-	Bar     *mpb.Bar
-	SignMap map[int64]struct{}
-	Mux     sync.Mutex
-}
-
-func (r *CustomReader) Read(p []byte) (int, error) {
-	return r.Fp.Read(p)
-}
-
-func (r *CustomReader) ReadAt(p []byte, off int64) (int, error) {
-	n, err := r.Fp.ReadAt(p, off)
-	if err != nil {
-		return n, err
-	}
-
-	r.Bar.SetTotal(r.Size, false)
-
-	r.Mux.Lock()
-	// Ignore the first signature call
-	if _, ok := r.SignMap[off]; ok {
-		r.Reads += int64(n)
-		r.Bar.SetCurrent(r.Reads)
-	} else {
-		r.SignMap[off] = struct{}{}
-	}
-	r.Mux.Unlock()
-
-	return n, err
-}
-
-func (r *CustomReader) Seek(offset int64, whence int) (int64, error) {
-	return r.Fp.Seek(offset, whence)
 }
 
 // Config struct for storing the s3cmd file values
