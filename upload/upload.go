@@ -254,7 +254,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		}
 		log.Infof("file uploaded to %s\n", string(aws.StringValue(&result.Location)))
 
-		if *pubKeyPath != "" {
+		if *pubKeyPath != "" { //nolint: nestif
 			checksumFileUnencMd5, err := os.OpenFile("checksum_unencrypted.md5", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 			if err != nil {
 				return err
