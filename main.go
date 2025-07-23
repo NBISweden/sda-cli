@@ -68,7 +68,6 @@ var Commands = map[string]commandInfo{
 
 // Main does argument parsing, then delegates to one of the sub modules
 func main() {
-
 	log.SetLevel(log.WarnLevel)
 	command, args, configPath := ParseArgs()
 

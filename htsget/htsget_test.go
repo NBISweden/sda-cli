@@ -21,7 +21,6 @@ func TestConfigTestSuite(t *testing.T) {
 }
 
 func (suite *TestSuite) MissingArgument() {
-
 	os.Args = []string{"htsget"}
 	err := Htsget(os.Args, "")
 	assert.EqualError(suite.T(), err, "missing required arguments, dataset, filename, host and key are required")
@@ -97,7 +96,6 @@ KKj6NUcJGZ2/HeqkYbxm57ZaFLP5cIHsdK+0nQubFVs=
 }
 
 func (suite *TestSuite) TestHtsgetFailDownloadFiles() {
-
 	tmpDir := suite.T().TempDir()
 	s3cmdConf := `[default]
 access_key=test_dummy.org

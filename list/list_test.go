@@ -36,7 +36,6 @@ func (suite *TestSuite) SetupTest() {
 }
 
 func (suite *TestSuite) TestNoConfig() {
-
 	os.Args = []string{"list"}
 
 	err := List(os.Args, "")
@@ -44,7 +43,6 @@ func (suite *TestSuite) TestNoConfig() {
 }
 
 func (suite *TestSuite) TestFunctionality() {
-
 	// Create a fake s3 backend
 	backend := s3mem.New()
 	faker := gofakes3.New(backend)
@@ -97,7 +95,7 @@ func (suite *TestSuite) TestFunctionality() {
 	if err != nil {
 		log.Panic(err)
 	}
-	defer os.Remove(configPath.Name())
+	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	// Write config file
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
@@ -113,14 +111,14 @@ func (suite *TestSuite) TestFunctionality() {
 	if err != nil {
 		log.Error(err)
 	}
-	defer os.RemoveAll(dir)
+	defer os.RemoveAll(dir) //nolint:errcheck
 
 	// Create test file to upload
 	testfile, err := os.CreateTemp(dir, "dummy")
 	if err != nil {
 		log.Panic(err)
 	}
-	defer os.Remove(testfile.Name())
+	defer os.Remove(testfile.Name()) //nolint:errcheck
 
 	var uploadOutput bytes.Buffer
 	log.SetOutput(&uploadOutput)
@@ -149,13 +147,13 @@ func (suite *TestSuite) TestFunctionality() {
 	err = List(os.Args, configPath.Name())
 	assert.NoError(suite.T(), err)
 
-	w.Close()
+	w.Close() //nolint:errcheck
 	os.Stdout = rescueStdout
 	listOutput, _ := io.ReadAll(r)
 	msg1 := fmt.Sprintf("%v", filepath.Base(testfile.Name()))
 	assert.Contains(suite.T(), string(listOutput), msg1)
 
-	errW.Close()
+	errW.Close() //nolint:errcheck
 	os.Stderr = rescueStderr
 	listError, _ := io.ReadAll(errR)
 

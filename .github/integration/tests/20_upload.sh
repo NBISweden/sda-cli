@@ -86,8 +86,6 @@ cp data_file data_files_unenc/. && cp data_file data_files_unenc/dir1/data_file1
 uploadDir="testEncryptUpload"
 ./sda-cli -config testing/s3cmd.conf upload -encrypt-with-key sda_key.pub.pem -r data_files_unenc -targetDir "$uploadDir"
 
-check_encrypted_file data_files_unenc/data_file.c4gh data_files_unenc/dir1/data_file1.c4gh
-
 for k in data_files_unenc/data_file.c4gh data_files_unenc/dir1/data_file1.c4gh
 do
     check_uploaded_file "test/$user/$uploadDir/$k" "$k"

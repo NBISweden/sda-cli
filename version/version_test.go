@@ -35,7 +35,7 @@ func (suite *VersionTests) TestGetVersion() {
 	err := Version("1.0.0")
 	assert.NoError(suite.T(), err)
 
-	w.Close()
+	w.Close() //nolint:errcheck
 	out, _ := io.ReadAll(r)
 	os.Stdout = storeStdout
 	assert.Contains(suite.T(), string(out), "version:  1.0.0")
@@ -56,7 +56,7 @@ func (suite *VersionTests) TestGetVersion_newerAvailable() {
 	err := Version("0.0.1")
 	assert.NoError(suite.T(), err)
 
-	w.Close()
+	w.Close() //nolint:errcheck
 	out, _ := io.ReadAll(r)
 	os.Stdout = storeStdout
 
@@ -77,7 +77,7 @@ func (suite *VersionTests) TestGetVersion_badGateway() {
 	err := Version("0.0.3")
 	assert.NoError(suite.T(), err)
 
-	w.Close()
+	w.Close() //nolint:errcheck
 	out, _ := io.ReadAll(r)
 	os.Stderr = storeStderr
 
@@ -100,7 +100,7 @@ func (suite *VersionTests) TestGetVersion_networkTimeout() {
 	err := Version("0.0.3")
 	assert.NoError(suite.T(), err)
 
-	w.Close()
+	w.Close() //nolint:errcheck
 	out, _ := io.ReadAll(r)
 	os.Stderr = storeStderr
 

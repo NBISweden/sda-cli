@@ -43,7 +43,6 @@ var outDir = Args.String("outdir", "",
 // CreateKey takes two arguments, a base filename, and optionally an output
 // directory specified with `-outdir`.
 func CreateKey(args []string) error {
-
 	// Parse flags. There are no flags at the moment, but in case some are added
 	// we check for them.
 	err := Args.Parse(args[1:])

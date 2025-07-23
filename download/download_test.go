@@ -107,7 +107,7 @@ func (suite *TestSuite) TestPrintHostBase() {
 
 	_ = Download(os.Args, confPath.Name())
 
-	w.Close()
+	w.Close() //nolint:errcheck
 	os.Stderr = rescueStderr
 	uploadError, _ := io.ReadAll(r)
 
@@ -122,7 +122,7 @@ func (suite *TestSuite) TestGetBody() {
 		// Set the response status code
 		w.WriteHeader(http.StatusOK)
 		// Set the response body
-		fmt.Fprint(w, "test response")
+		fmt.Fprint(w, "test response") //nolint:errcheck
 	}))
 	defer server.Close()
 
@@ -244,7 +244,7 @@ func (suite *TestSuite) TestDownloadFile() {
 		// Set the response status code
 		w.WriteHeader(http.StatusOK)
 		// Set the response body
-		fmt.Fprint(w, "dummy response")
+		fmt.Fprint(w, "dummy response") //nolint:errcheck
 	}))
 	defer server.Close()
 
