@@ -4,7 +4,7 @@ test_dir=$(dirname "$0")
 source "$test_dir/../scripts/checkers.sh"
 
 # Create random file
-dd if=/dev/urandom of=data_file count=1 bs=1M
+dd if=/dev/urandom of=data_file count=10 bs=1M
 
 # Create key pair
 if ( yes "" | ./sda-cli createKey sda_key ) ; then
