@@ -596,14 +596,23 @@ func Stream(file *os.File, pubKeyList [][32]byte) (FileStream, error) {
 		return FileStream{}, err
 	}
 	go func() {
-		_, _ = io.Copy(crypt4GHWriter, unencryptedReader)
-		defer encryptedData.CloseWriter()
+		_, err := io.Copy(crypt4GHWriter, unencryptedReader)
+		if err != nil {
+			encryptedData.CloseWithError(err)
+		}
+
+		err = crypt4GHWriter.Close()
+		if err != nil {
+			encryptedData.CloseWithError(err)
+		}
+
+		encryptedData.CloseWriter()
 	}()
 
 	fs := FileStream{
 		EncryptedMD5:      encryptedMD5,
 		EncryptedSha256:   encryptedSha256,
-		Reader:            encryptedData,
+		Reader:            encryptedData.ReadCloser(),
 		UnencryptedMD5:    unencryptedMD5,
 		UnencryptedSha256: unencryptedSha256,
 	}
@@ -614,7 +623,7 @@ func Stream(file *os.File, pubKeyList [][32]byte) (FileStream, error) {
 type FileStream struct {
 	EncryptedMD5      hash.Hash
 	EncryptedSha256   hash.Hash
-	Reader            io.Reader
+	Reader            io.ReadCloser
 	UnencryptedMD5    hash.Hash
 	UnencryptedSha256 hash.Hash
 }
