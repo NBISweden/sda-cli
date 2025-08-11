@@ -193,7 +193,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 				return err
 			}
 			if string(magicWord) == "crypt4gh" {
-				return errors.New("aborting, file is already encrypted")
+				return fmt.Errorf("aborting, file %s is already encrypted", f.Name())
 			}
 
 			_, err = f.Seek(0, 0)

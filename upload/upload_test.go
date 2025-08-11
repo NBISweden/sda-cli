@@ -331,7 +331,7 @@ func (suite *TestSuite) TestFunctionality() {
 	}
 	defer os.Remove(testfile.Name()) //nolint:errcheck
 	newArgs = []string{"upload", "--encrypt-with-key", publicKey.Name(), encFile.Name()}
-	assert.EqualError(suite.T(), Upload(newArgs, configPath.Name()), "aborting, file is already encrypted")
+	assert.ErrorContains(suite.T(), Upload(newArgs, configPath.Name()), "is already encrypted")
 
 	// Check handling of passing source files as pub key
 	// (code checks first for errors related with file args)
