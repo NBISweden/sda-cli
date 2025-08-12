@@ -70,7 +70,6 @@ type htsgetResponse struct {
 // Htsget function downloads the files included in the urls_list.txt file.
 // The argument can be a local file or a url to an S3 folder
 func Htsget(args []string, configPath string) error {
-
 	// Call ParseArgs to take care of all the flag parsing
 	err := helpers.ParseArgs(args, Args)
 	if err != nil {
@@ -117,7 +116,7 @@ func Htsget(args []string, configPath string) error {
 	if res.StatusCode != 200 {
 		return fmt.Errorf("failed to get the file, status code: %v", res.StatusCode)
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
@@ -136,11 +135,9 @@ func Htsget(args []string, configPath string) error {
 	}
 
 	return nil
-
 }
 
 func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error) {
-
 	// Create the directory for the file
 	var filePath string
 	if err != nil {
@@ -175,7 +172,7 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer out.Close() //nolint:errcheck
 
 	// read public key from file
 	publickey, err := os.ReadFile(*publicKeyFile)
@@ -233,7 +230,7 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 
 			return fmt.Errorf("failed to get the file, status code: %v", res)
 		}
-		defer res.Body.Close()
+		defer res.Body.Close() //nolint:errcheck
 
 		// Write the body to file
 		_, err = io.Copy(out, res.Body)
@@ -247,7 +244,6 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 	fmt.Println("File " + out.Name() + " downloaded successfully")
 
 	return nil
-
 }
 func deleteFile(f *os.File) {
 	name := f.Name()

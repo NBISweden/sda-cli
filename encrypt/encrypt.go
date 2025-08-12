@@ -9,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"hash"
 	"io"
 	"os"
 	"path"
@@ -21,6 +22,7 @@ import (
 	"github.com/neicnordic/crypt4gh/keys"
 	"github.com/neicnordic/crypt4gh/streaming"
 	log "github.com/sirupsen/logrus"
+	"github.com/smallnest/ringbuffer"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 )
@@ -149,7 +151,6 @@ func Encrypt(args []string) error {
 	// Args() returns the non-flag arguments, which we assume are filenames.
 	log.Info("Checking files")
 	for _, filename := range Args.Args() {
-
 		// Set directory for the output file
 		outFilename := filename + ".c4gh"
 		if *outDir != "" {
@@ -187,42 +188,42 @@ func Encrypt(args []string) error {
 	}
 
 	// Open all checksum files
-	ChecksumFileUnencMd5, err := os.OpenFile("checksum_unencrypted.md5", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	checksumFileUnencMd5, err := os.OpenFile("checksum_unencrypted.md5", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		if err := ChecksumFileUnencMd5.Close(); err != nil {
+		if err := checksumFileUnencMd5.Close(); err != nil {
 			log.Errorf("Error closing file: %s\n", err)
 		}
 	}()
 
-	ChecksumFileUnencSha256, err := os.OpenFile("checksum_unencrypted.sha256", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	checksumFileUnencSha256, err := os.OpenFile("checksum_unencrypted.sha256", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		if err := ChecksumFileUnencSha256.Close(); err != nil {
+		if err := checksumFileUnencSha256.Close(); err != nil {
 			log.Errorf("Error closing file: %s\n", err)
 		}
 	}()
 
-	ChecksumFileEncMd5, err := os.OpenFile("checksum_encrypted.md5", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	checksumFileEncMd5, err := os.OpenFile("checksum_encrypted.md5", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		if err := ChecksumFileEncMd5.Close(); err != nil {
+		if err := checksumFileEncMd5.Close(); err != nil {
 			log.Errorf("Error closing file: %s\n", err)
 		}
 	}()
 
-	ChecksumFileEncSha256, err := os.OpenFile("checksum_encrypted.sha256", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	checksumFileEncSha256, err := os.OpenFile("checksum_encrypted.sha256", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		if err := ChecksumFileEncSha256.Close(); err != nil {
+		if err := checksumFileEncSha256.Close(); err != nil {
 			log.Errorf("Error closing file: %s\n", err)
 		}
 	}()
@@ -244,19 +245,19 @@ func Encrypt(args []string) error {
 		}
 
 		// Write hashes
-		if _, err := ChecksumFileUnencMd5.WriteString(fmt.Sprintf("%s %s\n", hashes.unencryptedMd5, file.Unencrypted)); err != nil {
+		if _, err := fmt.Fprintf(checksumFileUnencMd5, "%s %s\n", hashes.unencryptedMd5, file.Unencrypted); err != nil {
 			return err
 		}
 
-		if _, err := ChecksumFileUnencSha256.WriteString(fmt.Sprintf("%s %s\n", hashes.unencryptedSha256, file.Unencrypted)); err != nil {
+		if _, err := fmt.Fprintf(checksumFileUnencSha256, "%s %s\n", hashes.unencryptedSha256, file.Unencrypted); err != nil {
 			return err
 		}
 
-		if _, err := ChecksumFileEncMd5.WriteString(fmt.Sprintf("%s %s\n", hashes.encryptedMd5, file.Encrypted)); err != nil {
+		if _, err := fmt.Fprintf(checksumFileEncMd5, "%s %s\n", hashes.encryptedMd5, file.Encrypted); err != nil {
 			return err
 		}
 
-		if _, err := ChecksumFileEncSha256.WriteString(fmt.Sprintf("%s %s\n", hashes.encryptedSha256, file.Encrypted)); err != nil {
+		if _, err := fmt.Fprintf(checksumFileEncSha256, "%s %s\n", hashes.encryptedSha256, file.Encrypted); err != nil {
 			return err
 		}
 	}
@@ -267,7 +268,6 @@ func Encrypt(args []string) error {
 // Checks that all the input files exist, are readable and not already encrypted,
 // and that the output files do not exist
 func checkFiles(files []helpers.EncryptionFileSet) error {
-
 	for _, file := range files {
 		// check that the input file exists and is readable
 		if !helpers.FileIsReadable(file.Unencrypted) {
@@ -306,7 +306,6 @@ func checkFiles(files []helpers.EncryptionFileSet) error {
 
 // Calculates md5 and sha256 hashes for the unencrypted and encrypted files
 func calculateHashes(fileSet helpers.EncryptionFileSet) (*hashSet, error) {
-
 	hashes := hashSet{"", "", "", ""}
 
 	// open infile
@@ -459,7 +458,7 @@ func encrypt(filename, outFilename string, pubKeyList [][32]byte, privateKey [32
 	if err != nil {
 		return err
 	}
-	defer crypt4GHWriter.Close()
+	defer crypt4GHWriter.Close() //nolint:errcheck
 
 	fileInfo, err := inFile.Stat()
 	if err != nil {
@@ -525,7 +524,6 @@ func createPubKeyList(publicKeyFileList []string, c4ghKeySpecs keySpecs) ([][32]
 	pubKeyList := [][32]byte{}
 
 	for _, pubkey := range publicKeyFileList {
-
 		// Check that pub key file(s) have a valid format. This ensures that some large
 		// datafile is not read in by user's mistake before we read in the whole file below.
 		fileSize, err := checkKeyFile(pubkey, c4ghKeySpecs)
@@ -572,4 +570,60 @@ type hashSet struct {
 type keySpecs struct {
 	rgx    *regexp.Regexp // text pattern to match
 	nbytes int            // first n bytes of file to parse
+}
+
+func Stream(file *os.File, pubKeyList [][32]byte) (FileStream, error) {
+	if len(pubKeyList) == 0 {
+		return FileStream{}, errors.New("no public key supplied")
+	}
+	privateKey, err := generatePrivateKey()
+	if err != nil {
+		return FileStream{}, err
+	}
+
+	unencryptedMD5 := md5.New()
+	unencryptedSha256 := sha256.New()
+	unecryptedWriter := io.MultiWriter(unencryptedMD5, unencryptedSha256)
+	unencryptedReader := io.TeeReader(file, unecryptedWriter)
+
+	encryptedData := ringbuffer.New(1024 * 1024).SetBlocking(true)
+	encryptedMD5 := md5.New()
+	encryptedSha256 := sha256.New()
+	encryptedWriter := io.MultiWriter(encryptedData, encryptedMD5, encryptedSha256)
+
+	crypt4GHWriter, err := streaming.NewCrypt4GHWriter(encryptedWriter, *privateKey, pubKeyList, nil)
+	if err != nil {
+		return FileStream{}, err
+	}
+	go func() {
+		_, err := io.Copy(crypt4GHWriter, unencryptedReader)
+		if err != nil {
+			encryptedData.CloseWithError(err)
+		}
+
+		err = crypt4GHWriter.Close()
+		if err != nil {
+			encryptedData.CloseWithError(err)
+		}
+
+		encryptedData.CloseWriter()
+	}()
+
+	fs := FileStream{
+		EncryptedMD5:      encryptedMD5,
+		EncryptedSha256:   encryptedSha256,
+		Reader:            encryptedData.ReadCloser(),
+		UnencryptedMD5:    unencryptedMD5,
+		UnencryptedSha256: unencryptedSha256,
+	}
+
+	return fs, nil
+}
+
+type FileStream struct {
+	EncryptedMD5      hash.Hash
+	EncryptedSha256   hash.Hash
+	Reader            io.ReadCloser
+	UnencryptedMD5    hash.Hash
+	UnencryptedSha256 hash.Hash
 }

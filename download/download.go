@@ -343,7 +343,7 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create file, reason: %v", err)
 	}
-	defer outfile.Close()
+	defer outfile.Close() //nolint:errcheck
 
 	// Create a new progress container
 	p := mpb.New()
@@ -489,19 +489,18 @@ func getBody(url, token, pubKeyBase64 string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to read response body, reason: %v", err)
 	}
 
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 
 	return resBody, nil
 }
 
 // GetURLsFile reads the urls_list.txt file and returns the urls of the files in a list
 func GetURLsFile(urlsFilePath string) (urlsList []string, err error) {
-
 	urlsFile, err := os.Open(filepath.Clean(urlsFilePath))
 	if err != nil {
 		return nil, err
 	}
-	defer urlsFile.Close()
+	defer urlsFile.Close() //nolint:errcheck
 
 	scanner := bufio.NewScanner(urlsFile)
 	for scanner.Scan() {

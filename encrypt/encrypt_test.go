@@ -1,9 +1,12 @@
 package encrypt
 
 import (
+	"crypto/md5"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -29,6 +32,7 @@ type EncryptTests struct {
 	pubKeyData     [32]byte
 	secKeyData     [32]byte
 	multiPublicKey *os.File
+	largeFile      *os.File
 }
 
 func TestEncryptTestSuite(t *testing.T) {
@@ -36,7 +40,6 @@ func TestEncryptTestSuite(t *testing.T) {
 }
 
 func (suite *EncryptTests) SetupTest() {
-
 	var err error
 
 	// Generate a crypt4gh key pair
@@ -110,14 +113,26 @@ func (suite *EncryptTests) SetupTest() {
 	if err != nil {
 		log.Fatalf("failed to write to temporary encrypted testfile: %s", err)
 	}
+
+	// create an large test file with some known content
+	suite.largeFile, err = os.CreateTemp(suite.tempDir, "largefile-")
+	if err != nil {
+		log.Fatal("cannot create temporary test file", err)
+	}
+
+	for range 2 * 1024 * 1024 {
+		if _, e := suite.largeFile.WriteString("a"); e != nil {
+			suite.FailNow("failed to write large file")
+		}
+	}
 }
 
 func (suite *EncryptTests) TearDownTest() {
-	os.Remove("checksum_encrypted.md5")
-	os.Remove("checksum_encrypted.sha256")
-	os.Remove("checksum_unencrypted.md5")
-	os.Remove("checksum_unencrypted.sha256")
-	os.RemoveAll(suite.tempDir)
+	os.Remove("checksum_encrypted.md5")      //nolint:errcheck
+	os.Remove("checksum_encrypted.sha256")   //nolint:errcheck
+	os.Remove("checksum_unencrypted.md5")    //nolint:errcheck
+	os.Remove("checksum_unencrypted.sha256") //nolint:errcheck
+	os.RemoveAll(suite.tempDir)              //nolint:errcheck
 }
 
 func (suite *EncryptTests) TestcheckFiles() {
@@ -140,7 +155,6 @@ func (suite *EncryptTests) TestcheckFiles() {
 	verifyUnencrypted := helpers.EncryptionFileSet{Unencrypted: suite.encryptedFile.Name(), Encrypted: "does-not-exist"}
 	err = checkFiles([]helpers.EncryptionFileSet{verifyUnencrypted})
 	assert.EqualError(suite.T(), err, fmt.Sprintf("input file %s is already encrypted(.c4gh)", suite.encryptedFile.Name()))
-
 }
 
 func (suite *EncryptTests) TestreadPublicKeyFile() {
@@ -148,7 +162,7 @@ func (suite *EncryptTests) TestreadPublicKeyFile() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer file.Close()
+	defer file.Close() //nolint:errcheck
 	publicKey, err := readPublicKeyFile(file.Name())
 	assert.NoError(suite.T(), err)
 	suite.Equal(*publicKey, suite.pubKeyData)
@@ -251,14 +265,76 @@ func (suite *EncryptTests) TestPubKeyFromInfo() {
 	os.Args = []string{"encrypt", "-target", mockServer.URL, suite.fileOk.Name()}
 	assert.NoError(suite.T(), Encrypt(os.Args), "Encrypt from info failed unexpectedly")
 
-	os.Setenv("C4GH_PASSWORD", "")
+	os.Setenv("C4GH_PASSWORD", "") //nolint:errcheck
 	if runtime.GOOS != "windows" {
 		// verify that the file can be decrypted
-		os.Remove(suite.fileOk.Name())
+		os.Remove(suite.fileOk.Name()) //nolint:errcheck
 		os.Args = []string{"decrypt", "-key", suite.privateKey.Name(), fmt.Sprintf("%s.c4gh", suite.fileOk.Name())}
 		assert.NoError(suite.T(), decrypt.Decrypt(os.Args), "decrypting encrypted file failed unexpectedly")
 	}
 
 	os.Args = []string{"decrypt", "-key", suite.privateKey.Name(), "--force-overwrite", fmt.Sprintf("%s.c4gh", suite.fileOk.Name())}
 	assert.NoError(suite.T(), decrypt.Decrypt(os.Args), "decrypting encrypted file failed unexpectedly")
+}
+func (suite *EncryptTests) TestStream() {
+	md5 := md5.New()
+
+	file, err := os.Open(suite.fileOk.Name())
+	assert.NoError(suite.T(), err, "opening file failed unexpectedly")
+
+	fs, err := Stream(file, [][32]byte{suite.pubKeyData})
+	assert.NoError(suite.T(), err, "failed to create encryption stream")
+	// make sure that no data is being read in order to save on memory
+	assert.Equal(suite.T(), hex.EncodeToString(md5.Sum(nil)), hex.EncodeToString(fs.UnencryptedMD5.Sum(nil)))
+
+	enc, err := io.ReadAll(fs.Reader)
+	assert.NoError(suite.T(), err, "failed to read from encryption stream")
+	assert.Equal(suite.T(), "crypt4gh", string(enc[:8]))
+	md5.Write([]byte("content"))
+	// ensure that the MD5 is what we expect it to be after the file has been read fully.
+	assert.Equal(suite.T(), hex.EncodeToString(md5.Sum(nil)), hex.EncodeToString(fs.UnencryptedMD5.Sum(nil)))
+
+	_ = file.Close()
+}
+func (suite *EncryptTests) TestStream_largeFile() {
+	md5 := md5.New()
+
+	file, err := os.Open(suite.largeFile.Name())
+	assert.NoError(suite.T(), err, "opening file failed unexpectedly")
+	info, _ := file.Stat()
+	assert.Equal(suite.T(), int64(2*1024*1024), info.Size())
+
+	fs, err := Stream(file, [][32]byte{suite.pubKeyData})
+	assert.NoError(suite.T(), err, "failed to create encryption stream")
+	// make sure that no data is being read in order to save on memory
+	assert.Equal(suite.T(), hex.EncodeToString(md5.Sum(nil)), hex.EncodeToString(fs.UnencryptedMD5.Sum(nil)))
+
+	enc, err := io.ReadAll(fs.Reader)
+	assert.NoError(suite.T(), err, "failed to read from encryption stream")
+	_ = fs.Reader.Close()
+	_ = file.Close()
+
+	assert.Equal(suite.T(), "crypt4gh", string(enc[:8]))
+	assert.Greater(suite.T(), len(enc), 2*1024*1024)
+	assert.Equal(suite.T(), 2098172, len(enc))
+	// ensure that the MD5 is what we expect it to be after the file has been read fully.
+	assert.Equal(suite.T(), "de89461b64701958984c95d1bfb0065a", hex.EncodeToString(fs.UnencryptedMD5.Sum(nil)))
+
+	// f, err := os.Create(fmt.Sprintf("%s/largefile2.c4gh", suite.tempDir))
+	f, err := os.Create(fmt.Sprintf("%s/largefile2.c4gh", suite.tempDir))
+	assert.NoError(suite.T(), err, "failed to create temp file")
+	n, err := f.Write(enc)
+	assert.NoError(suite.T(), err, "failed write data to temp file")
+	assert.Equal(suite.T(), 2098172, n)
+	_ = f.Close()
+
+	os.Setenv("C4GH_PASSWORD", "") //nolint:errcheck
+	os.Args = []string{"decrypt", "-key", suite.privateKey.Name(), "--force-overwrite", f.Name()}
+	suite.T().Log(os.Args)
+	assert.NoError(suite.T(), decrypt.Decrypt(os.Args), "decrypting encrypted file failed unexpectedly")
+}
+func (suite *EncryptTests) TestStream_noPublicKey() {
+	var file *os.File
+	_, err := Stream(file, [][32]byte{})
+	assert.ErrorContains(suite.T(), err, "no public key supplied")
 }

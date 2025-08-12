@@ -43,7 +43,7 @@ func (suite *DecryptTests) SetupTest() {
 }
 
 func (suite *DecryptTests) TearDownTest() {
-	os.Remove(suite.tempDir)
+	os.Remove(suite.tempDir) //nolint:errcheck
 }
 
 func (suite *DecryptTests) TestreadPrivateKeyFile() {
@@ -136,7 +136,7 @@ func (suite *DecryptTests) TestDecrypt() {
 	encryptArgs := []string{"encrypt", "-key", fmt.Sprintf("%s.pub.pem", testKeyFile), suite.testFile.Name()}
 	assert.NoError(suite.T(), encrypt.Encrypt(encryptArgs), "encrypting file for testing failed")
 	assert.NoError(suite.T(), os.Chdir(cwd))
-	os.Setenv("C4GH_PASSWORD", "")
+	os.Setenv("C4GH_PASSWORD", "") //nolint:errcheck
 	if runtime.GOOS != "windows" {
 		assert.NoError(suite.T(), os.Remove(suite.testFile.Name()))
 		os.Args = []string{"decrypt", "-key", fmt.Sprintf("%s.sec.pem", testKeyFile), fmt.Sprintf("%s.c4gh", suite.testFile.Name())}
@@ -202,7 +202,7 @@ func (suite *DecryptTests) TestDecryptMultipleFiles() {
 	// Attempt to decrypt all files: file1.txt.c4gh will be skipped due to
 	// existance of file1.txt, file2.txt.c4gh and file3.txt.c4gh will be
 	// decrypted successfully, despite a non existing file in the list
-	os.Setenv("C4GH_PASSWORD", "")
+	os.Setenv("C4GH_PASSWORD", "") //nolint:errcheck
 	os.Args = []string{"decrypt", "-key", fmt.Sprintf("%s.sec.pem", testKeyFile),
 		encryptedFiles[0], encryptedFiles[1], "nonexistent_file.c4gh", encryptedFiles[2]}
 
@@ -285,7 +285,6 @@ func TestDecryptCleanTestSuite(t *testing.T) {
 
 // test decrypt with clean flag
 func (suite *DecryptCleanTests) TestDecryptClean() {
-
 	var err error
 	// Create a temporary directory for our files
 	suite.tempDir, err = os.MkdirTemp(os.TempDir(), "sda-cli-test-decrypt-clean")
@@ -314,7 +313,7 @@ func (suite *DecryptCleanTests) TestDecryptClean() {
 	encryptArgs := []string{"encrypt", "-key", fmt.Sprintf("%s.pub.pem", testKeyFile), suite.testFile.Name()}
 	assert.NoError(suite.T(), encrypt.Encrypt(encryptArgs), "encrypting file for testing failed")
 	assert.NoError(suite.T(), os.Chdir(cwd))
-	os.Setenv("C4GH_PASSWORD", "")
+	os.Setenv("C4GH_PASSWORD", "") //nolint:errcheck
 	if runtime.GOOS != "windows" {
 		assert.NoError(suite.T(), os.Remove(suite.testFile.Name()))
 		os.Args = []string{"decrypt", "-key", fmt.Sprintf("%s.sec.pem", testKeyFile), fmt.Sprintf("%s.c4gh", suite.testFile.Name()), "--clean"}
@@ -336,5 +335,5 @@ func (suite *DecryptCleanTests) TestDecryptClean() {
 }
 
 func (suite *DecryptCleanTests) TearDownTest() {
-	os.Remove(suite.tempDir)
+	os.Remove(suite.tempDir) //nolint:errcheck
 }
