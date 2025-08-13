@@ -3,7 +3,7 @@ module github.com/NBISweden/sda-cli
 go 1.24.0
 
 require (
-	github.com/aws/aws-sdk-go v1.55.7
+	github.com/aws/aws-sdk-go v1.55.8
 	github.com/dustin/go-humanize v1.0.1
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/hashicorp/go-version v1.7.0
@@ -12,6 +12,7 @@ require (
 	github.com/manifoldco/promptui v0.9.0
 	github.com/neicnordic/crypt4gh v1.14.0
 	github.com/sirupsen/logrus v1.9.3
+	github.com/smallnest/ringbuffer v0.0.0-20250317021400-0da97b586904
 	github.com/stretchr/testify v1.10.0
 	github.com/vbauerster/mpb/v8 v8.10.2
 	golang.org/x/exp v0.0.0-20250711185948-6ae5c78190dc
@@ -31,7 +32,6 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/ryszard/goskiplist v0.0.0-20150312221310-2dfbae5fcf46 // indirect
 	github.com/shabbyrobe/gocovmerge v0.0.0-20180507124511-f6ea450bfb63 // indirect
-	github.com/smallnest/ringbuffer v0.0.0-20250317021400-0da97b586904 // indirect
 	golang.org/x/crypto v0.40.0 // indirect
 	golang.org/x/sys v0.34.0 // indirect
 	golang.org/x/tools v0.35.0 // indirect
