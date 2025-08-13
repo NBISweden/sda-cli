@@ -23,7 +23,6 @@ import (
 	"github.com/golang-jwt/jwt"
 	"github.com/manifoldco/promptui"
 	"github.com/neicnordic/crypt4gh/keys"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/exp/slices"
 	"gopkg.in/ini.v1"
 )
@@ -54,7 +53,7 @@ func FileIsReadable(filename string) bool {
 	}
 	defer func() {
 		if err := inFile.Close(); err != nil {
-			log.Errorf("Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
 		}
 	}()
 
@@ -312,7 +311,7 @@ func CreatePubFile(publicKey string, filename string) (string, error) {
 	defer func() {
 		// Close the file and log any error that may occur
 		if cerr := pubFile.Close(); cerr != nil {
-			log.Errorf("Error closing file: %s\n", cerr)
+			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", cerr)
 		}
 	}()
 	// Write the publicKeyData array to the "key-from-oidc.pub.pem" file in Crypt4GHX25519 public key format

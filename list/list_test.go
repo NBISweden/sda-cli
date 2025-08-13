@@ -17,9 +17,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/johannesboyne/gofakes3"
 	"github.com/johannesboyne/gofakes3/backend/s3mem"
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"log"
 )
 
 type TestSuite struct {
@@ -67,7 +67,7 @@ func (suite *TestSuite) TestFunctionality() {
 	}
 	_, err := s3Client.CreateBucket(cparams)
 	if err != nil {
-		log.Println(err.Error())
+		fmt.Fprintln(os.Stderr, err.Error())
 
 		return
 	}
@@ -109,7 +109,7 @@ func (suite *TestSuite) TestFunctionality() {
 	dir := "dummy"
 	err = os.Mkdir(dir, 0755)
 	if err != nil {
-		log.Error(err)
+		fmt.Fprintln(os.Stderr, err)
 	}
 	defer os.RemoveAll(dir) //nolint:errcheck
 

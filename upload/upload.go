@@ -17,7 +17,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/neicnordic/crypt4gh/keys"
-	log "github.com/sirupsen/logrus"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 )
@@ -117,7 +116,6 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 			}
 			if string(magicWord) != "crypt4gh" {
 				fmt.Fprintf(os.Stderr, "input file %s is not encrypted\n", filename)
-				log.Infof("input file %s is not encrypted\n", filepath.Clean(filename))
 				if !*forceUnencrypted {
 					fmt.Println("Quitting...")
 
@@ -252,7 +250,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		if err != nil {
 			return err
 		}
-		log.Infof("file uploaded to %s\n", string(aws.StringValue(&result.Location)))
+		fmt.Printf("file uploaded to %s\n", aws.StringValue(&result.Location))
 
 		if *pubKeyPath != "" { //nolint: nestif
 			checksumFileUnencMd5, err := os.OpenFile("checksum_unencrypted.md5", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
