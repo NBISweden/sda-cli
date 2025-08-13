@@ -1,7 +1,6 @@
 package list
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"net/http/httptest"
@@ -120,22 +119,25 @@ func (suite *TestSuite) TestFunctionality() {
 	}
 	defer os.Remove(testfile.Name()) //nolint:errcheck
 
-	var uploadOutput bytes.Buffer
-	log.SetOutput(&uploadOutput)
+	rescueStdout := os.Stdout
+	uploadR, uploadW, _ := os.Pipe()
+	os.Stdout = uploadW
 
 	// Upload a file
 	os.Args = []string{"upload", "--force-unencrypted", "-r", dir}
 	err = upload.Upload(os.Args, configPath.Name())
 	assert.NoError(suite.T(), err)
 
+	uploadW.Close() //nolint:errcheck
+	os.Stdout = rescueStdout
+	uploadOutput, _ := io.ReadAll(uploadR)
+
 	// Check logs that file was uploaded
-	logMsg := fmt.Sprintf("%v", strings.TrimSuffix(uploadOutput.String(), "\n"))
+	logMsg := fmt.Sprintf("%v", strings.TrimSuffix(string(uploadOutput), "\n"))
 	msg := "file uploaded"
 	assert.Contains(suite.T(), logMsg, msg)
 
-	log.SetOutput(os.Stdout)
-
-	rescueStdout := os.Stdout
+	rescueStdout = os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
