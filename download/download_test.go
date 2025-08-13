@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"log"
 )
 
 type TestSuite struct {

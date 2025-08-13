@@ -15,7 +15,6 @@ import (
 	"github.com/NBISweden/sda-cli/login"
 	"github.com/NBISweden/sda-cli/upload"
 	"github.com/NBISweden/sda-cli/version"
-	log "github.com/sirupsen/logrus"
 )
 
 var Version = "0-development"
@@ -68,7 +67,7 @@ var Commands = map[string]commandInfo{
 
 // Main does argument parsing, then delegates to one of the sub modules
 func main() {
-	log.SetLevel(log.WarnLevel)
+
 	command, args, configPath := ParseArgs()
 
 	var err error

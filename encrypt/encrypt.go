@@ -21,7 +21,6 @@ import (
 	"github.com/NBISweden/sda-cli/login"
 	"github.com/neicnordic/crypt4gh/keys"
 	"github.com/neicnordic/crypt4gh/streaming"
-	log "github.com/sirupsen/logrus"
 	"github.com/smallnest/ringbuffer"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
@@ -94,7 +93,7 @@ func Encrypt(args []string) error {
 		return errors.New("only one of -key or -target can be used")
 	case *target != "":
 		// fetch info endpoint values
-		log.Println("fetching public key")
+		fmt.Println("fetching public key")
 		info, err := login.GetAuthInfo(*target)
 		if err != nil {
 			return err
@@ -143,13 +142,13 @@ func Encrypt(args []string) error {
 	// Make sure to exit with error status if any file is skipped
 	defer func() {
 		if skippedFiles != 0 {
-			log.Errorf("(%d/%d) files skipped\n", skippedFiles, len(files)+skippedFiles)
+			fmt.Fprintf(os.Stderr, "(%d/%d) files skipped\n", skippedFiles, len(files)+skippedFiles)
 			os.Exit(1)
 		}
 	}()
 
 	// Args() returns the non-flag arguments, which we assume are filenames.
-	log.Info("Checking files")
+	fmt.Println("Checking files")
 	for _, filename := range Args.Args() {
 		// Set directory for the output file
 		outFilename := filename + ".c4gh"
@@ -162,7 +161,7 @@ func Encrypt(args []string) error {
 
 		// Skip files that do not pass the checks and print all error logs at the end
 		if err = checkFiles(eachFile); err != nil {
-			defer log.Errorf("Skipping input file %s. Reason: %s.\n", filename, err)
+			defer fmt.Fprintf(os.Stderr, "Skipping input file %s. Reason: %s.\n", filename, err)
 			if !*continueEncrypt {
 				return fmt.Errorf("aborting")
 			}
@@ -179,7 +178,7 @@ func Encrypt(args []string) error {
 		return fmt.Errorf("no input files")
 	}
 
-	log.Infof("Ready to encrypt %d file(s)", len(files))
+	fmt.Printf("Ready to encrypt %d file(s)\n", len(files))
 
 	// Generate a random private key to encrypt the data
 	privateKey, err := generatePrivateKey()
@@ -194,7 +193,7 @@ func Encrypt(args []string) error {
 	}
 	defer func() {
 		if err := checksumFileUnencMd5.Close(); err != nil {
-			log.Errorf("Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
 		}
 	}()
 
@@ -204,7 +203,7 @@ func Encrypt(args []string) error {
 	}
 	defer func() {
 		if err := checksumFileUnencSha256.Close(); err != nil {
-			log.Errorf("Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
 		}
 	}()
 
@@ -214,7 +213,7 @@ func Encrypt(args []string) error {
 	}
 	defer func() {
 		if err := checksumFileEncMd5.Close(); err != nil {
-			log.Errorf("Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
 		}
 	}()
 
@@ -224,14 +223,14 @@ func Encrypt(args []string) error {
 	}
 	defer func() {
 		if err := checksumFileEncSha256.Close(); err != nil {
-			log.Errorf("Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
 		}
 	}()
 
 	// encrypt the input files
 	numFiles := len(files)
 	for i, file := range files {
-		log.Infof("Encrypting file %v/%v: %s", i+1, numFiles, file.Unencrypted)
+		fmt.Fprintf(os.Stderr, "Encrypting file %v/%v: %s", i+1, numFiles, file.Unencrypted)
 
 		// encrypt the file
 		err = encrypt(file.Unencrypted, file.Encrypted, pubKeyList, *privateKey)
@@ -286,7 +285,7 @@ func checkFiles(files []helpers.EncryptionFileSet) error {
 		}
 		defer func() {
 			if err := unEncryptedFile.Close(); err != nil {
-				log.Errorf("Error closing file: %s\n", err)
+				fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
 			}
 		}()
 
@@ -315,7 +314,7 @@ func calculateHashes(fileSet helpers.EncryptionFileSet) (*hashSet, error) {
 	}
 	defer func() {
 		if err := unencryptedFile.Close(); err != nil {
-			log.Errorf("Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
 		}
 	}()
 
@@ -339,7 +338,7 @@ func calculateHashes(fileSet helpers.EncryptionFileSet) (*hashSet, error) {
 	}
 	defer func() {
 		if err := encryptedFile.Close(); err != nil {
-			log.Errorf("Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
 		}
 	}()
 
@@ -360,7 +359,7 @@ func calculateHashes(fileSet helpers.EncryptionFileSet) (*hashSet, error) {
 
 // Reads a public key from a file using the crypt4gh keys module
 func readPublicKeyFile(filename string) (key *[32]byte, err error) {
-	log.Info("Reading Public key file")
+	fmt.Println("Reading Public key file")
 	file, err := os.Open(filepath.Clean(filename))
 	if err != nil {
 		return nil, err
@@ -384,7 +383,7 @@ func readMultiPublicKeyFile(filename string, k keySpecs) (key *[][32]byte, err e
 
 	m := k.rgx.FindAllString(string(file), -1)
 
-	log.Infof("Reading %d concatenated Public keys from file", len(m))
+	fmt.Printf("Reading %d concatenated Public keys from file\n", len(m))
 
 	var list [][32]byte
 	for _, keyString := range m {
@@ -408,7 +407,7 @@ func readMultiPublicKeyFile(filename string, k keySpecs) (key *[][32]byte, err e
 // Generates a crypt4gh key pair, returning only the private key, as the
 // public key used for encryption is the one provided as an argument.
 func generatePrivateKey() (*[32]byte, error) {
-	log.Info("Generating encryption key")
+	fmt.Println("Generating encryption key")
 
 	_, privateKey, err := keys.GenerateKeyPair()
 	if err != nil {
@@ -436,7 +435,7 @@ func encrypt(filename, outFilename string, pubKeyList [][32]byte, privateKey [32
 	}
 	defer func() {
 		if err := inFile.Close(); err != nil {
-			log.Errorf("Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
 		}
 	}()
 
@@ -447,7 +446,7 @@ func encrypt(filename, outFilename string, pubKeyList [][32]byte, privateKey [32
 	}
 	defer func() {
 		if err := outFile.Close(); err != nil {
-			log.Errorf("Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
 		}
 	}()
 
@@ -495,7 +494,7 @@ func checkKeyFile(pubkey string, k keySpecs) (int64, error) {
 	}
 	defer func() {
 		if err := f.Close(); err != nil {
-			log.Errorf("Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
 		}
 	}()
 
