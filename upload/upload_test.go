@@ -1,7 +1,6 @@
 package upload
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"net/http/httptest"
@@ -212,21 +211,33 @@ func (suite *TestSuite) TestFunctionality() {
 	}
 	defer os.Remove(testfile.Name()) //nolint:errcheck
 
-	var str bytes.Buffer
-	log.SetOutput(&str)
+	rescuedStdout := os.Stdout
+	stdoutReader, stdoutWriter, _ := os.Pipe()
+	os.Stdout = stdoutWriter
+
+	rescuedStderr := os.Stderr
+	stderrReader, stderrWriter, _ := os.Pipe()
+	os.Stderr = stderrWriter
 
 	// Test recursive upload
 	os.Args = []string{"upload", "--force-unencrypted", "-r", dir}
 	assert.NoError(suite.T(), Upload(os.Args, configPath.Name()))
 
+	stdoutWriter.Close() //nolint:errcheck
+	os.Stdout = rescuedStdout
+	uploadStdout, _ := io.ReadAll(stdoutReader)
+
+	stderrWriter.Close() //nolint:errcheck
+	os.Stderr = rescuedStderr
+	uploadStderr, _ := io.ReadAll(stderrReader)
+
 	// Check logs that file was uploaded
-	logMsg := strings.ReplaceAll(fmt.Sprintf("%v", strings.TrimSuffix(str.String(), "\n")), "\\\\", "\\")
 	msg := fmt.Sprintf("file uploaded to %s/dummy/%s/%s", ts.URL, filepath.Base(dir), filepath.Base(testfile.Name()))
-	assert.Contains(suite.T(), logMsg, msg)
+	assert.Contains(suite.T(), string(uploadStdout), msg)
 
 	// Check in the logs for a warning that the file was unencrypted
 	warnMsg := fmt.Sprintf("input file %s is not encrypted", filepath.Clean(testfile.Name()))
-	assert.Contains(suite.T(), logMsg, warnMsg)
+	assert.Contains(suite.T(), string(uploadStderr), warnMsg)
 
 	// Check that file showed up in the s3 bucket correctly
 	result, err := s3Client.ListObjects(&s3.ListObjectsInput{
@@ -237,14 +248,22 @@ func (suite *TestSuite) TestFunctionality() {
 	}
 	assert.Equal(suite.T(), aws.StringValue(result.Contents[0].Key), fmt.Sprintf("%s/%s", filepath.Base(dir), filepath.Base(testfile.Name())))
 
+	rescuedStdout = os.Stdout
+	stdoutReader, stdoutWriter, _ = os.Pipe()
+	os.Stdout = stdoutWriter
+
 	// Test upload to a different folder
 	targetPath := filepath.Join("a", "b", "c")
 	os.Args = []string{"upload", "--force-unencrypted", testfile.Name(), "-targetDir", targetPath}
 	assert.NoError(suite.T(), Upload(os.Args, configPath.Name()))
+
+	stdoutWriter.Close() //nolint:errcheck
+	os.Stdout = rescuedStdout
+	uploadStdout, _ = io.ReadAll(stdoutReader)
+
 	// Check logs that file was uploaded
-	logMsg = fmt.Sprintf("%v", strings.TrimSuffix(str.String(), "\n"))
 	msg = fmt.Sprintf("file uploaded to %s/dummy/%s/%s", ts.URL, filepath.ToSlash(targetPath), filepath.Base(testfile.Name()))
-	assert.Contains(suite.T(), logMsg, msg)
+	assert.Contains(suite.T(), string(uploadStdout), msg)
 
 	// Check that file showed up in the s3 bucket correctly
 	result, err = s3Client.ListObjects(&s3.ListObjectsInput{
@@ -274,15 +293,20 @@ func (suite *TestSuite) TestFunctionality() {
 		log.Panicf("failed to write temporary public key file, %v", err)
 	}
 
-	// Empty buffer logs
-	str.Reset()
+	rescuedStdout = os.Stdout
+	stdoutReader, stdoutWriter, _ = os.Pipe()
+	os.Stdout = stdoutWriter
+
 	newArgs := []string{"upload", "--force-unencrypted", "--encrypt-with-key", publicKey.Name(), testfile.Name(), "-targetDir", "someDir"}
 	assert.NoError(suite.T(), Upload(newArgs, configPath.Name()))
 
+	stdoutWriter.Close() //nolint:errcheck
+	os.Stdout = rescuedStdout
+	uploadStdout, _ = io.ReadAll(stdoutReader)
+
 	// Check logs that encrypted file was uploaded
-	logMsg = fmt.Sprintf("%v", strings.TrimSuffix(str.String(), "\n"))
 	msg = fmt.Sprintf("file uploaded to %s/dummy/someDir/%s.c4gh", ts.URL, filepath.Base(testfile.Name()))
-	assert.Contains(suite.T(), logMsg, msg)
+	assert.Contains(suite.T(), string(uploadStdout), msg)
 
 	// Check that file showed up in the s3 bucket correctly
 	result, err = s3Client.ListObjects(&s3.ListObjectsInput{
@@ -295,30 +319,32 @@ func (suite *TestSuite) TestFunctionality() {
 
 	// Check that the respective unencrypted file was not uploaded
 	msg = fmt.Sprintf("Uploading %s with", testfile.Name())
-	assert.NotContains(suite.T(), logMsg, msg)
+	assert.NotContains(suite.T(), string(uploadStderr), msg)
 
-	rescueStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-	rescueStderr := os.Stderr
-	errR, errW, _ := os.Pipe()
-	os.Stderr = errW
+	rescuedStdout = os.Stdout
+	stdoutReader, stdoutWriter, _ = os.Pipe()
+	os.Stdout = stdoutWriter
+
+	rescuedStderr = os.Stderr
+	stderrReader, stderrWriter, _ = os.Pipe()
+	os.Stderr = stderrWriter
 
 	os.Args = []string{"upload", "--force-unencrypted", "-r", dir}
 	_ = Upload(os.Args, configPath.Name())
 
-	w.Close()    //nolint:errcheck
-	errW.Close() //nolint:errcheck
-	os.Stdout = rescueStdout
-	os.Stderr = rescueStderr
-	uploadOutput, _ := io.ReadAll(r)
-	uploadError, _ := io.ReadAll(errR)
+	stdoutWriter.Close() //nolint:errcheck
+	os.Stdout = rescuedStdout
+	uploadStdout, _ = io.ReadAll(stdoutReader)
+
+	stderrWriter.Close() //nolint:errcheck
+	os.Stderr = rescuedStderr
+	uploadStderr, _ = io.ReadAll(stderrReader)
 
 	// check if the host_base is in the output
 
 	expectedHostBase := "Remote server (host_base): " + strings.TrimPrefix(ts.URL, "http://")
-	assert.NotContains(suite.T(), string(uploadOutput), expectedHostBase)
-	assert.Contains(suite.T(), string(uploadError), expectedHostBase)
+	assert.NotContains(suite.T(), string(uploadStdout), expectedHostBase)
+	assert.Contains(suite.T(), string(uploadStderr), expectedHostBase)
 
 	// Check that trying to encrypt already encrypted files returns error and aborts
 	encFile, err := os.CreateTemp(dir, "encFile")
@@ -395,7 +421,6 @@ func (suite *TestSuite) TestFunctionality() {
 		log.Panic(err)
 	}
 
-	log.SetOutput(os.Stdout)
 }
 
 func (suite *TestSuite) TestRecursiveToDifferentTarget() {
@@ -472,16 +497,22 @@ func (suite *TestSuite) TestRecursiveToDifferentTarget() {
 	}
 	defer os.Remove(testfile.Name()) //nolint:errcheck
 
-	var str bytes.Buffer
-	log.SetOutput(&str)
+	rescuedStdout := os.Stdout
+	stdoutReader, stdoutWriter, _ := os.Pipe()
+	os.Stdout = stdoutWriter
+
 	// Test recursive upload to a different folder
 	targetPath := filepath.Join("a", "b", "c")
 	os.Args = []string{"upload", "--force-unencrypted", "-r", dir, "-targetDir", targetPath}
 	assert.NoError(suite.T(), Upload(os.Args, configPath.Name()))
+
+	stdoutWriter.Close() //nolint:errcheck
+	os.Stdout = rescuedStdout
+	uploadStdout, _ := io.ReadAll(stdoutReader)
+
 	// Check logs that file was uploaded
-	logMsg := fmt.Sprintf("%v", strings.TrimSuffix(str.String(), "\n"))
 	msg := fmt.Sprintf("file uploaded to %s/dummy/%s", ts.URL, filepath.ToSlash(filepath.Join(targetPath, filepath.Base(dir), filepath.Base(testfile.Name()))))
-	assert.Contains(suite.T(), logMsg, msg)
+	assert.Contains(suite.T(), string(uploadStdout), msg)
 
 	// Check that file showed up in the s3 bucket correctly
 	result, err := s3Client.ListObjects(&s3.ListObjectsInput{
