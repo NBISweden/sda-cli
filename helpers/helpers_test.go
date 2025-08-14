@@ -37,7 +37,7 @@ func generateDummyToken(expDate int64) string {
 	// Generate a new private key
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to generate private key: %s", err)
+		fmt.Fprintf(os.Stderr, "Failed to generate private key: %s\n", err)
 		os.Exit(1)
 	}
 
@@ -55,7 +55,7 @@ func generateDummyToken(expDate int64) string {
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	ss, err := token.SignedString(privateKey)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to sign token: %s", err)
+		fmt.Fprintf(os.Stderr, "Failed to sign token: %s\n", err)
 		os.Exit(1)
 	}
 
@@ -73,33 +73,33 @@ func (suite *HelperTests) SetupTest() {
 	// Create a temporary directory for our files
 	suite.tempDir, err = os.MkdirTemp(os.TempDir(), "sda-cli-test-")
 	if err != nil {
-		fmt.Fprint(os.Stderr, "Couldn't create temporary test directory", err)
+		fmt.Fprintln(os.Stderr, "Couldn't create temporary test directory", err)
 		os.Exit(1)
 	}
 
 	// create an existing test file with some known content
 	suite.testFile, err = os.CreateTemp(suite.tempDir, "testfile-")
 	if err != nil {
-		fmt.Fprint(os.Stderr, "cannot create temporary file", err)
+		fmt.Fprintln(os.Stderr, "cannot create temporary file", err)
 		os.Exit(1)
 	}
 
 	err = os.WriteFile(suite.testFile.Name(), []byte("content"), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write to testfile: %s", err)
+		fmt.Fprintf(os.Stderr, "failed to write to testfile: %s\n", err)
 		os.Exit(1)
 	}
 
 	// create another existing test file with some known content
 	suite.testFile1, err = os.CreateTemp(suite.tempDir, "testfile-")
 	if err != nil {
-		fmt.Fprint(os.Stderr, "cannot create temporary file", err)
+		fmt.Fprintln(os.Stderr, "cannot create temporary file", err)
 		os.Exit(1)
 	}
 
 	err = os.WriteFile(suite.testFile1.Name(), []byte("more content"), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write to testfile1: %s", err)
+		fmt.Fprintf(os.Stderr, "failed to write to testfile1: %s\n", err)
 		os.Exit(1)
 	}
 
@@ -142,7 +142,7 @@ func (suite *HelperTests) TestFileIsReadable() {
 	if runtime.GOOS != "windows" {
 		err := os.Chmod(suite.testFile.Name(), 0000)
 		if err != nil {
-			fmt.Fprint(os.Stderr, "Couldn't set file permissions of test file")
+			fmt.Fprintln(os.Stderr, "Couldn't set file permissions of test file")
 			os.Exit(1)
 		}
 		// file permissions don't allow reading
@@ -152,7 +152,7 @@ func (suite *HelperTests) TestFileIsReadable() {
 		// restore permissions
 		err = os.Chmod(suite.testFile.Name(), 0600)
 		if err != nil {
-			fmt.Fprint(os.Stderr, "Couldn't restore file permissions of test file")
+			fmt.Fprintln(os.Stderr, "Couldn't restore file permissions of test file")
 			os.Exit(1)
 		}
 	}
@@ -241,7 +241,7 @@ encrypt = False
 
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
 	if err != nil {
-		fmt.Fprint(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
@@ -249,7 +249,7 @@ encrypt = False
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v", err)
+		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v\n", err)
 	}
 
 	_, err = LoadConfigFile(configPath.Name())
@@ -268,7 +268,7 @@ func (suite *HelperTests) TestConfigS3cmdFileFormat() {
 
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
 	if err != nil {
-		fmt.Fprint(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
@@ -276,7 +276,7 @@ func (suite *HelperTests) TestConfigS3cmdFileFormat() {
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v", err)
+		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v\n", err)
 	}
 
 	_, err = LoadConfigFile(configPath.Name())
@@ -287,7 +287,7 @@ func (suite *HelperTests) TestConfigMissingCredentials() {
 
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
 	if err != nil {
-		fmt.Fprint(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
@@ -304,14 +304,14 @@ access_key = someUser
 `
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
 	if err != nil {
-		fmt.Fprint(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	if err := os.WriteFile(configPath.Name(), []byte(confFile), 0600); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v", err)
+		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v\n", err)
 	}
 
 	_, err = LoadConfigFile(configPath.Name())
@@ -337,7 +337,7 @@ encrypt = False
 `
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
 	if err != nil {
-		fmt.Fprint(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
@@ -345,7 +345,7 @@ encrypt = False
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v", err)
+		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v\n", err)
 	}
 
 	_, err = LoadConfigFile(configPath.Name())
@@ -418,7 +418,7 @@ encrypt = False
 `
 	configPath, err := os.Create(".sda-cli-session")
 	if err != nil {
-		fmt.Fprint(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
@@ -426,7 +426,7 @@ encrypt = False
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v", err)
+		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v\n", err)
 	}
 
 	_, err = GetPublicKeyFromSession()
@@ -454,7 +454,7 @@ public_key = 27be42445fd9e39c9be39e6b36a55e61e3801fc845f63781a813d3fe9977e17a
 `
 	configPath, err := os.Create(".sda-cli-session")
 	if err != nil {
-		fmt.Fprint(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
@@ -462,7 +462,7 @@ public_key = 27be42445fd9e39c9be39e6b36a55e61e3801fc845f63781a813d3fe9977e17a
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v", err)
+		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v\n", err)
 	}
 
 	_, err = GetPublicKeyFromSession()
@@ -525,14 +525,14 @@ func (suite *HelperTests) TestListFiles() {
 	}
 	_, err := s3Client.CreateBucket(cparams)
 	if err != nil {
-		fmt.Fprint(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err.Error())
 		panic(err.Error())
 	}
 
 	// Upload two test files
 	file, err := os.Open(suite.testFile.Name())
 	if err != nil {
-		fmt.Fprint(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err.Error())
 		panic(err.Error())
 	}
 	defer file.Close() //nolint:errcheck
@@ -543,13 +543,13 @@ func (suite *HelperTests) TestListFiles() {
 		Body:   file,
 	})
 	if err != nil {
-		fmt.Fprint(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err.Error())
 		panic(err.Error())
 	}
 
 	file1, err := os.Open(suite.testFile1.Name())
 	if err != nil {
-		fmt.Fprint(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err.Error())
 		panic(err.Error())
 	}
 	defer file1.Close() //nolint:errcheck
@@ -559,7 +559,7 @@ func (suite *HelperTests) TestListFiles() {
 		Body:   file1,
 	})
 	if err != nil {
-		fmt.Fprint(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err.Error())
 		panic(err.Error())
 	}
 

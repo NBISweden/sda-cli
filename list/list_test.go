@@ -91,7 +91,7 @@ func (suite *TestSuite) TestFunctionality() {
 	// Create config file
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd.conf")
 	if err != nil {
-		fmt.Fprint(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, err)
 		panic(err)
 	}
 	defer os.Remove(configPath.Name()) //nolint:errcheck
@@ -115,7 +115,7 @@ func (suite *TestSuite) TestFunctionality() {
 	// Create test file to upload
 	testfile, err := os.CreateTemp(dir, "dummy")
 	if err != nil {
-		fmt.Fprint(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, err)
 		panic(err)
 	}
 	defer os.Remove(testfile.Name()) //nolint:errcheck

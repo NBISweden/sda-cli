@@ -41,14 +41,14 @@ func createConfigFile(fileName, token string) os.File {
 	// Create config file
 	configPath, err := os.CreateTemp(os.TempDir(), fileName)
 	if err != nil {
-		fmt.Fprint(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, err)
 		panic(err)
 	}
 
 	// Write config file
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v", err)
+		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v\n", err)
 	}
 
 	return *configPath
