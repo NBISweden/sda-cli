@@ -44,7 +44,7 @@ func Version(ver string) error {
 
 	req, err := http.NewRequest(http.MethodGet, url, http.NoBody)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to initiate request")
+		fmt.Fprintln(os.Stderr, "failed to initiate request")
 		fmt.Println("sda-cli version: ", ver)
 
 		return nil
