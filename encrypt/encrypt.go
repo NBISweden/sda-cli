@@ -482,6 +482,8 @@ func encrypt(filename, outFilename string, pubKeyList [][32]byte, privateKey [32
 		return err
 	}
 
+	p.Wait()
+
 	return nil
 }
 
