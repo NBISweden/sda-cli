@@ -230,7 +230,7 @@ func Encrypt(args []string) error {
 	// encrypt the input files
 	numFiles := len(files)
 	for i, file := range files {
-		fmt.Fprintf(os.Stderr, "Encrypting file %v/%v: %s\n", i+1, numFiles, file.Unencrypted)
+		fmt.Printf("Encrypting file %v/%v: %s\n", i+1, numFiles, file.Unencrypted)
 
 		// encrypt the file
 		err = encrypt(file.Unencrypted, file.Encrypted, pubKeyList, *privateKey)
