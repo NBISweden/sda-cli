@@ -18,7 +18,6 @@ import (
 	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"log"
 )
 
 type TestSuite struct {
@@ -92,14 +91,15 @@ func (suite *TestSuite) TestFunctionality() {
 	// Create config file
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd.conf")
 	if err != nil {
-		log.Panic(err)
+		fmt.Fprint(os.Stderr, err)
+		panic(err)
 	}
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	// Write config file
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		log.Printf("failed to write temp config file, %v", err)
+		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v", err)
 	}
 
 	// Create dir for storing file
@@ -115,7 +115,8 @@ func (suite *TestSuite) TestFunctionality() {
 	// Create test file to upload
 	testfile, err := os.CreateTemp(dir, "dummy")
 	if err != nil {
-		log.Panic(err)
+		fmt.Fprint(os.Stderr, err)
+		panic(err)
 	}
 	defer os.Remove(testfile.Name()) //nolint:errcheck
 
