@@ -1,7 +1,6 @@
 package download
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"log"
 )
 
 type TestSuite struct {
@@ -43,13 +41,14 @@ func createConfigFile(fileName, token string) os.File {
 	// Create config file
 	configPath, err := os.CreateTemp(os.TempDir(), fileName)
 	if err != nil {
-		log.Panic(err)
+		fmt.Fprint(os.Stderr, err)
+		panic(err)
 	}
 
 	// Write config file
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		log.Printf("failed to write temp config file, %v", err)
+		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v", err)
 	}
 
 	return *configPath
@@ -95,10 +94,6 @@ func (suite *TestSuite) TestPrintHostBase() {
 		"https://some/url",
 		"file1",
 	}
-
-	var str bytes.Buffer
-	log.SetOutput(&str)
-	defer log.SetOutput(os.Stdout)
 
 	// check if the host_base is in the error output
 	rescueStderr := os.Stderr
