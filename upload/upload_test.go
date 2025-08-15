@@ -222,11 +222,11 @@ func (suite *TestSuite) TestFunctionality() {
 	os.Args = []string{"upload", "--force-unencrypted", "-r", dir}
 	assert.NoError(suite.T(), Upload(os.Args, configPath.Name()))
 
-	stdoutWriter.Close() //nolint:errcheck
+	_ = stdoutWriter.Close()
 	os.Stdout = rescuedStdout
 	uploadStdout, _ := io.ReadAll(stdoutReader)
 
-	stderrWriter.Close() //nolint:errcheck
+	_ = stderrWriter.Close()
 	os.Stderr = rescuedStderr
 	uploadStderr, _ := io.ReadAll(stderrReader)
 
@@ -256,7 +256,7 @@ func (suite *TestSuite) TestFunctionality() {
 	os.Args = []string{"upload", "--force-unencrypted", testfile.Name(), "-targetDir", targetPath}
 	assert.NoError(suite.T(), Upload(os.Args, configPath.Name()))
 
-	stdoutWriter.Close() //nolint:errcheck
+	_ = stdoutWriter.Close()
 	os.Stdout = rescuedStdout
 	uploadStdout, _ = io.ReadAll(stdoutReader)
 
@@ -299,7 +299,7 @@ func (suite *TestSuite) TestFunctionality() {
 	newArgs := []string{"upload", "--force-unencrypted", "--encrypt-with-key", publicKey.Name(), testfile.Name(), "-targetDir", "someDir"}
 	assert.NoError(suite.T(), Upload(newArgs, configPath.Name()))
 
-	stdoutWriter.Close() //nolint:errcheck
+	_ = stdoutWriter.Close()
 	os.Stdout = rescuedStdout
 	uploadStdout, _ = io.ReadAll(stdoutReader)
 
@@ -331,11 +331,11 @@ func (suite *TestSuite) TestFunctionality() {
 	os.Args = []string{"upload", "--force-unencrypted", "-r", dir}
 	_ = Upload(os.Args, configPath.Name())
 
-	stdoutWriter.Close() //nolint:errcheck
+	_ = stdoutWriter.Close()
 	os.Stdout = rescuedStdout
 	uploadStdout, _ = io.ReadAll(stdoutReader)
 
-	stderrWriter.Close() //nolint:errcheck
+	_ = stderrWriter.Close()
 	os.Stderr = rescuedStderr
 	uploadStderr, _ = io.ReadAll(stderrReader)
 
@@ -505,7 +505,7 @@ func (suite *TestSuite) TestRecursiveToDifferentTarget() {
 	os.Args = []string{"upload", "--force-unencrypted", "-r", dir, "-targetDir", targetPath}
 	assert.NoError(suite.T(), Upload(os.Args, configPath.Name()))
 
-	stdoutWriter.Close() //nolint:errcheck
+	_ = stdoutWriter.Close()
 	os.Stdout = rescuedStdout
 	uploadStdout, _ := io.ReadAll(stdoutReader)
 

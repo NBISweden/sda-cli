@@ -125,7 +125,7 @@ func (suite *TestSuite) TestFunctionality() {
 	err = upload.Upload(os.Args, configPath.Name())
 	assert.NoError(suite.T(), err)
 
-	uploadW.Close() //nolint:errcheck
+	_ = uploadW.Close()
 	os.Stdout = rescueStdout
 	uploadOutput, _ := io.ReadAll(uploadR)
 
@@ -146,13 +146,13 @@ func (suite *TestSuite) TestFunctionality() {
 	err = List(os.Args, configPath.Name())
 	assert.NoError(suite.T(), err)
 
-	w.Close() //nolint:errcheck
+	_ = w.Close()
 	os.Stdout = rescueStdout
 	listOutput, _ := io.ReadAll(r)
 	msg1 := fmt.Sprintf("%v", filepath.Base(testfile.Name()))
 	assert.Contains(suite.T(), string(listOutput), msg1)
 
-	errW.Close() //nolint:errcheck
+	_ = errW.Close()
 	os.Stderr = rescueStderr
 	listError, _ := io.ReadAll(errR)
 
