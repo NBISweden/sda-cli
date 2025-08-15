@@ -1,12 +1,14 @@
 package helpers
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"flag"
 	"fmt"
+	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"io"
 	"net/mail"
 	"os"
@@ -16,10 +18,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/golang-jwt/jwt"
 	"github.com/manifoldco/promptui"
 	"github.com/neicnordic/crypt4gh/keys"
@@ -207,7 +209,7 @@ type Config struct {
 	SocketTimeout        int    `ini:"socket_timeout"`
 	HumanReadableSizes   bool   `ini:"human_readable_sizes"`
 	PublicKey            string `ini:"public_key"`
-	MaxS3Keys            int64  // changes MaxKeys of the aws SDK, only used by tests. Default is 1000.
+	MaxS3Keys            int32  // changes MaxKeys of the aws SDK, only used by tests. Default is 1000.
 }
 
 // LoadConfigFile loads ini configuration file to the Config struct
@@ -398,34 +400,41 @@ func CheckTokenExpiration(accessToken string) error {
 }
 
 // ListFiles returns a list for s3 objects that correspond to files with the specified prefix.
-func ListFiles(config Config, prefix string) ([]*s3.Object, error) {
-	sess := session.Must(session.NewSession(&aws.Config{
-		// The region for the backend is always the specified one
-		// and not present in the configuration from auth - hardcoded
-		Region: aws.String("us-west-2"),
-		Credentials: credentials.NewStaticCredentials(
+func ListFiles(config Config, prefix string) ([]types.Object, error) {
+
+	s3Endpoint := fmt.Sprintf("https://%s", config.HostBase)
+	if !config.UseHTTPS {
+		s3Endpoint = fmt.Sprintf("http://%s", config.HostBase)
+	}
+	awsConfig, err := awsConfig.LoadDefaultConfig(context.Background(),
+		awsConfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
 			config.AccessKey,
 			config.SecretKey,
 			config.AccessToken,
-		),
-		Endpoint:         aws.String(config.HostBase),
-		DisableSSL:       aws.Bool(!config.UseHTTPS),
-		S3ForcePathStyle: aws.Bool(true),
-	}))
+		)),
+		awsConfig.WithRegion("eu-west-2"),
+		awsConfig.WithBaseEndpoint(s3Endpoint),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load aws config, reason %v", err)
+	}
 
-	svc := s3.New(sess)
+	s3Client := s3.NewFromConfig(awsConfig, func(o *s3.Options) {
+		o.UsePathStyle = true
+		o.EndpointOptions.DisableHTTPS = !config.UseHTTPS
+	})
 
 	params := &s3.ListObjectsInput{
 		Bucket:  aws.String(config.AccessKey + "/"),
 		Prefix:  aws.String(config.AccessKey + "/" + prefix),
-		MaxKeys: aws.Int64(1000),
+		MaxKeys: aws.Int32(1000),
 	}
 	// This is only set to >0 for unit testing purposes.
 	if config.MaxS3Keys > 0 {
-		params.MaxKeys = aws.Int64(config.MaxS3Keys)
+		params.MaxKeys = aws.Int32(config.MaxS3Keys)
 	}
 
-	fullResult, err := paginateList(svc, params)
+	fullResult, err := paginateList(s3Client, params)
 	if err != nil && strings.HasPrefix(err.Error(), "file markers not supported") {
 		// If list pagination fails try again using ListObjectsV2
 		params := &s3.ListObjectsV2Input{
@@ -435,10 +444,10 @@ func ListFiles(config Config, prefix string) ([]*s3.Object, error) {
 		// This is only set to >0 for unit testing purposes,
 		// otherwise the default MaxKeys value (which is 1000) will be used.
 		if config.MaxS3Keys > 0 {
-			params.MaxKeys = aws.Int64(config.MaxS3Keys)
+			params.MaxKeys = aws.Int32(config.MaxS3Keys)
 		}
 
-		fullResult, err = paginateListV2(svc, params)
+		fullResult, err = paginateListV2(s3Client, params)
 	}
 
 	// let the returned error be handled where ListFiles is called
@@ -491,13 +500,13 @@ func GetPublicKey64(pubKeyPath *string) (string, error) {
 	return pubKeyBase64, nil
 }
 
-func paginateList(svc *s3.S3, params *s3.ListObjectsInput) ([]*s3.Object, error) {
+func paginateList(svc *s3.Client, params *s3.ListObjectsInput) ([]types.Object, error) {
 	var marker *string
-	var fullResult []*s3.Object
+	var fullResult []types.Object
 
 	for {
 		params.Marker = marker
-		result, err := svc.ListObjects(params)
+		result, err := svc.ListObjects(context.Background(), params)
 		if err != nil {
 			if strings.HasPrefix(err.Error(), "SerializationError") {
 				re := regexp.MustCompile(`(status code: \d*)`)
@@ -524,13 +533,13 @@ func paginateList(svc *s3.S3, params *s3.ListObjectsInput) ([]*s3.Object, error)
 	return fullResult, nil
 }
 
-func paginateListV2(svc *s3.S3, params *s3.ListObjectsV2Input) ([]*s3.Object, error) {
+func paginateListV2(svc *s3.Client, params *s3.ListObjectsV2Input) ([]types.Object, error) {
 	var continuationToken *string
-	var fullResult []*s3.Object
+	var fullResult []types.Object
 
 	for {
 		params.ContinuationToken = continuationToken
-		result, err := svc.ListObjectsV2(params)
+		result, err := svc.ListObjectsV2(context.Background(), params)
 		if err != nil {
 			if strings.HasPrefix(err.Error(), "SerializationError") {
 				re := regexp.MustCompile(`(status code: \d*)`)
