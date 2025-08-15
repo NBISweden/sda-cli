@@ -1,9 +1,11 @@
 package helpers
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/config"
 	"io"
 	"log"
 	"net/http/httptest"
@@ -14,10 +16,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/golang-jwt/jwt"
 	"github.com/johannesboyne/gofakes3"
 	"github.com/johannesboyne/gofakes3/backend/s3mem"
@@ -486,29 +487,32 @@ MzM5ZWIyYTQ1OGZlYzVlMjNhYThiNTdjZmNiMzVmMTA=
 }
 
 func (suite *HelperTests) TestListFiles() {
-
+	ctx := context.TODO()
 	// Create a fake s3 backend
 	backend := s3mem.New()
 	faker := gofakes3.New(backend)
 	ts := httptest.NewServer(faker.Server())
 	defer ts.Close()
 
-	// Configure S3 client
-	s3Config := &aws.Config{
-		Credentials:      credentials.NewStaticCredentials("dummy", "dummy", suite.accessToken),
-		Endpoint:         aws.String(ts.URL),
-		Region:           aws.String("eu-central-1"),
-		DisableSSL:       aws.Bool(true),
-		S3ForcePathStyle: aws.Bool(true),
+	awsConfig, err := config.LoadDefaultConfig(ctx,
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("dummy", "dummy", suite.accessToken)),
+		config.WithRegion("eu-central-1"),
+		config.WithBaseEndpoint(ts.URL),
+	)
+	if err != nil {
+		suite.FailNow("failed to create aws config", err)
 	}
-	newSession, _ := session.NewSession(s3Config)
-	s3Client := s3.New(newSession)
+
+	s3Client := s3.NewFromConfig(awsConfig, func(o *s3.Options) {
+		o.UsePathStyle = true
+		o.EndpointOptions.DisableHTTPS = true
+	})
 
 	// Create bucket named dummy
 	cparams := &s3.CreateBucketInput{
 		Bucket: aws.String("dummy"),
 	}
-	_, err := s3Client.CreateBucket(cparams)
+	_, err = s3Client.CreateBucket(ctx, cparams)
 	if err != nil {
 		log.Panic(err.Error())
 	}
@@ -520,7 +524,7 @@ func (suite *HelperTests) TestListFiles() {
 	}
 	defer file.Close() //nolint:errcheck
 
-	_, err = s3Client.PutObject(&s3.PutObjectInput{
+	_, err = s3Client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String("dummy"),
 		Key:    aws.String("dummy/" + filepath.Base(suite.testFile.Name())),
 		Body:   file,
@@ -534,7 +538,7 @@ func (suite *HelperTests) TestListFiles() {
 		log.Panic(err.Error())
 	}
 	defer file1.Close() //nolint:errcheck
-	_, err = s3Client.PutObject(&s3.PutObjectInput{
+	_, err = s3Client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String("dummy"),
 		Key:    aws.String("dummy/" + filepath.Base(suite.testFile1.Name())),
 		Body:   file1,
