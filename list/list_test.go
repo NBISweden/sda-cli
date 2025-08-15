@@ -1,7 +1,6 @@
 package list
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"net/http/httptest"
@@ -17,7 +16,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/johannesboyne/gofakes3"
 	"github.com/johannesboyne/gofakes3/backend/s3mem"
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -67,9 +65,7 @@ func (suite *TestSuite) TestFunctionality() {
 	}
 	_, err := s3Client.CreateBucket(cparams)
 	if err != nil {
-		log.Println(err.Error())
-
-		return
+		suite.FailNow("failed to create s3 bucket", err)
 	}
 
 	// Create conf file for sda-cli
@@ -93,14 +89,14 @@ func (suite *TestSuite) TestFunctionality() {
 	// Create config file
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd.conf")
 	if err != nil {
-		log.Panic(err)
+		suite.FailNow("failed to create s3cmd.conf test file", err)
 	}
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	// Write config file
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		log.Printf("failed to write temp config file, %v", err)
+		suite.FailNow("failed to write to s3cmd.conf test file", err)
 	}
 
 	// Create dir for storing file
@@ -109,33 +105,36 @@ func (suite *TestSuite) TestFunctionality() {
 	dir := "dummy"
 	err = os.Mkdir(dir, 0755)
 	if err != nil {
-		log.Error(err)
+		suite.FailNow("failed to create test directory", err)
 	}
 	defer os.RemoveAll(dir) //nolint:errcheck
 
 	// Create test file to upload
 	testfile, err := os.CreateTemp(dir, "dummy")
 	if err != nil {
-		log.Panic(err)
+		suite.FailNow("failed to create test file", err)
 	}
 	defer os.Remove(testfile.Name()) //nolint:errcheck
 
-	var uploadOutput bytes.Buffer
-	log.SetOutput(&uploadOutput)
+	rescueStdout := os.Stdout
+	uploadR, uploadW, _ := os.Pipe()
+	os.Stdout = uploadW
 
 	// Upload a file
 	os.Args = []string{"upload", "--force-unencrypted", "-r", dir}
 	err = upload.Upload(os.Args, configPath.Name())
 	assert.NoError(suite.T(), err)
 
+	_ = uploadW.Close()
+	os.Stdout = rescueStdout
+	uploadOutput, _ := io.ReadAll(uploadR)
+
 	// Check logs that file was uploaded
-	logMsg := fmt.Sprintf("%v", strings.TrimSuffix(uploadOutput.String(), "\n"))
+	logMsg := fmt.Sprintf("%v", strings.TrimSuffix(string(uploadOutput), "\n"))
 	msg := "file uploaded"
 	assert.Contains(suite.T(), logMsg, msg)
 
-	log.SetOutput(os.Stdout)
-
-	rescueStdout := os.Stdout
+	rescueStdout = os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
@@ -147,13 +146,13 @@ func (suite *TestSuite) TestFunctionality() {
 	err = List(os.Args, configPath.Name())
 	assert.NoError(suite.T(), err)
 
-	w.Close() //nolint:errcheck
+	_ = w.Close()
 	os.Stdout = rescueStdout
 	listOutput, _ := io.ReadAll(r)
 	msg1 := fmt.Sprintf("%v", filepath.Base(testfile.Name()))
 	assert.Contains(suite.T(), string(listOutput), msg1)
 
-	errW.Close() //nolint:errcheck
+	_ = errW.Close()
 	os.Stderr = rescueStderr
 	listError, _ := io.ReadAll(errR)
 

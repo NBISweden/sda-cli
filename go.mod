@@ -11,7 +11,6 @@ require (
 	github.com/johannesboyne/gofakes3 v0.0.0-20220627085814-c3ac35da23b2
 	github.com/manifoldco/promptui v0.9.0
 	github.com/neicnordic/crypt4gh v1.14.0
-	github.com/sirupsen/logrus v1.9.3
 	github.com/smallnest/ringbuffer v0.0.0-20250317021400-0da97b586904
 	github.com/stretchr/testify v1.10.0
 	github.com/vbauerster/mpb/v8 v8.10.2
