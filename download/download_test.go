@@ -101,7 +101,7 @@ func (suite *TestSuite) TestPrintHostBase() {
 
 	_ = Download(os.Args, confPath.Name())
 
-	w.Close() //nolint:errcheck
+	_ = w.Close()
 	os.Stderr = rescueStderr
 	uploadError, _ := io.ReadAll(r)
 

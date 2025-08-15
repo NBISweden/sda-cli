@@ -359,7 +359,7 @@ func (suite *HelperTests) TestTokenExpiration() {
 	err = CheckTokenExpiration(token)
 	assert.NoError(suite.T(), err)
 
-	w.Close() //nolint:errcheck
+	_ = w.Close()
 	out, _ := io.ReadAll(r)
 	os.Stderr = storeStderr
 
@@ -377,7 +377,7 @@ func (suite *HelperTests) TestTokenExpiration() {
 	err = CheckTokenExpiration(token)
 	assert.NoError(suite.T(), err)
 
-	w.Close() //nolint:errcheck
+	_ = w.Close()
 	out, _ = io.ReadAll(r)
 	os.Stderr = storeStderr
 
