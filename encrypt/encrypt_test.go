@@ -44,98 +44,84 @@ func (suite *EncryptTests) SetupTest() {
 	// Generate a crypt4gh key pair
 	suite.pubKeyData, suite.secKeyData, err = keys.GenerateKeyPair()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Couldn't generate key pair", err)
-		os.Exit(1)
+		suite.FailNow("failed to generate key pair", err)
 	}
 
 	// Create a temporary directory for our files
 	suite.tempDir, err = os.MkdirTemp(os.TempDir(), "sda-cli-test-")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Couldn't create temporary test directory", err)
-		os.Exit(1)
+		suite.FailNow("failed to create temp test directory", err)
 	}
 
 	// Write the keys to temporary files
 	suite.publicKey, err = os.CreateTemp(suite.tempDir, "pubkey-")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Cannot create temporary public key file", err)
-		os.Exit(1)
+		suite.FailNow("failed to create temp public key test file", err)
 	}
 
 	err = keys.WriteCrypt4GHX25519PublicKey(suite.publicKey, suite.pubKeyData)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write temporary public key file, %v\n", err)
-		os.Exit(1)
+		suite.FailNow("failed to write to public key test file", err)
 	}
 
 	suite.privateKey, err = os.CreateTemp(suite.tempDir, "seckey-")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "cannot create temporary private key file", err)
-		os.Exit(1)
+		suite.FailNow("failed to create temp private key test file", err)
 	}
 
 	err = keys.WriteCrypt4GHX25519PrivateKey(suite.privateKey, suite.secKeyData, []byte(""))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write temporary private key file, %v\n", err)
-		os.Exit(1)
+		suite.FailNow("failed to write to private key", err)
 	}
 
 	// Create temp file with concatenated pub keys.
 	// Append same key twice. Works until we decide that we do not allow duplicates.
 	suite.multiPublicKey, err = os.CreateTemp(suite.tempDir, "pubkey-")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Cannot create temporary public key file", err)
-		os.Exit(1)
+		suite.FailNow("failed to create multi pub key test file", err)
 	}
 
 	input, err := os.ReadFile(suite.publicKey.Name())
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Cannot read from public key file", err)
-		os.Exit(1)
+		suite.FailNow("failed to read public key file", err)
 	}
 
 	err = os.WriteFile(suite.multiPublicKey.Name(), append(input, input...), 0600)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "cannot write to temporary multi-key file", err)
-		os.Exit(1)
+		suite.FailNow("failed to write to multi public key test file", err)
 	}
 
 	// create an existing test file with some known content
 	suite.fileOk, err = os.CreateTemp(suite.tempDir, "testfile-")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "cannot create temporary public key file", err)
-		os.Exit(1)
+		suite.FailNow("failed to create test file", err)
 	}
 
 	err = os.WriteFile(suite.fileOk.Name(), []byte("content"), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write to testfile: %s\n", err)
-		os.Exit(1)
+		suite.FailNow("failed to write to test file", err)
 	}
 
 	// create an existing encrypted test file
 	suite.encryptedFile, err = os.CreateTemp(suite.tempDir, "encrypted-input")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "cannot create temporary encrypted testfile", err)
-		os.Exit(1)
+		suite.FailNow("failed to create encrypted input test file", err)
 	}
 
 	err = os.WriteFile(suite.encryptedFile.Name(), []byte("crypt4gh"), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write to temporary encrypted testfile: %s\n", err)
-		os.Exit(1)
+		suite.FailNow("failed to write to encrypted input test file", err)
 	}
 
 	// create an large test file with some known content
 	suite.largeFile, err = os.CreateTemp(suite.tempDir, "largefile-")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "cannot create temporary test file", err)
-		os.Exit(1)
+		suite.FailNow("failed to create largefile test file", err)
 	}
 
 	for range 2 * 1024 * 1024 {
-		if _, e := suite.largeFile.WriteString("a"); e != nil {
-			suite.FailNow("failed to write large file")
+		if _, err = suite.largeFile.WriteString("a"); err != nil {
+			suite.FailNow("failed to write largefile test file", err)
 		}
 	}
 }
@@ -173,8 +159,7 @@ func (suite *EncryptTests) TestcheckFiles() {
 func (suite *EncryptTests) TestreadPublicKeyFile() {
 	file, err := os.Open(suite.publicKey.Name())
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		suite.FailNow("failed to open public key test file", err)
 	}
 	defer file.Close() //nolint:errcheck
 	publicKey, err := readPublicKeyFile(file.Name())
@@ -259,7 +244,7 @@ func (suite *EncryptTests) TestPubKeyFromInfo() {
 	publicKeyFileList = nil
 	keyData, err := os.ReadFile(suite.publicKey.Name())
 	if err != nil {
-		suite.FailNow("failed to read public key from disk")
+		suite.FailNow("failed to read public key from disk", err)
 	}
 
 	infoData := login.AuthInfo{
@@ -267,7 +252,7 @@ func (suite *EncryptTests) TestPubKeyFromInfo() {
 	}
 	responseData, err := json.Marshal(infoData)
 	if err != nil {
-		suite.FailNow("failed to marshal JSON response")
+		suite.FailNow("failed to marshal JSON response", err)
 	}
 
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
