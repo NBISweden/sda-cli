@@ -65,9 +65,7 @@ func (suite *TestSuite) TestFunctionality() {
 	}
 	_, err := s3Client.CreateBucket(cparams)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-
-		return
+		suite.FailNow("failed to create s3 bucket", err)
 	}
 
 	// Create conf file for sda-cli
@@ -91,15 +89,14 @@ func (suite *TestSuite) TestFunctionality() {
 	// Create config file
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd.conf")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		panic(err)
+		suite.FailNow("failed to create s3cmd.conf test file", err)
 	}
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	// Write config file
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v", err)
+		suite.FailNow("failed to write to s3cmd.conf test file", err)
 	}
 
 	// Create dir for storing file
@@ -108,15 +105,14 @@ func (suite *TestSuite) TestFunctionality() {
 	dir := "dummy"
 	err = os.Mkdir(dir, 0755)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		suite.FailNow("failed to create test directory", err)
 	}
 	defer os.RemoveAll(dir) //nolint:errcheck
 
 	// Create test file to upload
 	testfile, err := os.CreateTemp(dir, "dummy")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		panic(err)
+		suite.FailNow("failed to create test file", err)
 	}
 	defer os.Remove(testfile.Name()) //nolint:errcheck
 

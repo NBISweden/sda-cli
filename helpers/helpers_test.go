@@ -33,12 +33,11 @@ type HelperTests struct {
 }
 
 // generate jwts for testing the expDate
-func generateDummyToken(expDate int64) string {
+func (suite *HelperTests) generateDummyToken(expDate int64) string {
 	// Generate a new private key
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to generate private key: %s\n", err)
-		os.Exit(1)
+		suite.FailNow("failed to generate key", err)
 	}
 
 	// Create the Claims
@@ -55,8 +54,7 @@ func generateDummyToken(expDate int64) string {
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	ss, err := token.SignedString(privateKey)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to sign token: %s\n", err)
-		os.Exit(1)
+		suite.FailNow("failed to sign token", err)
 	}
 
 	return ss
@@ -73,34 +71,29 @@ func (suite *HelperTests) SetupTest() {
 	// Create a temporary directory for our files
 	suite.tempDir, err = os.MkdirTemp(os.TempDir(), "sda-cli-test-")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Couldn't create temporary test directory", err)
-		os.Exit(1)
+		suite.FailNow("failed to create temp test directory", err)
 	}
 
 	// create an existing test file with some known content
 	suite.testFile, err = os.CreateTemp(suite.tempDir, "testfile-")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "cannot create temporary file", err)
-		os.Exit(1)
+		suite.FailNow("failed to create temp test file", err)
 	}
 
 	err = os.WriteFile(suite.testFile.Name(), []byte("content"), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write to testfile: %s\n", err)
-		os.Exit(1)
+		suite.FailNow("failed to write to test file", err)
 	}
 
 	// create another existing test file with some known content
 	suite.testFile1, err = os.CreateTemp(suite.tempDir, "testfile-")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "cannot create temporary file", err)
-		os.Exit(1)
+		suite.FailNow("failed to create temp test file", err)
 	}
 
 	err = os.WriteFile(suite.testFile1.Name(), []byte("more content"), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write to testfile1: %s\n", err)
-		os.Exit(1)
+		suite.FailNow("failed to write to test file", err)
 	}
 
 	suite.accessToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtleXN0b3JlLUNIQU5HRS1NRSJ9.eyJqdGkiOiJWTWpfNjhhcEMxR2FJbXRZdFExQ0ciLCJzdWIiOiJkdW1teSIsImlzcyI6Imh0dHA6Ly9vaWRjOjkwOTAiLCJpYXQiOjE3MDc3NjMyODksImV4cCI6MTg2NTU0NzkxOSwic2NvcGUiOiJvcGVuaWQgZ2E0Z2hfcGFzc3BvcnRfdjEgcHJvZmlsZSBlbWFpbCIsImF1ZCI6IlhDNTZFTDExeHgifQ.ZFfIAOGeM2I5cvqr1qJV74qU65appYjpNJVWevGHjGA5Xk_qoRMFJXmG6AiQnYdMKnJ58sYGNjWgs2_RGyw5NyM3-pgP7EKHdWU4PrDOU84Kosg4IPMSFxbBRAEjR5X04YX_CLYW2MFk_OyM9TIln522_JBVT_jA5WTTHSmBRHntVArYYHvQdF-oFRiqL8JXWlsUBh3tqQ33sZdqd9g64YhTk9a5lEC42gn5Hg9Hm_qvkl5orzEqIg7x9z5706IBE4Zypco5ohrAKsEbA8EKbEBb0jigGgCslQNde2owUyKIkvZYmxHA78X5xpymMp9K--PgbkyMS9GtA-YwOHPs-w"
@@ -142,8 +135,7 @@ func (suite *HelperTests) TestFileIsReadable() {
 	if runtime.GOOS != "windows" {
 		err := os.Chmod(suite.testFile.Name(), 0000)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Couldn't set file permissions of test file")
-			os.Exit(1)
+			suite.FailNow("failed to chmod test file", err)
 		}
 		// file permissions don't allow reading
 		testDisallowed := FileIsReadable(suite.testFile.Name())
@@ -152,8 +144,7 @@ func (suite *HelperTests) TestFileIsReadable() {
 		// restore permissions
 		err = os.Chmod(suite.testFile.Name(), 0600)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Couldn't restore file permissions of test file")
-			os.Exit(1)
+			suite.FailNow("failed to chmod test file", err)
 		}
 	}
 }
@@ -241,15 +232,14 @@ encrypt = False
 
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		suite.FailNow("failed to create temp s3cmd test file", err)
 	}
 
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v\n", err)
+		suite.FailNow("failed to write config file", err)
 	}
 
 	_, err = LoadConfigFile(configPath.Name())
@@ -268,15 +258,14 @@ func (suite *HelperTests) TestConfigS3cmdFileFormat() {
 
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		suite.FailNow("failed to create temp s3cmd test file", err)
 	}
 
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v\n", err)
+		suite.FailNow("failed to write config file", err)
 	}
 
 	_, err = LoadConfigFile(configPath.Name())
@@ -287,8 +276,7 @@ func (suite *HelperTests) TestConfigMissingCredentials() {
 
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		suite.FailNow("failed to create temp s3cmd test file", err)
 	}
 
 	defer os.Remove(configPath.Name()) //nolint:errcheck
@@ -304,14 +292,13 @@ access_key = someUser
 `
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		suite.FailNow("failed to create temp s3cmd test file", err)
 	}
 
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	if err := os.WriteFile(configPath.Name(), []byte(confFile), 0600); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v\n", err)
+		suite.FailNow("failed to write to temp s3cmd test file", err)
 	}
 
 	_, err = LoadConfigFile(configPath.Name())
@@ -337,15 +324,14 @@ encrypt = False
 `
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		suite.FailNow("failed to create temp s3cmd test file", err)
 	}
 
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v\n", err)
+		suite.FailNow("failed to write to temp s3cmd test file", err)
 	}
 
 	_, err = LoadConfigFile(configPath.Name())
@@ -354,17 +340,17 @@ encrypt = False
 
 func (suite *HelperTests) TestTokenExpiration() {
 	// Token without exp claim
-	token := generateDummyToken(0)
+	token := suite.generateDummyToken(0)
 	err := CheckTokenExpiration(token)
 	assert.EqualError(suite.T(), err, "could not parse token, reason: no expiration date")
 
 	// Token with expired date
-	token = generateDummyToken(time.Now().Unix())
+	token = suite.generateDummyToken(time.Now().Unix())
 	err = CheckTokenExpiration(token)
 	assert.EqualError(suite.T(), err, "the provided access token has expired, please renew it")
 
 	// Token with valid expiration, less than 2 hours
-	token = generateDummyToken(time.Now().Add(time.Hour).Unix())
+	token = suite.generateDummyToken(time.Now().Add(time.Hour).Unix())
 
 	storeStderr := os.Stderr
 	r, w, _ := os.Pipe()
@@ -382,7 +368,7 @@ func (suite *HelperTests) TestTokenExpiration() {
 
 	// Token with valid expiration, more than a day
 	exp := time.Now().Add(time.Hour * 72)
-	token = generateDummyToken(exp.Unix())
+	token = suite.generateDummyToken(exp.Unix())
 
 	storeStderr = os.Stderr
 	r, w, _ = os.Pipe()
@@ -418,15 +404,14 @@ encrypt = False
 `
 	configPath, err := os.Create(".sda-cli-session")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		suite.FailNow("failed to create sda cli session test file", err)
 	}
 
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v\n", err)
+		suite.FailNow("failed to write to sda cli session test file", err)
 	}
 
 	_, err = GetPublicKeyFromSession()
@@ -454,15 +439,14 @@ public_key = 27be42445fd9e39c9be39e6b36a55e61e3801fc845f63781a813d3fe9977e17a
 `
 	configPath, err := os.Create(".sda-cli-session")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		suite.FailNow("failed to create sda cli session test file", err)
 	}
 
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v\n", err)
+		suite.FailNow("failed to write to sda cli session test file", err)
 	}
 
 	_, err = GetPublicKeyFromSession()
@@ -525,15 +509,13 @@ func (suite *HelperTests) TestListFiles() {
 	}
 	_, err := s3Client.CreateBucket(cparams)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		panic(err.Error())
+		suite.FailNow("failed to create s3 bucket", err)
 	}
 
 	// Upload two test files
 	file, err := os.Open(suite.testFile.Name())
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		panic(err.Error())
+		suite.FailNow("failed to open test file", err)
 	}
 	defer file.Close() //nolint:errcheck
 
@@ -543,14 +525,12 @@ func (suite *HelperTests) TestListFiles() {
 		Body:   file,
 	})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		panic(err.Error())
+		suite.FailNow("failed to put test file to s3 bucket", err)
 	}
 
 	file1, err := os.Open(suite.testFile1.Name())
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		panic(err.Error())
+		suite.FailNow("failed to open test file", err)
 	}
 	defer file1.Close() //nolint:errcheck
 	_, err = s3Client.PutObject(&s3.PutObjectInput{
@@ -559,8 +539,7 @@ func (suite *HelperTests) TestListFiles() {
 		Body:   file1,
 	})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		panic(err.Error())
+		suite.FailNow("failed to put test file to s3 bucket", err)
 	}
 
 	testConfig := &Config{

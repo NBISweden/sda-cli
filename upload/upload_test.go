@@ -57,15 +57,14 @@ func (suite *TestSuite) TestSampleNoFiles() {
 
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd.conf")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		suite.FailNow("failed to create s3cmd.conf", err)
 	}
 
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v\n", err)
+		suite.FailNow("failed to write to s3cmd.conf", err)
 	}
 
 	// Test Upload function
@@ -105,15 +104,13 @@ func (suite *TestSuite) TestcreateFilePaths() {
 	// Create temp dir with file
 	dir, err := os.MkdirTemp(os.TempDir(), "test")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		panic(err)
+		suite.FailNow("failed to create temp test directory", err)
 	}
 	defer os.RemoveAll(dir) //nolint:errcheck
 
 	testfile, err := os.CreateTemp(dir, "testfile")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		panic(err)
+		suite.FailNow("failed to create test file", err)
 	}
 	defer os.Remove(testfile.Name()) //nolint:errcheck
 
@@ -164,8 +161,7 @@ func (suite *TestSuite) TestFunctionality() {
 	}
 	_, err := s3Client.CreateBucket(cparams)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		panic(err)
+		suite.FailNow("failed to create s3 bucket", err)
 	}
 
 	// Create conf file for sda-cli
@@ -188,32 +184,29 @@ func (suite *TestSuite) TestFunctionality() {
 
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd.conf")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		panic(err)
+		suite.FailNow("failed to create s3cmd.conf", err)
 	}
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v\n", err)
+		suite.FailNow("failed to write to s3cmd.conf", err)
 	}
 
 	// Create temp dir with file
 	dir, err := os.MkdirTemp(os.TempDir(), "test")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		panic(err)
+		suite.FailNow("failed to create temp test directory", err)
 	}
 	defer os.RemoveAll(dir) //nolint:errcheck
 
 	testfile, err := os.CreateTemp(dir, "testfile")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		panic(err)
+		suite.FailNow("failed to create test file", err)
 	}
 	err = os.WriteFile(testfile.Name(), []byte("content"), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v\n", err)
+		suite.FailNow("failed to write to test file", err)
 	}
 	defer os.Remove(testfile.Name()) //nolint:errcheck
 
@@ -250,8 +243,7 @@ func (suite *TestSuite) TestFunctionality() {
 		Bucket: aws.String("dummy"),
 	})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		panic(err)
+		suite.FailNow("failed to list objects from s3", err)
 	}
 	assert.Equal(suite.T(), aws.StringValue(result.Contents[0].Key), fmt.Sprintf("%s/%s", filepath.Base(dir), filepath.Base(testfile.Name())))
 
@@ -277,8 +269,7 @@ func (suite *TestSuite) TestFunctionality() {
 		Bucket: aws.String("dummy"),
 	})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		panic(err)
+		suite.FailNow("failed to list objects from s3", err)
 	}
 	assert.Equal(suite.T(), aws.StringValue(result.Contents[0].Key), fmt.Sprintf("%s/%s", filepath.ToSlash(targetPath), filepath.Base(testfile.Name())))
 
@@ -288,23 +279,17 @@ func (suite *TestSuite) TestFunctionality() {
 	// Generate a crypt4gh pub key
 	pubKeyData, _, err := keys.GenerateKeyPair()
 	if err != nil {
-		panicMsg := fmt.Sprint("Couldn't generate key pair", err)
-		fmt.Fprintln(os.Stderr, panicMsg)
-		panic(panicMsg)
+		suite.FailNow("Couldn't generate key pair", err)
 	}
 
 	// Write the keys to temporary files
 	publicKey, err := os.CreateTemp(dir, "pubkey-")
 	if err != nil {
-		panicMsg := fmt.Sprint("Cannot create temporary public key file", err)
-		fmt.Fprintln(os.Stderr, panicMsg)
-		panic(panicMsg)
+		suite.FailNow("Cannot create temporary public key file", err)
 	}
 
 	if err = keys.WriteCrypt4GHX25519PublicKey(publicKey, pubKeyData); err != nil {
-		panicMsg := fmt.Sprintf("failed to write temporary public key file, %v", err)
-		fmt.Fprintln(os.Stderr, panicMsg)
-		panic(panicMsg)
+		suite.FailNow("failed to write temporary public key file, %v", err)
 	}
 
 	rescuedStdout = os.Stdout
@@ -327,8 +312,7 @@ func (suite *TestSuite) TestFunctionality() {
 		Bucket: aws.String("dummy"),
 	})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		panic(err)
+		suite.FailNow("failed to list objects from s3", err)
 	}
 	assert.Equal(suite.T(), aws.StringValue(result.Contents[1].Key), "someDir/"+filepath.Base(testfile.Name())+".c4gh")
 
@@ -364,12 +348,11 @@ func (suite *TestSuite) TestFunctionality() {
 	// Check that trying to encrypt already encrypted files returns error and aborts
 	encFile, err := os.CreateTemp(dir, "encFile")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		panic(err)
+		suite.FailNow("failed to create test file", err)
 	}
 	err = os.WriteFile(encFile.Name(), []byte("crypt4gh"), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v\n", err)
+		suite.FailNow("failed to write to test file", err)
 	}
 	defer os.Remove(testfile.Name()) //nolint:errcheck
 	newArgs = []string{"upload", "--encrypt-with-key", publicKey.Name(), encFile.Name()}
@@ -399,7 +382,7 @@ func (suite *TestSuite) TestFunctionality() {
 
 	err = os.WriteFile(configPath.Name(), []byte(confFileNoToken), 0600)
 	if err != nil {
-		suite.FailNow("failed to write temp config file, %v", err)
+		suite.FailNow("failed to write temp config file", err)
 	}
 
 	// Check that an access token is supplied
@@ -425,20 +408,16 @@ func (suite *TestSuite) TestFunctionality() {
 
 	// Remove hash files created by Encrypt
 	if err := os.Remove("checksum_encrypted.md5"); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		panic(err)
+		suite.FailNow("failed to delete checksum_encrypted.md5", err)
 	}
 	if err := os.Remove("checksum_unencrypted.md5"); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		panic(err)
+		suite.FailNow("failed to delete checksum_unencrypted.md5", err)
 	}
 	if err := os.Remove("checksum_encrypted.sha256"); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		panic(err)
+		suite.FailNow("failed to delete checksum_encrypted.sha256", err)
 	}
 	if err := os.Remove("checksum_unencrypted.sha256"); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		panic(err)
+		suite.FailNow("failed to delete checksum_unencrypted.sha256", err)
 	}
 
 }
@@ -468,7 +447,7 @@ func (suite *TestSuite) TestRecursiveToDifferentTarget() {
 	}
 	_, err := s3Client.CreateBucket(cparams)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		suite.FailNow("failed to create s3 bucket", err)
 	}
 
 	// Create conf file for sda-cli
@@ -491,29 +470,29 @@ func (suite *TestSuite) TestRecursiveToDifferentTarget() {
 
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd.conf")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		suite.FailNow("failed to create temp s3cmd.conf file", err)
 	}
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v\n", err)
+		suite.FailNow("failed to write to temp s3cmd.conf file", err)
 	}
 
 	// Create temp dir with file
 	dir, err := os.MkdirTemp(os.TempDir(), "test")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		suite.FailNow("failed to create test directory", err)
 	}
 	defer os.RemoveAll(dir) //nolint:errcheck
 
 	testfile, err := os.CreateTemp(dir, "testfile")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		suite.FailNow("failed to create test file", err)
 	}
 	err = os.WriteFile(testfile.Name(), []byte("content"), 0600)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write temp config file, %v\n", err)
+		suite.FailNow("failed to write to test file", err)
 	}
 	defer os.Remove(testfile.Name()) //nolint:errcheck
 
@@ -539,7 +518,7 @@ func (suite *TestSuite) TestRecursiveToDifferentTarget() {
 		Bucket: aws.String("dummy"),
 	})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		suite.FailNow("failed to list obects from s3", err)
 	}
 	assert.Equal(suite.T(), filepath.ToSlash(filepath.Join(targetPath, filepath.Base(dir), filepath.Base(testfile.Name()))), aws.StringValue(result.Contents[0].Key))
 
@@ -572,22 +551,19 @@ func (suite *TestSuite) TestUploadInvalidCharacters() {
 
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd.conf")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		panic(err)
+		suite.FailNow("failed to create temp s3cmd.conf", err)
 	}
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		panic(err)
+		suite.FailNow("failed to write to temp s3cmd.conf", err)
 	}
 
 	// Create temp dir with file
 	dir, err := os.MkdirTemp(os.TempDir(), "test")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		panic(err)
+		suite.FailNow("failed to create test directory", err)
 	}
 	defer os.RemoveAll(dir) //nolint:errcheck
 
@@ -596,13 +572,11 @@ func (suite *TestSuite) TestUploadInvalidCharacters() {
 	var testfile *os.File
 	testfile, err = os.Create(filepath.Join(dir, testfilepath))
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		panic(err)
+		suite.FailNow("failed to create test file", err)
 	}
 	err = os.WriteFile(testfile.Name(), []byte("content"), 0600)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		panic(err)
+		suite.FailNow("failed to write to test file", err)
 	}
 	defer os.Remove(testfile.Name()) //nolint:errcheck
 
@@ -633,13 +607,11 @@ func (suite *TestSuite) TestUploadInvalidCharacters() {
 		var testfile *os.File
 		testfile, err := os.Create(filepath.Join(dir, testfilepath))
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			panic(err)
+			suite.FailNow("failed to create test file", err)
 		}
 		err = os.WriteFile(testfile.Name(), []byte("content"), 0600)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			panic(err)
+			suite.FailNow("failed to write to test file", err)
 		}
 		defer os.Remove(testfile.Name()) //nolint:errcheck
 
