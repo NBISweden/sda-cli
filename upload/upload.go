@@ -248,15 +248,10 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		)
 
 		// Upload the file to S3.
-
-		dirPath := targetDir
-		if targetDir != "" {
-			dirPath += "/"
-		}
 		result, err := uploader.Upload(ctx, &s3.PutObjectInput{
 			Body:            bar.ProxyReader(fs.Reader),
 			Bucket:          aws.String(config.AccessKey),
-			Key:             aws.String(dirPath + outFiles[k]),
+			Key:             aws.String(path.Join(targetDir, outFiles[k])),
 			ContentEncoding: aws.String(config.Encoding),
 		}, func(u *manager.Uploader) {
 			u.PartSize = config.MultipartChunkSizeMb * 1024 * 1024
