@@ -8,7 +8,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"io"
 	"net/mail"
 	"os"
@@ -19,6 +18,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -401,7 +401,6 @@ func CheckTokenExpiration(accessToken string) error {
 
 // ListFiles returns a list for s3 objects that correspond to files with the specified prefix.
 func ListFiles(config Config, prefix string) ([]types.Object, error) {
-
 	s3Endpoint := config.HostBase
 	if !strings.HasPrefix(s3Endpoint, "http") {
 		s3Endpoint = fmt.Sprintf("http://%s", config.HostBase)
