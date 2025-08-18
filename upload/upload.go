@@ -130,11 +130,14 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		}
 		_ = f.Close()
 	}
-
-	s3Endpoint := fmt.Sprintf("https://%s", config.HostBase)
-	if !config.UseHTTPS {
+	s3Endpoint := config.HostBase
+	if !strings.HasPrefix(s3Endpoint, "http") {
 		s3Endpoint = fmt.Sprintf("http://%s", config.HostBase)
+		if !config.UseHTTPS {
+			s3Endpoint = fmt.Sprintf("https://%s", config.HostBase)
+		}
 	}
+
 	awsConfig, err := awsConfig.LoadDefaultConfig(ctx,
 		awsConfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
 			config.AccessKey,
