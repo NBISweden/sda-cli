@@ -5,335 +5,309 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	createKey "github.com/NBISweden/sda-cli/create_key"
 	"github.com/NBISweden/sda-cli/encrypt"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
-type DecryptTests struct {
+type DecryptTest struct {
 	suite.Suite
-	tempDir     string
-	fileContent []byte
-	testFile    *os.File
+	tempDir     string          // The directory this test will take place in
+	testFiles   []encryptedFile // SetupTest will generate one file
+	testKeyFile string          // SetupTest will generate key files used to encrypt / decrypt files in a test
+}
+
+type encryptedFile struct {
+	encryptedFileName string
+	decryptedFileName string
+	content           []byte
 }
 
 func TestDecryptTestSuite(t *testing.T) {
-	suite.Run(t, new(DecryptTests))
+	suite.Run(t, new(DecryptTest))
 }
 
-func (suite *DecryptTests) SetupTest() {
+func (suite *DecryptTest) SetupTest() {
+	// Clean any files created from previous test executions
+	suite.testFiles = make([]encryptedFile, 0)
+
 	var err error
-	// Create a temporary directory for our files
-	suite.tempDir, err = os.MkdirTemp(os.TempDir(), "sda-cli-test-")
-	assert.NoError(suite.T(), err)
-
-	// create a test file...
-	suite.testFile, err = os.CreateTemp(suite.tempDir, "testfile-")
-	assert.NoError(suite.T(), err)
-
-	// ... create some content ...
-	suite.fileContent = []byte("This is some fine content right here.")
-	// ... and write the known content to it
-	err = os.WriteFile(suite.testFile.Name(), suite.fileContent, 0600)
-	assert.NoError(suite.T(), err)
-}
-
-func (suite *DecryptTests) TearDownTest() {
-	os.Remove(suite.tempDir) //nolint:errcheck
-}
-
-func (suite *DecryptTests) TestreadPrivateKeyFile() {
-	testKeyFile := filepath.Join(suite.tempDir, "testkey")
-	// generate key files
-	err := createKey.GenerateKeyPair(testKeyFile, "test")
-	assert.NoError(suite.T(), err)
-
-	// Test reading a non-existent key
-	_, err = readPrivateKeyFile(testKeyFile, "")
-	assert.EqualError(suite.T(), err, fmt.Sprintf("private key file %s doesn't exist", testKeyFile))
-
-	// Test reading something that isn't a key
-	_, err = readPrivateKeyFile(suite.testFile.Name(), "")
-	assert.ErrorContains(suite.T(), err, fmt.Sprintf("file: %s", suite.testFile.Name()))
-
-	// Test reading a public key
-	_, err = readPrivateKeyFile(fmt.Sprintf("%s.pub.pem", testKeyFile), "")
-	assert.ErrorContains(suite.T(), err, "private key format not supported")
-
-	// Test reading a real key with wrong passphrase
-	_, err = readPrivateKeyFile(fmt.Sprintf("%s.sec.pem", testKeyFile), "wrong")
-	assert.ErrorContains(suite.T(), err, "chacha20poly1305: message authentication failed")
-
-	// Test reading a real key
-	_, err = readPrivateKeyFile(fmt.Sprintf("%s.sec.pem", testKeyFile), "test")
-	assert.NoError(suite.T(), err)
-}
-
-func (suite *DecryptTests) Testdecrypt() {
-	testKeyFile := filepath.Join(suite.tempDir, "testkey")
-	encryptedFile := fmt.Sprintf("%s.c4gh", suite.testFile.Name())
-	decryptedFile := filepath.Join(suite.tempDir, "decrypted_file")
-
-	// generate key files
-	err := createKey.GenerateKeyPair(testKeyFile, "")
-	assert.NoError(suite.T(), err)
-	// and read the private key
-	privateKey, err := readPrivateKeyFile(fmt.Sprintf("%s.sec.pem", testKeyFile), "")
-	assert.NoError(suite.T(), err)
-
-	// Encrypt a file using the encrypt module. change to the test directory to
-	// make sure that the checksum files end up there.
-	cwd, err := os.Getwd()
-	assert.NoError(suite.T(), err)
-	err = os.Chdir(suite.tempDir)
-	assert.NoError(suite.T(), err)
-	encryptArgs := []string{"encrypt", "-key", fmt.Sprintf("%s.pub.pem", testKeyFile), suite.testFile.Name()}
-	err = encrypt.Encrypt(encryptArgs)
-	assert.NoError(suite.T(), err, "encrypting file for testing failed")
-	err = os.Chdir(cwd)
-	assert.NoError(suite.T(), err)
-
-	// Test decrypting a non-existent file
-	msg := "no such file or directory"
-	if runtime.GOOS == "windows" {
-		msg = "The system cannot find the file specified."
+	suite.tempDir, err = os.MkdirTemp(os.TempDir(), "sda-cli-test-decrypt-clean")
+	if err != nil {
+		suite.FailNow("failed to create temporary directory", err)
 	}
-	err = decryptFile(filepath.Join(suite.tempDir, "non-existent"), "output_file", *privateKey)
-	assert.ErrorContains(suite.T(), err, msg)
 
-	// Test decryption with malformed key
-	fakeKey := [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	err = decryptFile(encryptedFile, decryptedFile, fakeKey)
-	assert.EqualError(suite.T(), err, "could not create cryp4gh reader: could not find matching public key header, decryption failed")
+	suite.testKeyFile = filepath.Join(suite.tempDir, "testkey")
+	err = createKey.GenerateKeyPair(suite.testKeyFile, "")
+	if err != nil {
+		suite.FailNow("failed to generate key pair", err)
+	}
+	os.Setenv("C4GH_PASSWORD", "")
 
-	// Test decrypting with the real key
-	err = decryptFile(encryptedFile, decryptedFile, *privateKey)
+	suite.createNewEncryptedFile()
+}
+
+func (suite *DecryptTest) createNewEncryptedFile() {
+	// create a test file...
+	testFile, err := os.CreateTemp(suite.tempDir, "testfile-")
+	if err != nil {
+		suite.FailNow("failed to create test file in temporary directory", err)
+	}
+	fileContent := []byte(fmt.Sprintf("This is some fine content right here, in file: %s", testFile.Name()))
+	// ... and write the known content to it
+	err = os.WriteFile(testFile.Name(), fileContent, 0600)
+	if err != nil {
+		suite.FailNow("failed to write content to test file", err)
+	}
+
+	encrypt.EmptyPublicKeyFileList()
+	err = encrypt.Encrypt([]string{"encrypt", "-key", fmt.Sprintf("%s.pub.pem", suite.testKeyFile), testFile.Name()})
+	if err != nil {
+		suite.FailNow("failed to encrypt test file", err)
+	}
+
+	if err := os.Remove(testFile.Name()); err != nil {
+		suite.FailNow("failed to remove decrypted file after encryption", err)
+	}
+
+	suite.testFiles = append(suite.testFiles, encryptedFile{
+		encryptedFileName: fmt.Sprintf("%s.c4gh", testFile.Name()),
+		decryptedFileName: testFile.Name(),
+		content:           fileContent,
+	})
+}
+
+func (suite *DecryptTest) TearDownTest() {
+	if err := os.RemoveAll(suite.tempDir); err != nil {
+		suite.T().Error("failed to clean files")
+	}
+
+	if err := os.Remove("checksum_encrypted.md5"); err != nil {
+		suite.FailNow("failed to delete checksum_encrypted.md5", err)
+	}
+	if err := os.Remove("checksum_unencrypted.md5"); err != nil {
+		suite.FailNow("failed to delete checksum_unencrypted.md5", err)
+	}
+	if err := os.Remove("checksum_encrypted.sha256"); err != nil {
+		suite.FailNow("failed to delete checksum_encrypted.sha256", err)
+	}
+	if err := os.Remove("checksum_unencrypted.sha256"); err != nil {
+		suite.FailNow("failed to delete checksum_unencrypted.sha256", err)
+	}
+
+}
+
+func (suite *DecryptTest) TestDecryptSuccess() {
+	err := Decrypt([]string{
+		"decrypt",
+		"-key",
+		fmt.Sprintf("%s.sec.pem", suite.testKeyFile),
+		suite.testFiles[0].encryptedFileName,
+	})
+
 	assert.NoError(suite.T(), err)
+
+	// Check that the encrypted file was removed
+	_, err = os.Stat(suite.testFiles[0].encryptedFileName)
+	assert.NoError(suite.T(), err, "encrypted file can not be found after decryption")
 
 	// Check content of the decrypted file
-	inFile, err := os.Open(decryptedFile)
+	inFile, err := os.Open(suite.testFiles[0].decryptedFileName)
 	assert.NoError(suite.T(), err, "unable to open decrypted file")
 	fileData, err := io.ReadAll(inFile)
 	assert.NoError(suite.T(), err, "unable to read decrypted file")
-	assert.Equal(suite.T(), fileData, suite.fileContent)
+	assert.Equal(suite.T(), string(suite.testFiles[0].content), string(fileData))
 }
 
-func (suite *DecryptTests) TestDecrypt() {
-	testKeyFile := filepath.Join(suite.tempDir, "testkey")
-	err := createKey.GenerateKeyPair(testKeyFile, "")
-	assert.NoError(suite.T(), err)
-
-	// Encrypt a file using the encrypt module. change to the test directory to
-	// make sure that the checksum files end up there.
-	cwd, err := os.Getwd()
-	assert.NoError(suite.T(), err)
-	err = os.Chdir(suite.tempDir)
-	assert.NoError(suite.T(), err)
-	encryptArgs := []string{"encrypt", "-key", fmt.Sprintf("%s.pub.pem", testKeyFile), suite.testFile.Name()}
-	assert.NoError(suite.T(), encrypt.Encrypt(encryptArgs), "encrypting file for testing failed")
-	assert.NoError(suite.T(), os.Chdir(cwd))
-	os.Setenv("C4GH_PASSWORD", "") //nolint:errcheck
-	if runtime.GOOS != "windows" {
-		assert.NoError(suite.T(), os.Remove(suite.testFile.Name()))
-		os.Args = []string{"decrypt", "-key", fmt.Sprintf("%s.sec.pem", testKeyFile), fmt.Sprintf("%s.c4gh", suite.testFile.Name())}
-		err = Decrypt(os.Args)
-		assert.NoError(suite.T(), err, "decrypt failed unexpectedly")
-
-		// Check content of the decrypted file
-		inFile, err := os.Open(suite.testFile.Name())
-		assert.NoError(suite.T(), err, "unable to open decrypted file")
-		fileData, err := io.ReadAll(inFile)
-		assert.NoError(suite.T(), err, "unable to read decrypted file")
-		assert.Equal(suite.T(), string(suite.fileContent), string(fileData))
+func (suite *DecryptTest) TestDecryptExistingDecryptionFile() {
+	// recreate unencrypted file with different content to verify it isn't overwritten
+	if err := os.WriteFile(suite.testFiles[0].decryptedFileName, []byte("different content"), 0600); err != nil {
+		suite.FailNow("failed to create test file in temporary directory")
 	}
 
-	os.Args = []string{"decrypt", "-key", fmt.Sprintf("%s.sec.pem", testKeyFile), "--force-overwrite", fmt.Sprintf("%s.c4gh", suite.testFile.Name())}
-	err = Decrypt(os.Args)
-	assert.NoError(suite.T(), err, "decrypt failed unexpectedly")
+	err := Decrypt([]string{
+		"decrypt",
+		"-key",
+		fmt.Sprintf("%s.sec.pem", suite.testKeyFile),
+		suite.testFiles[0].encryptedFileName,
+	})
+
+	assert.NoError(suite.T(), err)
+
+	// Check that the encrypted file was removed
+	_, err = os.Stat(suite.testFiles[0].encryptedFileName)
+	assert.NoError(suite.T(), err, "encrypted file can not be found after decryption")
+
+	// Check content of the decrypted file
+	inFile, err := os.Open(suite.testFiles[0].decryptedFileName)
+	assert.NoError(suite.T(), err, "unable to open decrypted file")
+	fileData, err := io.ReadAll(inFile)
+	assert.NoError(suite.T(), err, "unable to read decrypted file")
+	assert.Equal(suite.T(), "different content", string(fileData))
 }
 
-func (suite *DecryptTests) TestDecryptMultipleFiles() {
-	testKeyFile := filepath.Join(suite.tempDir, "testkey")
-	err := createKey.GenerateKeyPair(testKeyFile, "")
+func (suite *DecryptTest) TestDecryptWithCleanArgSuccess() {
+	err := Decrypt([]string{
+		"decrypt",
+		"--clean",
+		"-key",
+		fmt.Sprintf("%s.sec.pem", suite.testKeyFile),
+		suite.testFiles[0].encryptedFileName,
+	})
+
 	assert.NoError(suite.T(), err)
 
-	// Setup files for encryption
-	fileNames := []string{
-		filepath.Join(suite.tempDir, "file1.txt"),
-		filepath.Join(suite.tempDir, "file2.txt"),
-		filepath.Join(suite.tempDir, "file3.txt"),
-	}
-	encryptedFiles := []string{
-		filepath.Join(suite.tempDir, "file1.txt.c4gh"),
-		filepath.Join(suite.tempDir, "file2.txt.c4gh"),
-		filepath.Join(suite.tempDir, "file3.txt.c4gh"),
-	}
+	// Check that the encrypted file was removed
+	_, err = os.Stat(suite.testFiles[0].encryptedFileName)
+	assert.ErrorContains(suite.T(), err, "no such file or directory")
 
-	// Create and write to files
-	for _, fileName := range fileNames {
-		err := os.WriteFile(fileName, suite.fileContent, 0600)
-		assert.NoError(suite.T(), err)
-	}
+	// Check content of the decrypted file
+	inFile, err := os.Open(suite.testFiles[0].decryptedFileName)
+	assert.NoError(suite.T(), err, "unable to open decrypted file")
+	fileData, err := io.ReadAll(inFile)
+	assert.NoError(suite.T(), err, "unable to read decrypted file")
+	assert.Equal(suite.T(), string(suite.testFiles[0].content), string(fileData))
+}
 
-	// Encrypt the files
-	cwd, err := os.Getwd()
+func (suite *DecryptTest) TestDecryptWithCleanArgWrongPassword() {
+	os.Setenv("C4GH_PASSWORD", "wrong")
+
+	err := Decrypt([]string{
+		"decrypt",
+		"--clean",
+		"-key",
+		fmt.Sprintf("%s.sec.pem", suite.testKeyFile),
+		suite.testFiles[0].encryptedFileName,
+	})
+	assert.Error(suite.T(), err)
+
+	// Check that the encrypted file was not removed
+	_, err = os.Stat(suite.testFiles[0].encryptedFileName)
+	assert.NoError(suite.T(), err, "encrypted file can not be found after decrypt failure")
+}
+func (suite *DecryptTest) TestDecryptWrongPassword() {
+	os.Setenv("C4GH_PASSWORD", "wrong")
+
+	err := Decrypt([]string{
+		"decrypt",
+		"--clean",
+		"-key",
+		fmt.Sprintf("%s.sec.pem", suite.testKeyFile),
+		suite.testFiles[0].encryptedFileName,
+	})
+	assert.Error(suite.T(), err)
+
+	// Check that the decrypted file does not exist
+	_, err = os.Stat(suite.testFiles[0].decryptedFileName)
+	assert.ErrorContains(suite.T(), err, "no such file or directory")
+}
+
+func (suite *DecryptTest) TestDecryptMultipleFilesSuccess() {
+	// Generate 2 additional files besides the one file generated by SetupTest
+	suite.createNewEncryptedFile()
+	suite.createNewEncryptedFile()
+
+	err := Decrypt([]string{
+		"decrypt",
+		"-key",
+		fmt.Sprintf("%s.sec.pem", suite.testKeyFile),
+		suite.testFiles[0].encryptedFileName,
+		suite.testFiles[1].encryptedFileName,
+		suite.testFiles[2].encryptedFileName,
+	})
 	assert.NoError(suite.T(), err)
-	err = os.Chdir(suite.tempDir)
-	assert.NoError(suite.T(), err)
-	encryptArgs := []string{"encrypt", "-key", fmt.Sprintf("%s.pub.pem", testKeyFile)}
-	for _, fileName := range fileNames {
-		err = encrypt.Encrypt(append(encryptArgs, fileName))
-		assert.NoError(suite.T(), err)
-	}
-	err = os.Chdir(cwd)
-	assert.NoError(suite.T(), err)
-
-	// Remove file2.txt and file3.txt to simulate their absence
-	err = os.Remove(fileNames[1]) // file2.txt
-	assert.NoError(suite.T(), err)
-
-	err = os.Remove(fileNames[2]) // file3.txt
-	assert.NoError(suite.T(), err)
-
-	// Attempt to decrypt all files: file1.txt.c4gh will be skipped due to
-	// existance of file1.txt, file2.txt.c4gh and file3.txt.c4gh will be
-	// decrypted successfully, despite a non existing file in the list
-	os.Setenv("C4GH_PASSWORD", "") //nolint:errcheck
-	os.Args = []string{"decrypt", "-key", fmt.Sprintf("%s.sec.pem", testKeyFile),
-		encryptedFiles[0], encryptedFiles[1], "nonexistent_file.c4gh", encryptedFiles[2]}
-
-	err = Decrypt(os.Args)
-	assert.NoError(suite.T(), err, "decrypt failed unexpectedly")
 
 	// Check the decrypted files
-	for _, fileName := range fileNames[1:] { // Check file2.txt and file3.txt
-		decryptedFile := filepath.Join(suite.tempDir, filepath.Base(fileName))
+	for _, file := range suite.testFiles { // Check file2.txt and file3.txt
 
-		// Verify that the file exists
-		if _, err := os.Stat(decryptedFile); os.IsNotExist(err) {
-			suite.T().Errorf("Decrypted file %s does not exist", decryptedFile)
-
-			continue
-		}
-
-		// Open and read the decrypted file
-		inFile, err := os.Open(decryptedFile)
-		assert.NoError(suite.T(), err, "unable to open decrypted file")
-		fileData, err := io.ReadAll(inFile)
-		assert.NoError(suite.T(), err, "unable to read decrypted file")
-
-		// Check the file content
-		assert.Equal(suite.T(), fileData, suite.fileContent, "content of decrypted file does not match expected")
-	}
-
-	// Test decryption of multiple files with --force-overwrite enabled
-	// First, modify the content of the decrypted files to ensure we can verify that they are overwritten later
-	for _, fileName := range fileNames {
-		decryptedFile := filepath.Join(suite.tempDir, filepath.Base(fileName))
-
-		// Clear the file content by truncating the file
-		err := os.WriteFile(decryptedFile, []byte{}, 0600)
-		assert.NoError(suite.T(), err, "failed to empty the file content")
-	}
-
-	// Now, run decryption again with --force-overwrite enabled
-	os.Args = []string{"decrypt", "-key", fmt.Sprintf("%s.sec.pem", testKeyFile), "--force-overwrite", encryptedFiles[0], encryptedFiles[1], encryptedFiles[2]}
-
-	err = Decrypt(os.Args)
-	assert.NoError(suite.T(), err, "decrypt with --force-overwrite failed unexpectedly")
-
-	// Verify that all files have been overwritten
-	for _, fileName := range fileNames { // Check all files
-		decryptedFile := filepath.Join(suite.tempDir, filepath.Base(fileName))
-
-		// Verify that the file exists
-		if _, err := os.Stat(decryptedFile); os.IsNotExist(err) {
-			suite.T().Errorf("Decrypted file %s does not exist after --force-overwrite", decryptedFile)
-
-			continue
-		}
-
-		// Open and read the overwritten decrypted file
-		inFile, err := os.Open(decryptedFile)
-		assert.NoError(suite.T(), err, "unable to open overwritten decrypted file")
-		fileData, err := io.ReadAll(inFile)
-		assert.NoError(suite.T(), err, "unable to read overwritten decrypted file")
-
-		// Check the file content to verify it has been overwritten
-		assert.Equal(suite.T(), fileData, suite.fileContent, "content of overwritten file does not match expected")
-	}
-
-	// Cleanup
-	os.Args = nil
-}
-
-// create a new suite for testing decrypt with the clean flag
-type DecryptCleanTests struct {
-	suite.Suite
-	tempDir     string
-	fileContent []byte
-	testFile    *os.File
-}
-
-func TestDecryptCleanTestSuite(t *testing.T) {
-	suite.Run(t, new(DecryptCleanTests))
-}
-
-// test decrypt with clean flag
-func (suite *DecryptCleanTests) TestDecryptClean() {
-	var err error
-	// Create a temporary directory for our files
-	suite.tempDir, err = os.MkdirTemp(os.TempDir(), "sda-cli-test-decrypt-clean")
-	assert.NoError(suite.T(), err)
-
-	// create a test file...
-	suite.testFile, err = os.CreateTemp(suite.tempDir, "testfile-")
-	assert.NoError(suite.T(), err)
-
-	// ... create some content ...
-	suite.fileContent = []byte("This is some fine content right here.")
-	// ... and write the known content to it
-	err = os.WriteFile(suite.testFile.Name(), suite.fileContent, 0600)
-	assert.NoError(suite.T(), err)
-
-	testKeyFile := filepath.Join(suite.tempDir, "testkey")
-	err = createKey.GenerateKeyPair(testKeyFile, "")
-	assert.NoError(suite.T(), err)
-
-	// Encrypt a file using the encrypt module. change to the test directory to
-	// make sure that the checksum files end up there.
-	cwd, err := os.Getwd()
-	assert.NoError(suite.T(), err)
-	err = os.Chdir(suite.tempDir)
-	assert.NoError(suite.T(), err)
-	encryptArgs := []string{"encrypt", "-key", fmt.Sprintf("%s.pub.pem", testKeyFile), suite.testFile.Name()}
-	assert.NoError(suite.T(), encrypt.Encrypt(encryptArgs), "encrypting file for testing failed")
-	assert.NoError(suite.T(), os.Chdir(cwd))
-	os.Setenv("C4GH_PASSWORD", "") //nolint:errcheck
-	if runtime.GOOS != "windows" {
-		assert.NoError(suite.T(), os.Remove(suite.testFile.Name()))
-		os.Args = []string{"decrypt", "-key", fmt.Sprintf("%s.sec.pem", testKeyFile), fmt.Sprintf("%s.c4gh", suite.testFile.Name()), "--clean"}
-		err = Decrypt(os.Args)
-		assert.NoError(suite.T(), err, "decrypt failed unexpectedly")
-		// Check that the encrypted file was removed
-		_, err = os.Stat(fmt.Sprintf("%s.c4gh", suite.testFile.Name()))
-		assert.ErrorContains(suite.T(), err, "no such file or directory")
+		// Check that the encrypted file was remains
+		_, err = os.Stat(file.encryptedFileName)
+		assert.NoError(suite.T(), err, "encrypted file can not be found after decrypt")
 
 		// Check content of the decrypted file
-		inFile, err := os.Open(suite.testFile.Name())
+		inFile, err := os.Open(file.decryptedFileName)
 		assert.NoError(suite.T(), err, "unable to open decrypted file")
 		fileData, err := io.ReadAll(inFile)
 		assert.NoError(suite.T(), err, "unable to read decrypted file")
-		assert.Equal(suite.T(), string(suite.fileContent), string(fileData))
+		assert.Equal(suite.T(), string(file.content), string(fileData))
 	}
-
-	os.Args = nil
 }
 
-func (suite *DecryptCleanTests) TearDownTest() {
-	os.Remove(suite.tempDir) //nolint:errcheck
+func (suite *DecryptTest) TestDecryptMultipleFilesWithForceOverwriteArg() {
+	// Generate 2 additional files besides the one file generated by SetupTest
+	suite.createNewEncryptedFile()
+	suite.createNewEncryptedFile()
+
+	// recreate unencrypted files with different content such they can be overwritten
+	if err := os.WriteFile(suite.testFiles[0].decryptedFileName, []byte("different content"), 0600); err != nil {
+		suite.FailNow("failed to create test file in temporary directory")
+	}
+	if err := os.WriteFile(suite.testFiles[1].decryptedFileName, []byte("different content"), 0600); err != nil {
+		suite.FailNow("failed to create test file in temporary directory")
+	}
+	if err := os.WriteFile(suite.testFiles[2].decryptedFileName, []byte("different content"), 0600); err != nil {
+		suite.FailNow("failed to create test file in temporary directory")
+	}
+
+	err := Decrypt([]string{
+		"decrypt",
+		"--force-overwrite",
+		"-key",
+		fmt.Sprintf("%s.sec.pem", suite.testKeyFile),
+		suite.testFiles[0].encryptedFileName,
+		suite.testFiles[1].encryptedFileName,
+		suite.testFiles[2].encryptedFileName,
+	})
+	assert.NoError(suite.T(), err)
+
+	// Check the decrypted files
+	for _, file := range suite.testFiles { // Check file2.txt and file3.txt
+
+		// Check that the encrypted file was remains
+		_, err = os.Stat(file.encryptedFileName)
+		assert.NoError(suite.T(), err, "encrypted file can not be found after decrypt")
+
+		// Check content of the decrypted file
+		inFile, err := os.Open(file.decryptedFileName)
+		assert.NoError(suite.T(), err, "unable to open decrypted file")
+		fileData, err := io.ReadAll(inFile)
+		assert.NoError(suite.T(), err, "unable to read decrypted file")
+		assert.Equal(suite.T(), string(file.content), string(fileData))
+	}
+}
+
+func (suite *DecryptTest) TestDecryptMultipleFilesOneNonExistentFile() {
+	// Generate 2 additional files besides the one file generated by SetupTest
+	suite.createNewEncryptedFile()
+	suite.createNewEncryptedFile()
+
+	err := Decrypt([]string{
+		"decrypt",
+		"-key",
+		fmt.Sprintf("%s.sec.pem", suite.testKeyFile),
+		suite.testFiles[0].encryptedFileName,
+		suite.testFiles[1].encryptedFileName,
+		suite.testFiles[2].encryptedFileName,
+		"nonexistent_file.c4gh",
+	})
+	assert.NoError(suite.T(), err)
+
+	// Check the decrypted files
+	for _, file := range suite.testFiles { // Check file2.txt and file3.txt
+
+		// Check that the encrypted file was remains
+		_, err = os.Stat(file.encryptedFileName)
+		assert.NoError(suite.T(), err, "encrypted file can not be found after decrypt")
+
+		// Check content of the decrypted file
+		inFile, err := os.Open(file.decryptedFileName)
+		assert.NoError(suite.T(), err, "unable to open decrypted file")
+		fileData, err := io.ReadAll(inFile)
+		assert.NoError(suite.T(), err, "unable to read decrypted file")
+		assert.Equal(suite.T(), string(file.content), string(fileData))
+	}
 }
