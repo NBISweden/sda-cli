@@ -78,6 +78,12 @@ func init() {
 	})
 }
 
+// EmptyPublicKeyFileList cleans the publicKeyFileList
+// main use case is in unit tests when files are to be encrypted with different keys in different invocations
+func EmptyPublicKeyFileList() {
+	publicKeyFileList = make([]string, 0)
+}
+
 // Encrypt takes a set of arguments, parses them, and attempts to encrypt the
 // given data files with the given public key file
 func Encrypt(args []string) error {
