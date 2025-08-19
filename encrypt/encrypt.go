@@ -161,7 +161,7 @@ func Encrypt(args []string) error {
 
 		// Skip files that do not pass the checks and print all error logs at the end
 		if err = checkFiles(eachFile); err != nil {
-			defer fmt.Fprintf(os.Stderr, "Skipping input file %s. Reason: %s.\n", filename, err)
+			defer fmt.Fprintf(os.Stderr, "Skipping input file %s. Reason: %v.\n", filename, err)
 			if !*continueEncrypt {
 				return fmt.Errorf("aborting")
 			}
@@ -193,7 +193,7 @@ func Encrypt(args []string) error {
 	}
 	defer func() {
 		if err := checksumFileUnencMd5.Close(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %v\n", err)
 		}
 	}()
 
@@ -203,7 +203,7 @@ func Encrypt(args []string) error {
 	}
 	defer func() {
 		if err := checksumFileUnencSha256.Close(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %v\n", err)
 		}
 	}()
 
@@ -213,7 +213,7 @@ func Encrypt(args []string) error {
 	}
 	defer func() {
 		if err := checksumFileEncMd5.Close(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %v\n", err)
 		}
 	}()
 
@@ -223,7 +223,7 @@ func Encrypt(args []string) error {
 	}
 	defer func() {
 		if err := checksumFileEncSha256.Close(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %v\n", err)
 		}
 	}()
 
@@ -285,7 +285,7 @@ func checkFiles(files []helpers.EncryptionFileSet) error {
 		}
 		defer func() {
 			if err := unEncryptedFile.Close(); err != nil {
-				fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
+				fmt.Fprintf(os.Stderr, "Error closing file: %v\n", err)
 			}
 		}()
 
@@ -314,7 +314,7 @@ func calculateHashes(fileSet helpers.EncryptionFileSet) (*hashSet, error) {
 	}
 	defer func() {
 		if err := unencryptedFile.Close(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %v\n", err)
 		}
 	}()
 
@@ -338,7 +338,7 @@ func calculateHashes(fileSet helpers.EncryptionFileSet) (*hashSet, error) {
 	}
 	defer func() {
 		if err := encryptedFile.Close(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %v\n", err)
 		}
 	}()
 
@@ -435,7 +435,7 @@ func encrypt(filename, outFilename string, pubKeyList [][32]byte, privateKey [32
 	}
 	defer func() {
 		if err := inFile.Close(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %v\n", err)
 		}
 	}()
 
@@ -446,7 +446,7 @@ func encrypt(filename, outFilename string, pubKeyList [][32]byte, privateKey [32
 	}
 	defer func() {
 		if err := outFile.Close(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %v\n", err)
 		}
 	}()
 
@@ -496,7 +496,7 @@ func checkKeyFile(pubkey string, k keySpecs) (int64, error) {
 	}
 	defer func() {
 		if err := f.Close(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %v\n", err)
 		}
 	}()
 

@@ -112,7 +112,7 @@ func Decrypt(args []string) error {
 		if *clean {
 			err = os.Remove(file.Encrypted)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Could not remove encrypted file %s: %s\n", file.Encrypted, err)
+				fmt.Fprintf(os.Stderr, "Could not remove encrypted file %s: %v\n", file.Encrypted, err)
 
 				continue
 			}
@@ -163,7 +163,7 @@ func decryptFile(filename, outfileName string, privateKey [32]byte) error {
 	// Create crypt4gh reader
 	crypt4GHReader, err := streaming.NewCrypt4GHReader(inFile, privateKey, nil)
 	if err != nil {
-		return fmt.Errorf("could not create cryp4gh reader: %s", err)
+		return fmt.Errorf("could not create cryp4gh reader: %v", err)
 	}
 
 	// open output file for writing

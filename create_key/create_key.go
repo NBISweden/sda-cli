@@ -46,7 +46,7 @@ func CreateKey(args []string) error {
 	// we check for them.
 	err := Args.Parse(args[1:])
 	if err != nil {
-		return fmt.Errorf("could not parse arguments: %s", err)
+		return fmt.Errorf("could not parse arguments: %v", err)
 	}
 
 	// Args() returns the non-flag arguments, which we assume is the key
@@ -101,7 +101,7 @@ func GenerateKeyPair(basename, password string) error {
 	}
 	defer func() {
 		if err := pubFile.Close(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %v\n", err)
 		}
 	}()
 	err = keys.WriteCrypt4GHX25519PublicKey(pubFile, publicKeyData)
@@ -115,7 +115,7 @@ func GenerateKeyPair(basename, password string) error {
 	}
 	defer func() {
 		if err := secFile.Close(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %v\n", err)
 		}
 	}()
 	err = keys.WriteCrypt4GHX25519PrivateKey(secFile, privateKeyData, []byte(password))

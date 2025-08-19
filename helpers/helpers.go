@@ -53,7 +53,7 @@ func FileIsReadable(filename string) bool {
 	}
 	defer func() {
 		if err := inFile.Close(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %v\n", err)
 		}
 	}()
 
@@ -311,7 +311,7 @@ func CreatePubFile(publicKey string, filename string) (string, error) {
 	defer func() {
 		// Close the file and log any error that may occur
 		if cerr := pubFile.Close(); cerr != nil {
-			fmt.Fprintf(os.Stderr, "Error closing file: %s\n", cerr)
+			fmt.Fprintf(os.Stderr, "Error closing file: %v\n", cerr)
 		}
 	}()
 	// Write the publicKeyData array to the "key-from-oidc.pub.pem" file in Crypt4GHX25519 public key format
@@ -329,7 +329,7 @@ func CheckTokenExpiration(accessToken string) error {
 	// Parse jwt token with unverifies, since we don't need to check the signatures here
 	token, _, err := new(jwt.Parser).ParseUnverified(accessToken, jwt.MapClaims{})
 	if err != nil {
-		return fmt.Errorf("could not parse token, reason: %s", err)
+		return fmt.Errorf("could not parse token, reason: %v", err)
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
@@ -354,7 +354,7 @@ func CheckTokenExpiration(accessToken string) error {
 	case string:
 		i, err := strconv.ParseInt(iat, 10, 64)
 		if err != nil {
-			return fmt.Errorf("could not parse token, reason: %s", err)
+			return fmt.Errorf("could not parse token, reason: %v", err)
 		}
 		expiration = time.Unix(int64(i), 0)
 	default:
