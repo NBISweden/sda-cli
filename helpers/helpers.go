@@ -401,14 +401,6 @@ func CheckTokenExpiration(accessToken string) error {
 
 // ListFiles returns a list for s3 objects that correspond to files with the specified prefix.
 func ListFiles(config Config, prefix string) ([]types.Object, error) {
-	s3Endpoint := config.HostBase
-	if !strings.HasPrefix(s3Endpoint, "http") {
-		s3Endpoint = fmt.Sprintf("http://%s", config.HostBase)
-		if !config.UseHTTPS {
-			s3Endpoint = fmt.Sprintf("https://%s", config.HostBase)
-		}
-	}
-
 	awsConfig, err := awsConfig.LoadDefaultConfig(context.Background(),
 		awsConfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
 			config.AccessKey,
@@ -416,7 +408,7 @@ func ListFiles(config Config, prefix string) ([]types.Object, error) {
 			config.AccessToken,
 		)),
 		awsConfig.WithRegion("eu-west-2"),
-		awsConfig.WithBaseEndpoint(s3Endpoint),
+		awsConfig.WithBaseEndpoint(config.HostBase),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load aws config, reason %v", err)

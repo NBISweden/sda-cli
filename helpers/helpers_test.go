@@ -550,7 +550,7 @@ func (suite *HelperTests) TestListFiles() {
 		AccessToken: suite.accessToken,
 		AccessKey:   "dummy",
 		SecretKey:   "dummy",
-		HostBase:    strings.TrimPrefix(ts.URL, "http://"),
+		HostBase:    ts.URL,
 		UseHTTPS:    false,
 	}
 
