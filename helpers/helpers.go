@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/mail"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -241,9 +242,22 @@ func LoadConfigFile(path string) (*Config, error) {
 		return nil, errors.New("failed to find endpoint in configuration file")
 	}
 
-	if config.UseHTTPS {
-		config.HostBase = "https://" + config.HostBase
+	u, err := url.Parse(config.HostBase)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse host base, reason: %v", err)
 	}
+
+	switch {
+	case u.Scheme == "https":
+		config.UseHTTPS = true
+	case config.UseHTTPS:
+		u.Scheme = "https"
+	default:
+		u.Scheme = "http"
+		config.UseHTTPS = false
+	}
+
+	config.HostBase = u.String()
 
 	if config.Encoding == "" {
 		config.Encoding = "UTF-8"

@@ -222,6 +222,115 @@ func (suite *HelperTests) TestConfigNoFile() {
 	assert.EqualError(suite.T(), err, msg)
 }
 
+func (suite *HelperTests) TestLoadConfigHostBase() {
+
+	confFileFormat := `
+	host_base = %s
+	encoding = UTF-8
+	host_bucket = someHostBucket
+	multipart_chunk_size_mb = 50
+	secret_key = dummy
+	access_key = dummy
+	use_https = %t
+	check_ssl_certificate = False
+	check_ssl_hostname = False
+	socket_timeout = 30
+	human_readable_sizes = True
+	guess_mime_type = True
+	encrypt = False
+	`
+
+	for _, test := range []struct {
+		testName, inputHostBase, expectedHostBase string
+		inputUseHTTPS, expectedUseHTTPS           bool
+		expectedError                             error
+	}{
+		{
+			testName:         "HttpsHostBaseUseHttpsFalse",
+			inputHostBase:    "https://example.com",
+			expectedHostBase: "https://example.com",
+			inputUseHTTPS:    false,
+			expectedUseHTTPS: true,
+			expectedError:    nil,
+		}, {
+			testName:         "HttpHostBaseUseHttpsTrue",
+			inputHostBase:    "http://example.com",
+			expectedHostBase: "https://example.com",
+			inputUseHTTPS:    true,
+			expectedUseHTTPS: true,
+			expectedError:    nil,
+		}, {
+			testName:         "NoSchemeHostBaseUseHttpsTrue",
+			inputHostBase:    "example.com",
+			expectedHostBase: "https://example.com",
+			inputUseHTTPS:    true,
+			expectedUseHTTPS: true,
+		}, {
+			testName:         "NoSchemeHostBaseUseHttpsFalse",
+			inputHostBase:    "example.com",
+			expectedHostBase: "http://example.com",
+			inputUseHTTPS:    false,
+			expectedUseHTTPS: false,
+			expectedError:    nil,
+		}, {
+			testName:         "HttpsHostBaseWithPort",
+			inputHostBase:    "https://example.com:8001",
+			expectedHostBase: "https://example.com:8001",
+			inputUseHTTPS:    false,
+			expectedUseHTTPS: true,
+			expectedError:    nil,
+		}, {
+			testName:         "NoSchemeHostBaseAsIPWithPort",
+			inputHostBase:    "127.0.0.1:8001",
+			expectedHostBase: "",
+			inputUseHTTPS:    false,
+			expectedUseHTTPS: false,
+			expectedError:    fmt.Errorf("failed to parse host base, reason: parse \"127.0.0.1:8001\": first path segment in URL cannot contain colon"),
+		}, {
+			testName:         "HostBaseAsIPWithHttpSchemeAndPort",
+			inputHostBase:    "http://127.0.0.1:8001",
+			expectedHostBase: "http://127.0.0.1:8001",
+			inputUseHTTPS:    false,
+			expectedUseHTTPS: false,
+			expectedError:    nil,
+		}, {
+			testName:         "HostBaseAsIPWithHttpsSchemeAndPort",
+			inputHostBase:    "https://127.0.0.1:8001",
+			expectedHostBase: "https://127.0.0.1:8001",
+			inputUseHTTPS:    false,
+			expectedUseHTTPS: true,
+			expectedError:    nil,
+		},
+	} {
+		suite.T().Run(test.testName, func(t *testing.T) {
+			configPath, err := os.CreateTemp(os.TempDir(), "sda-cli-helper-test-")
+			if err != nil {
+				suite.FailNow("failed to create temporary directory", err)
+			}
+			defer os.RemoveAll(configPath.Name()) //nolint:errcheck
+
+			err = os.WriteFile(configPath.Name(), []byte(fmt.Sprintf(confFileFormat, test.inputHostBase, test.inputUseHTTPS)), 0600)
+			if err != nil {
+				suite.FailNow("failed to write config file", err)
+			}
+
+			conf, err := LoadConfigFile(configPath.Name())
+			assert.Equal(t, test.expectedError, err)
+			if conf == nil {
+				assert.Equal(t, test.expectedHostBase, "")
+				assert.Equal(t, test.expectedUseHTTPS, false)
+
+				return
+			}
+
+			assert.Equal(t, test.expectedHostBase, conf.HostBase)
+			assert.Equal(t, test.expectedUseHTTPS, conf.UseHTTPS)
+
+		})
+	}
+
+}
+
 func (suite *HelperTests) TestConfigWrongFile() {
 	var confFile = `
 access_token = someToken
