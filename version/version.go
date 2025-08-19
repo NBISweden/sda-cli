@@ -44,7 +44,7 @@ func Version(ver string) error {
 
 	req, err := http.NewRequest(http.MethodGet, url, http.NoBody)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to initiate request")
+		fmt.Fprintln(os.Stderr, "failed to initiate request")
 		fmt.Println("sda-cli version: ", ver)
 
 		return nil
@@ -55,7 +55,7 @@ func Version(ver string) error {
 	client := &http.Client{Timeout: timeout}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to fetch releases, reason: %s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "failed to fetch releases, reason: %v\n", err.Error())
 		fmt.Println("sda-cli version: ", ver)
 
 		return nil

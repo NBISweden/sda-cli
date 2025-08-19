@@ -10,7 +10,6 @@ import (
 
 	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/neicnordic/crypt4gh/keys"
-	log "github.com/sirupsen/logrus"
 )
 
 // Usage text that will be displayed when the `help createKey` command is invoked.
@@ -47,7 +46,7 @@ func CreateKey(args []string) error {
 	// we check for them.
 	err := Args.Parse(args[1:])
 	if err != nil {
-		return fmt.Errorf("could not parse arguments: %s", err)
+		return fmt.Errorf("could not parse arguments: %v", err)
 	}
 
 	// Args() returns the non-flag arguments, which we assume is the key
@@ -88,7 +87,7 @@ func GenerateKeyPair(basename, password string) error {
 	}
 
 	// Generate key pair
-	log.Infof("Generating key pair: %s, %s", privateKeyName, publicKeyName)
+	fmt.Printf("Generating key pair: %s, %s\n", privateKeyName, publicKeyName)
 
 	publicKeyData, privateKeyData, err := keys.GenerateKeyPair()
 	if err != nil {
@@ -102,7 +101,7 @@ func GenerateKeyPair(basename, password string) error {
 	}
 	defer func() {
 		if err := pubFile.Close(); err != nil {
-			log.Errorf("Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %v\n", err)
 		}
 	}()
 	err = keys.WriteCrypt4GHX25519PublicKey(pubFile, publicKeyData)
@@ -116,7 +115,7 @@ func GenerateKeyPair(basename, password string) error {
 	}
 	defer func() {
 		if err := secFile.Close(); err != nil {
-			log.Errorf("Error closing file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing file: %v\n", err)
 		}
 	}()
 	err = keys.WriteCrypt4GHX25519PrivateKey(secFile, privateKeyData, []byte(password))

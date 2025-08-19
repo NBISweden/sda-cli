@@ -1,7 +1,6 @@
 package download
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,7 +9,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -21,7 +19,7 @@ type TestSuite struct {
 	accessToken string
 }
 
-func createConfigFile(fileName, token string) os.File {
+func (suite *TestSuite) createConfigFile(fileName, token string) os.File {
 	// Create conf file for sda-cli
 	confFile := fmt.Sprintf(`
 	access_token = %[1]s
@@ -43,13 +41,13 @@ func createConfigFile(fileName, token string) os.File {
 	// Create config file
 	configPath, err := os.CreateTemp(os.TempDir(), fileName)
 	if err != nil {
-		log.Panic(err)
+		suite.FailNow("failed to create temp test config file", err)
 	}
 
 	// Write config file
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		log.Printf("failed to write temp config file, %v", err)
+		suite.FailNow("failed to write temp config file", err)
 	}
 
 	return *configPath
@@ -64,7 +62,7 @@ func (suite *TestSuite) SetupTest() {
 }
 
 func (suite *TestSuite) TestInvalidUrl() {
-	confPath := createConfigFile("s3cmd.conf", suite.accessToken)
+	confPath := suite.createConfigFile("s3cmd.conf", suite.accessToken)
 
 	os.Args = []string{
 		"download",
@@ -85,7 +83,7 @@ func (suite *TestSuite) TestInvalidUrl() {
 }
 
 func (suite *TestSuite) TestPrintHostBase() {
-	confPath := createConfigFile("s3cmd.conf", suite.accessToken)
+	confPath := suite.createConfigFile("s3cmd.conf", suite.accessToken)
 
 	os.Args = []string{
 		"download",
@@ -96,10 +94,6 @@ func (suite *TestSuite) TestPrintHostBase() {
 		"file1",
 	}
 
-	var str bytes.Buffer
-	log.SetOutput(&str)
-	defer log.SetOutput(os.Stdout)
-
 	// check if the host_base is in the error output
 	rescueStderr := os.Stderr
 	r, w, _ := os.Pipe()
@@ -107,7 +101,7 @@ func (suite *TestSuite) TestPrintHostBase() {
 
 	_ = Download(os.Args, confPath.Name())
 
-	w.Close() //nolint:errcheck
+	_ = w.Close()
 	os.Stderr = rescueStderr
 	uploadError, _ := io.ReadAll(r)
 
