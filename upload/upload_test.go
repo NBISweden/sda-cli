@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"testing"
 
 	"github.com/NBISweden/sda-cli/helpers"
@@ -187,7 +186,7 @@ func (suite *TestSuite) TestFunctionality() {
 	human_readable_sizes = True
 	guess_mime_type = True
 	encrypt = False
-	`, suite.accessToken, strings.TrimPrefix(ts.URL, "http://"))
+	`, suite.accessToken, ts.URL)
 
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd.conf")
 	if err != nil {
@@ -348,7 +347,7 @@ func (suite *TestSuite) TestFunctionality() {
 
 	// check if the host_base is in the output
 
-	expectedHostBase := "Remote server (host_base): " + strings.TrimPrefix(ts.URL, "http://")
+	expectedHostBase := "Remote server (host_base): " + ts.URL
 	assert.NotContains(suite.T(), string(uploadStdout), expectedHostBase)
 	assert.Contains(suite.T(), string(uploadStderr), expectedHostBase)
 
@@ -385,7 +384,7 @@ func (suite *TestSuite) TestFunctionality() {
 	human_readable_sizes = True
 	guess_mime_type = True
 	encrypt = False
-	`, strings.TrimPrefix(ts.URL, "http://"))
+	`, ts.URL)
 
 	err = os.WriteFile(configPath.Name(), []byte(confFileNoToken), 0600)
 	if err != nil {
@@ -478,7 +477,7 @@ func (suite *TestSuite) TestRecursiveToDifferentTarget() {
 	human_readable_sizes = True
 	guess_mime_type = True
 	encrypt = False
-	`, suite.accessToken, strings.TrimPrefix(ts.URL, "http://"))
+	`, suite.accessToken, ts.URL)
 
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd.conf")
 	if err != nil {
@@ -559,7 +558,7 @@ func (suite *TestSuite) TestUploadInvalidCharacters() {
 	human_readable_sizes = True
 	guess_mime_type = True
 	encrypt = False
-	`, suite.accessToken, strings.TrimPrefix(ts.URL, "http://"))
+	`, suite.accessToken, ts.URL)
 
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd.conf")
 	if err != nil {

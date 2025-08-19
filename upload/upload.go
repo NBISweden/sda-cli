@@ -130,13 +130,6 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		}
 		_ = f.Close()
 	}
-	s3Endpoint := config.HostBase
-	if !strings.HasPrefix(s3Endpoint, "http") {
-		s3Endpoint = fmt.Sprintf("http://%s", config.HostBase)
-		if !config.UseHTTPS {
-			s3Endpoint = fmt.Sprintf("https://%s", config.HostBase)
-		}
-	}
 
 	awsConfig, err := awsConfig.LoadDefaultConfig(ctx,
 		awsConfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
@@ -145,7 +138,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 			config.AccessToken,
 		)),
 		awsConfig.WithRegion("eu-west-2"),
-		awsConfig.WithBaseEndpoint(s3Endpoint),
+		awsConfig.WithBaseEndpoint(config.HostBase),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to load aws config, reason %v", err)
