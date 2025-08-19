@@ -88,7 +88,7 @@ func (suite *TestSuite) TestFunctionality() {
 	human_readable_sizes = True
 	guess_mime_type = True
 	encrypt = False
-	`, suite.accessToken, strings.TrimPrefix(ts.URL, "http://"))
+	`, suite.accessToken, ts.URL)
 
 	// Create config file
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd.conf")
@@ -161,7 +161,7 @@ func (suite *TestSuite) TestFunctionality() {
 	listError, _ := io.ReadAll(errR)
 
 	// Check that host_base is in the error output, not in the stdout
-	expectedHostBase := "Remote server (host_base): " + strings.TrimPrefix(ts.URL, "http://")
+	expectedHostBase := "Remote server (host_base): " + ts.URL
 	assert.NotContains(suite.T(), string(listOutput), expectedHostBase)
 	assert.Contains(suite.T(), string(listError), expectedHostBase)
 }
