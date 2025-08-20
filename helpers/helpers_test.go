@@ -265,6 +265,7 @@ func (suite *HelperTests) TestLoadConfigHostBase() {
 			expectedHostBase: "https://example.com",
 			inputUseHTTPS:    true,
 			expectedUseHTTPS: true,
+			expectedError:    nil,
 		}, {
 			testName:         "NoSchemeHostBaseUseHttpsFalse",
 			inputHostBase:    "example.com",
@@ -285,7 +286,7 @@ func (suite *HelperTests) TestLoadConfigHostBase() {
 			expectedHostBase: "",
 			inputUseHTTPS:    false,
 			expectedUseHTTPS: false,
-			expectedError:    fmt.Errorf("failed to parse host base, reason: parse \"127.0.0.1:8001\": first path segment in URL cannot contain colon"),
+			expectedError:    fmt.Errorf("failed to parse host base from configuration file, reason: parse \"127.0.0.1:8001\": first path segment in URL cannot contain colon"),
 		}, {
 			testName:         "HostBaseAsIPWithHttpSchemeAndPort",
 			inputHostBase:    "http://127.0.0.1:8001",
@@ -300,6 +301,13 @@ func (suite *HelperTests) TestLoadConfigHostBase() {
 			inputUseHTTPS:    false,
 			expectedUseHTTPS: true,
 			expectedError:    nil,
+		}, {
+			testName:         "HostBaseAsLocalHostWithPort",
+			inputHostBase:    "localhost:8000",
+			expectedHostBase: "",
+			inputUseHTTPS:    false,
+			expectedUseHTTPS: false,
+			expectedError:    fmt.Errorf("failed to parse host base from configuration file, reason: a valid host can not be parsed"),
 		},
 	} {
 		suite.T().Run(test.testName, func(t *testing.T) {
