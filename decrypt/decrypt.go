@@ -141,6 +141,7 @@ func readPrivateKeyFile(filename, password string) (key *[32]byte, err error) {
 	if err != nil {
 		return nil, err
 	}
+	defer file.Close()
 
 	privateKey, err := keys.ReadPrivateKey(file, []byte(password))
 	if err != nil {
@@ -165,12 +166,14 @@ func decryptFile(filename, outfileName string, privateKey [32]byte) error {
 	if err != nil {
 		return fmt.Errorf("could not create cryp4gh reader: %v", err)
 	}
+	defer crypt4GHReader.Close()
 
 	// open output file for writing
 	outFile, err := os.Create(filepath.Clean(outfileName))
 	if err != nil {
 		return fmt.Errorf("could not create output file %s: %s", outfileName, err)
 	}
+	defer outFile.Close()
 
 	_, err = io.Copy(outFile, crypt4GHReader)
 	if err != nil {
