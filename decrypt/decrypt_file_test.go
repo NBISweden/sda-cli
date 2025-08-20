@@ -29,7 +29,7 @@ func TestDecryptFileTestSuite(t *testing.T) {
 
 func (suite *DecryptFileTest) SetupTest() {
 	var err error
-	suite.tempDir, err = os.MkdirTemp(os.TempDir(), "sda-cli-test-decrypt-clean")
+	suite.tempDir, err = os.MkdirTemp(os.TempDir(), "sda-cli-test-decrypt-file")
 	if err != nil {
 		suite.FailNow("failed to create temporary directory", err)
 	}
