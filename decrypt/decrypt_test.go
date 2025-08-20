@@ -186,18 +186,6 @@ func (suite *DecryptTestSuite) TestDecryptWithCleanArgWrongPassword() {
 	// Check that the encrypted file was not removed
 	_, err = os.Stat(suite.testFiles[0].encryptedFileName)
 	assert.NoError(suite.T(), err, "encrypted file can not be found after decrypt failure")
-}
-func (suite *DecryptTestSuite) TestDecryptWrongPassword() {
-	os.Setenv("C4GH_PASSWORD", "wrong")
-
-	err := Decrypt([]string{
-		"decrypt",
-		"--clean",
-		"-key",
-		fmt.Sprintf("%s.sec.pem", suite.testKeyFile),
-		suite.testFiles[0].encryptedFileName,
-	})
-	assert.Error(suite.T(), err)
 
 	// Check that the decrypted file does not exist
 	_, err = os.Stat(suite.testFiles[0].decryptedFileName)
