@@ -1,6 +1,7 @@
 package list
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http/httptest"
@@ -10,10 +11,10 @@ import (
 	"testing"
 
 	"github.com/NBISweden/sda-cli/upload"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/johannesboyne/gofakes3"
 	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	"github.com/stretchr/testify/assert"
@@ -41,29 +42,32 @@ func (suite *TestSuite) TestNoConfig() {
 }
 
 func (suite *TestSuite) TestFunctionality() {
+	ctx := context.TODO()
 	// Create a fake s3 backend
 	backend := s3mem.New()
 	faker := gofakes3.New(backend)
 	ts := httptest.NewServer(faker.Server())
 	defer ts.Close()
 
-	// Configure S3 client
-	s3Config := &aws.Config{
-		Credentials:      credentials.NewStaticCredentials("dummy", "dummy", suite.accessToken),
-		Endpoint:         aws.String(ts.URL),
-		Region:           aws.String("eu-central-1"),
-		DisableSSL:       aws.Bool(true),
-		S3ForcePathStyle: aws.Bool(true),
+	awsConfig, err := config.LoadDefaultConfig(ctx,
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("dummy", "dummy", suite.accessToken)),
+		config.WithRegion("eu-central-1"),
+		config.WithBaseEndpoint(ts.URL),
+	)
+	if err != nil {
+		suite.FailNow("failed to create aws config", err)
 	}
-	newSession, _ := session.NewSession(s3Config)
 
-	s3Client := s3.New(newSession)
+	s3Client := s3.NewFromConfig(awsConfig, func(o *s3.Options) {
+		o.UsePathStyle = true
+		o.EndpointOptions.DisableHTTPS = true
+	})
 
 	// Create bucket named dummy
 	cparams := &s3.CreateBucketInput{
 		Bucket: aws.String("dummy"),
 	}
-	_, err := s3Client.CreateBucket(cparams)
+	_, err = s3Client.CreateBucket(ctx, cparams)
 	if err != nil {
 		suite.FailNow("failed to create s3 bucket", err)
 	}
@@ -84,7 +88,7 @@ func (suite *TestSuite) TestFunctionality() {
 	human_readable_sizes = True
 	guess_mime_type = True
 	encrypt = False
-	`, suite.accessToken, strings.TrimPrefix(ts.URL, "http://"))
+	`, suite.accessToken, ts.URL)
 
 	// Create config file
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd.conf")
@@ -157,7 +161,7 @@ func (suite *TestSuite) TestFunctionality() {
 	listError, _ := io.ReadAll(errR)
 
 	// Check that host_base is in the error output, not in the stdout
-	expectedHostBase := "Remote server (host_base): " + strings.TrimPrefix(ts.URL, "http://")
+	expectedHostBase := "Remote server (host_base): " + ts.URL
 	assert.NotContains(suite.T(), string(listOutput), expectedHostBase)
 	assert.Contains(suite.T(), string(listError), expectedHostBase)
 }

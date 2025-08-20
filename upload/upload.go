@@ -1,6 +1,7 @@
 package upload
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"flag"
@@ -12,10 +13,11 @@ import (
 
 	"github.com/NBISweden/sda-cli/encrypt"
 	"github.com/NBISweden/sda-cli/helpers"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsConfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/neicnordic/crypt4gh/keys"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
@@ -85,6 +87,8 @@ var accessToken = Args.String("accessToken", "", "Access token to the inbox serv
 
 // Function uploadFiles uploads the files in the input list to the s3 bucket
 func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Config) error {
+	ctx := context.Background()
+
 	// check also here in case sth went wrong with input files
 	if len(files) == 0 {
 		return errors.New("no files to upload")
@@ -127,22 +131,26 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		_ = f.Close()
 	}
 
-	// The session the S3 Uploader will use
-	sess := session.Must(session.NewSession(&aws.Config{
-		// The region for the backend is always the specified one
-		// and not present in the configuration from auth - hardcoded
-		Region: aws.String("us-west-2"),
-		Credentials: credentials.NewStaticCredentials(
+	awsConfig, err := awsConfig.LoadDefaultConfig(ctx,
+		awsConfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
 			config.AccessKey,
 			config.SecretKey,
 			config.AccessToken,
-		),
-		Endpoint:         aws.String(config.HostBase),
-		DisableSSL:       aws.Bool(!config.UseHTTPS),
-		S3ForcePathStyle: aws.Bool(true),
-	}))
+		)),
+		awsConfig.WithRegion("us-west-2"),
+		awsConfig.WithBaseEndpoint(config.HostBase),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to load aws config, reason %v", err)
+	}
+
+	s3Client := s3.NewFromConfig(awsConfig, func(o *s3.Options) {
+		o.UsePathStyle = true
+		o.EndpointOptions.DisableHTTPS = !config.UseHTTPS
+	})
+
 	// Create an uploader with the session and default options
-	uploader := s3manager.NewUploader(sess)
+	uploader := manager.NewUploader(s3Client)
 	for k, filename := range files {
 		// create progress bar instance
 		p := mpb.New()
@@ -166,7 +174,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 				return fmt.Errorf("listing uploaded files: %s", err.Error())
 			}
 
-			fileExists := len(listResult) > 0 && aws.StringValue(listResult[0].Key) == filepath.Clean(config.AccessKey+"/"+listPrefix)
+			fileExists := len(listResult) > 0 && aws.ToString(listResult[0].Key) == filepath.Clean(config.AccessKey+"/"+listPrefix)
 			switch {
 			case fileExists && *continueUpload:
 				fmt.Printf("File %s has already been uploaded, continuing with the next file...\n", filepath.Base(filename))
@@ -233,12 +241,12 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		)
 
 		// Upload the file to S3.
-		result, err := uploader.Upload(&s3manager.UploadInput{
+		result, err := uploader.Upload(ctx, &s3.PutObjectInput{
 			Body:            bar.ProxyReader(fs.Reader),
 			Bucket:          aws.String(config.AccessKey),
-			Key:             aws.String(targetDir + "/" + outFiles[k]),
+			Key:             aws.String(path.Join(targetDir, outFiles[k])),
 			ContentEncoding: aws.String(config.Encoding),
-		}, func(u *s3manager.Uploader) {
+		}, func(u *manager.Uploader) {
 			u.PartSize = config.MultipartChunkSizeMb * 1024 * 1024
 			// Delete parts of failed multipart, since we cannot currently continue them
 			u.LeavePartsOnError = false
@@ -250,7 +258,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		if err != nil {
 			return err
 		}
-		fmt.Printf("file uploaded to %s\n", aws.StringValue(&result.Location))
+		fmt.Printf("file uploaded to %s\n", aws.ToString(&result.Location))
 
 		if *pubKeyPath != "" { //nolint: nestif
 			checksumFileUnencMd5, err := os.OpenFile("checksum_unencrypted.md5", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)

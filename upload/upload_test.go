@@ -1,20 +1,20 @@
 package upload
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"testing"
 
 	"github.com/NBISweden/sda-cli/helpers"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/johannesboyne/gofakes3"
 	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	"github.com/neicnordic/crypt4gh/keys"
@@ -137,6 +137,8 @@ func (suite *TestSuite) TestcreateFilePaths() {
 }
 
 func (suite *TestSuite) TestFunctionality() {
+	ctx := context.TODO()
+
 	// Create a fake s3 backend
 	backend := s3mem.New()
 	faker := gofakes3.New(backend)
@@ -144,22 +146,26 @@ func (suite *TestSuite) TestFunctionality() {
 	defer ts.Close()
 
 	// Configure S3 client
-	s3Config := &aws.Config{
-		Credentials:      credentials.NewStaticCredentials("dummy", "dummy", "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNzA3NDgzOTQ0IiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwiZXhwIjoxNzA3NDgzOTQ0fQ.D7hrpd3ROXp53NnXa0PL9js2Oi1KqpKpkVMic1B23X84ksX9kbbtn4Ad4BkhO8Tm35a5hBu95CGgw5b06sd3LQ"),
-		Endpoint:         aws.String(ts.URL),
-		Region:           aws.String("eu-central-1"),
-		DisableSSL:       aws.Bool(true),
-		S3ForcePathStyle: aws.Bool(true),
-	}
-	newSession, _ := session.NewSession(s3Config)
 
-	s3Client := s3.New(newSession)
+	awsConfig, err := config.LoadDefaultConfig(ctx,
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("dummy", "dummy", suite.accessToken)),
+		config.WithRegion("eu-central-1"),
+		config.WithBaseEndpoint(ts.URL),
+	)
+	if err != nil {
+		suite.FailNow("failed to create aws config", err)
+	}
+
+	s3Client := s3.NewFromConfig(awsConfig, func(o *s3.Options) {
+		o.UsePathStyle = true
+		o.EndpointOptions.DisableHTTPS = true
+	})
 
 	// Create bucket named dummy
 	cparams := &s3.CreateBucketInput{
 		Bucket: aws.String("dummy"),
 	}
-	_, err := s3Client.CreateBucket(cparams)
+	_, err = s3Client.CreateBucket(ctx, cparams)
 	if err != nil {
 		suite.FailNow("failed to create s3 bucket", err)
 	}
@@ -180,7 +186,7 @@ func (suite *TestSuite) TestFunctionality() {
 	human_readable_sizes = True
 	guess_mime_type = True
 	encrypt = False
-	`, suite.accessToken, strings.TrimPrefix(ts.URL, "http://"))
+	`, suite.accessToken, ts.URL)
 
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd.conf")
 	if err != nil {
@@ -239,13 +245,13 @@ func (suite *TestSuite) TestFunctionality() {
 	assert.Contains(suite.T(), string(uploadStderr), warnMsg)
 
 	// Check that file showed up in the s3 bucket correctly
-	result, err := s3Client.ListObjects(&s3.ListObjectsInput{
+	result, err := s3Client.ListObjects(ctx, &s3.ListObjectsInput{
 		Bucket: aws.String("dummy"),
 	})
 	if err != nil {
 		suite.FailNow("failed to list objects from s3", err)
 	}
-	assert.Equal(suite.T(), aws.StringValue(result.Contents[0].Key), fmt.Sprintf("%s/%s", filepath.Base(dir), filepath.Base(testfile.Name())))
+	assert.Equal(suite.T(), aws.ToString(result.Contents[0].Key), fmt.Sprintf("%s/%s", filepath.Base(dir), filepath.Base(testfile.Name())))
 
 	rescuedStdout = os.Stdout
 	stdoutReader, stdoutWriter, _ = os.Pipe()
@@ -265,13 +271,13 @@ func (suite *TestSuite) TestFunctionality() {
 	assert.Contains(suite.T(), string(uploadStdout), msg)
 
 	// Check that file showed up in the s3 bucket correctly
-	result, err = s3Client.ListObjects(&s3.ListObjectsInput{
+	result, err = s3Client.ListObjects(ctx, &s3.ListObjectsInput{
 		Bucket: aws.String("dummy"),
 	})
 	if err != nil {
 		suite.FailNow("failed to list objects from s3", err)
 	}
-	assert.Equal(suite.T(), aws.StringValue(result.Contents[0].Key), fmt.Sprintf("%s/%s", filepath.ToSlash(targetPath), filepath.Base(testfile.Name())))
+	assert.Equal(suite.T(), aws.ToString(result.Contents[0].Key), fmt.Sprintf("%s/%s", filepath.ToSlash(targetPath), filepath.Base(testfile.Name())))
 
 	// Test encrypt-with-key on upload.
 	// Tests specific to encrypt module are not repeated here.
@@ -308,13 +314,13 @@ func (suite *TestSuite) TestFunctionality() {
 	assert.Contains(suite.T(), string(uploadStdout), msg)
 
 	// Check that file showed up in the s3 bucket correctly
-	result, err = s3Client.ListObjects(&s3.ListObjectsInput{
+	result, err = s3Client.ListObjects(ctx, &s3.ListObjectsInput{
 		Bucket: aws.String("dummy"),
 	})
 	if err != nil {
 		suite.FailNow("failed to list objects from s3", err)
 	}
-	assert.Equal(suite.T(), aws.StringValue(result.Contents[1].Key), "someDir/"+filepath.Base(testfile.Name())+".c4gh")
+	assert.Equal(suite.T(), aws.ToString(result.Contents[1].Key), "someDir/"+filepath.Base(testfile.Name())+".c4gh")
 
 	// Check that the respective unencrypted file was not uploaded
 	msg = fmt.Sprintf("Uploading %s with", testfile.Name())
@@ -341,7 +347,7 @@ func (suite *TestSuite) TestFunctionality() {
 
 	// check if the host_base is in the output
 
-	expectedHostBase := "Remote server (host_base): " + strings.TrimPrefix(ts.URL, "http://")
+	expectedHostBase := "Remote server (host_base): " + ts.URL
 	assert.NotContains(suite.T(), string(uploadStdout), expectedHostBase)
 	assert.Contains(suite.T(), string(uploadStderr), expectedHostBase)
 
@@ -378,7 +384,7 @@ func (suite *TestSuite) TestFunctionality() {
 	human_readable_sizes = True
 	guess_mime_type = True
 	encrypt = False
-	`, strings.TrimPrefix(ts.URL, "http://"))
+	`, ts.URL)
 
 	err = os.WriteFile(configPath.Name(), []byte(confFileNoToken), 0600)
 	if err != nil {
@@ -423,6 +429,8 @@ func (suite *TestSuite) TestFunctionality() {
 }
 
 func (suite *TestSuite) TestRecursiveToDifferentTarget() {
+	ctx := context.TODO()
+
 	// Create a fake s3 backend
 	backend := s3mem.New()
 	faker := gofakes3.New(backend)
@@ -430,22 +438,25 @@ func (suite *TestSuite) TestRecursiveToDifferentTarget() {
 	defer ts.Close()
 
 	// Configure S3 client
-	s3Config := &aws.Config{
-		Credentials:      credentials.NewStaticCredentials("dummy", "dummy", "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNzA3NDgzOTQ0IiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwiZXhwIjoxNzA3NDgzOTQ0fQ.D7hrpd3ROXp53NnXa0PL9js2Oi1KqpKpkVMic1B23X84ksX9kbbtn4Ad4BkhO8Tm35a5hBu95CGgw5b06sd3LQ"),
-		Endpoint:         aws.String(ts.URL),
-		Region:           aws.String("eu-central-1"),
-		DisableSSL:       aws.Bool(true),
-		S3ForcePathStyle: aws.Bool(true),
+	awsConfig, err := config.LoadDefaultConfig(ctx,
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("dummy", "dummy", suite.accessToken)),
+		config.WithRegion("eu-central-1"),
+		config.WithBaseEndpoint(ts.URL),
+	)
+	if err != nil {
+		suite.FailNow("failed to create aws config", err)
 	}
-	newSession, _ := session.NewSession(s3Config)
 
-	s3Client := s3.New(newSession)
+	s3Client := s3.NewFromConfig(awsConfig, func(o *s3.Options) {
+		o.UsePathStyle = true
+		o.EndpointOptions.DisableHTTPS = true
+	})
 
 	// Create bucket named dummy
 	cparams := &s3.CreateBucketInput{
 		Bucket: aws.String("dummy"),
 	}
-	_, err := s3Client.CreateBucket(cparams)
+	_, err = s3Client.CreateBucket(ctx, cparams)
 	if err != nil {
 		suite.FailNow("failed to create s3 bucket", err)
 	}
@@ -466,7 +477,7 @@ func (suite *TestSuite) TestRecursiveToDifferentTarget() {
 	human_readable_sizes = True
 	guess_mime_type = True
 	encrypt = False
-	`, suite.accessToken, strings.TrimPrefix(ts.URL, "http://"))
+	`, suite.accessToken, ts.URL)
 
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd.conf")
 	if err != nil {
@@ -514,13 +525,13 @@ func (suite *TestSuite) TestRecursiveToDifferentTarget() {
 	assert.Contains(suite.T(), string(uploadStdout), msg)
 
 	// Check that file showed up in the s3 bucket correctly
-	result, err := s3Client.ListObjects(&s3.ListObjectsInput{
+	result, err := s3Client.ListObjects(ctx, &s3.ListObjectsInput{
 		Bucket: aws.String("dummy"),
 	})
 	if err != nil {
 		suite.FailNow("failed to list obects from s3", err)
 	}
-	assert.Equal(suite.T(), filepath.ToSlash(filepath.Join(targetPath, filepath.Base(dir), filepath.Base(testfile.Name()))), aws.StringValue(result.Contents[0].Key))
+	assert.Equal(suite.T(), filepath.ToSlash(filepath.Join(targetPath, filepath.Base(dir), filepath.Base(testfile.Name()))), aws.ToString(result.Contents[0].Key))
 
 }
 
@@ -547,7 +558,7 @@ func (suite *TestSuite) TestUploadInvalidCharacters() {
 	human_readable_sizes = True
 	guess_mime_type = True
 	encrypt = False
-	`, suite.accessToken, strings.TrimPrefix(ts.URL, "http://"))
+	`, suite.accessToken, ts.URL)
 
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd.conf")
 	if err != nil {

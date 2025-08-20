@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
@@ -13,10 +14,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/golang-jwt/jwt"
 	"github.com/johannesboyne/gofakes3"
 	"github.com/johannesboyne/gofakes3/backend/s3mem"
@@ -219,6 +220,123 @@ func (suite *HelperTests) TestConfigNoFile() {
 
 	_, err := LoadConfigFile(configPath)
 	assert.EqualError(suite.T(), err, msg)
+}
+
+func (suite *HelperTests) TestLoadConfigHostBase() {
+
+	confFileFormat := `
+	host_base = %s
+	encoding = UTF-8
+	host_bucket = someHostBucket
+	multipart_chunk_size_mb = 50
+	secret_key = dummy
+	access_key = dummy
+	use_https = %t
+	check_ssl_certificate = False
+	check_ssl_hostname = False
+	socket_timeout = 30
+	human_readable_sizes = True
+	guess_mime_type = True
+	encrypt = False
+	`
+
+	for _, test := range []struct {
+		testName, inputHostBase, expectedHostBase string
+		inputUseHTTPS, expectedUseHTTPS           bool
+		expectedError                             error
+	}{
+		{
+			testName:         "HttpsHostBaseUseHttpsFalse",
+			inputHostBase:    "https://example.com",
+			expectedHostBase: "https://example.com",
+			inputUseHTTPS:    false,
+			expectedUseHTTPS: true,
+			expectedError:    nil,
+		}, {
+			testName:         "HttpHostBaseUseHttpsTrue",
+			inputHostBase:    "http://example.com",
+			expectedHostBase: "https://example.com",
+			inputUseHTTPS:    true,
+			expectedUseHTTPS: true,
+			expectedError:    nil,
+		}, {
+			testName:         "NoSchemeHostBaseUseHttpsTrue",
+			inputHostBase:    "example.com",
+			expectedHostBase: "https://example.com",
+			inputUseHTTPS:    true,
+			expectedUseHTTPS: true,
+			expectedError:    nil,
+		}, {
+			testName:         "NoSchemeHostBaseUseHttpsFalse",
+			inputHostBase:    "example.com",
+			expectedHostBase: "http://example.com",
+			inputUseHTTPS:    false,
+			expectedUseHTTPS: false,
+			expectedError:    nil,
+		}, {
+			testName:         "HttpsHostBaseWithPort",
+			inputHostBase:    "https://example.com:8001",
+			expectedHostBase: "https://example.com:8001",
+			inputUseHTTPS:    false,
+			expectedUseHTTPS: true,
+			expectedError:    nil,
+		}, {
+			testName:         "NoSchemeHostBaseAsIPWithPort",
+			inputHostBase:    "127.0.0.1:8001",
+			expectedHostBase: "",
+			inputUseHTTPS:    false,
+			expectedUseHTTPS: false,
+			expectedError:    fmt.Errorf("failed to parse host base from configuration file, reason: parse \"127.0.0.1:8001\": first path segment in URL cannot contain colon"),
+		}, {
+			testName:         "HostBaseAsIPWithHttpSchemeAndPort",
+			inputHostBase:    "http://127.0.0.1:8001",
+			expectedHostBase: "http://127.0.0.1:8001",
+			inputUseHTTPS:    false,
+			expectedUseHTTPS: false,
+			expectedError:    nil,
+		}, {
+			testName:         "HostBaseAsIPWithHttpsSchemeAndPort",
+			inputHostBase:    "https://127.0.0.1:8001",
+			expectedHostBase: "https://127.0.0.1:8001",
+			inputUseHTTPS:    false,
+			expectedUseHTTPS: true,
+			expectedError:    nil,
+		}, {
+			testName:         "HostBaseAsLocalHostWithPort",
+			inputHostBase:    "localhost:8000",
+			expectedHostBase: "",
+			inputUseHTTPS:    false,
+			expectedUseHTTPS: false,
+			expectedError:    fmt.Errorf("failed to parse host base from configuration file, reason: a valid host can not be parsed"),
+		},
+	} {
+		suite.T().Run(test.testName, func(t *testing.T) {
+			configPath, err := os.CreateTemp(os.TempDir(), "sda-cli-helper-test-")
+			if err != nil {
+				suite.FailNow("failed to create temporary directory", err)
+			}
+			defer os.RemoveAll(configPath.Name()) //nolint:errcheck
+
+			err = os.WriteFile(configPath.Name(), []byte(fmt.Sprintf(confFileFormat, test.inputHostBase, test.inputUseHTTPS)), 0600)
+			if err != nil {
+				suite.FailNow("failed to write config file", err)
+			}
+
+			conf, err := LoadConfigFile(configPath.Name())
+			assert.Equal(t, test.expectedError, err)
+			if conf == nil {
+				assert.Equal(t, test.expectedHostBase, "")
+				assert.Equal(t, test.expectedUseHTTPS, false)
+
+				return
+			}
+
+			assert.Equal(t, test.expectedHostBase, conf.HostBase)
+			assert.Equal(t, test.expectedUseHTTPS, conf.UseHTTPS)
+
+		})
+	}
+
 }
 
 func (suite *HelperTests) TestConfigWrongFile() {
@@ -485,29 +603,32 @@ MzM5ZWIyYTQ1OGZlYzVlMjNhYThiNTdjZmNiMzVmMTA=
 }
 
 func (suite *HelperTests) TestListFiles() {
-
+	ctx := context.TODO()
 	// Create a fake s3 backend
 	backend := s3mem.New()
 	faker := gofakes3.New(backend)
 	ts := httptest.NewServer(faker.Server())
 	defer ts.Close()
 
-	// Configure S3 client
-	s3Config := &aws.Config{
-		Credentials:      credentials.NewStaticCredentials("dummy", "dummy", suite.accessToken),
-		Endpoint:         aws.String(ts.URL),
-		Region:           aws.String("eu-central-1"),
-		DisableSSL:       aws.Bool(true),
-		S3ForcePathStyle: aws.Bool(true),
+	awsConfig, err := config.LoadDefaultConfig(ctx,
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("dummy", "dummy", suite.accessToken)),
+		config.WithRegion("eu-central-1"),
+		config.WithBaseEndpoint(ts.URL),
+	)
+	if err != nil {
+		suite.FailNow("failed to create aws config", err)
 	}
-	newSession, _ := session.NewSession(s3Config)
-	s3Client := s3.New(newSession)
+
+	s3Client := s3.NewFromConfig(awsConfig, func(o *s3.Options) {
+		o.UsePathStyle = true
+		o.EndpointOptions.DisableHTTPS = true
+	})
 
 	// Create bucket named dummy
 	cparams := &s3.CreateBucketInput{
 		Bucket: aws.String("dummy"),
 	}
-	_, err := s3Client.CreateBucket(cparams)
+	_, err = s3Client.CreateBucket(ctx, cparams)
 	if err != nil {
 		suite.FailNow("failed to create s3 bucket", err)
 	}
@@ -519,7 +640,7 @@ func (suite *HelperTests) TestListFiles() {
 	}
 	defer file.Close() //nolint:errcheck
 
-	_, err = s3Client.PutObject(&s3.PutObjectInput{
+	_, err = s3Client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String("dummy"),
 		Key:    aws.String("dummy/" + filepath.Base(suite.testFile.Name())),
 		Body:   file,
@@ -533,7 +654,7 @@ func (suite *HelperTests) TestListFiles() {
 		suite.FailNow("failed to open test file", err)
 	}
 	defer file1.Close() //nolint:errcheck
-	_, err = s3Client.PutObject(&s3.PutObjectInput{
+	_, err = s3Client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String("dummy"),
 		Key:    aws.String("dummy/" + filepath.Base(suite.testFile1.Name())),
 		Body:   file1,
@@ -546,7 +667,7 @@ func (suite *HelperTests) TestListFiles() {
 		AccessToken: suite.accessToken,
 		AccessKey:   "dummy",
 		SecretKey:   "dummy",
-		HostBase:    strings.TrimPrefix(ts.URL, "http://"),
+		HostBase:    ts.URL,
 		UseHTTPS:    false,
 	}
 

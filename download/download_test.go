@@ -107,7 +107,7 @@ func (suite *TestSuite) TestPrintHostBase() {
 
 	// check if the host_base is in the output
 
-	expectedHostBase := "Remote server (host_base): " + "inbox.dummy.org"
+	expectedHostBase := "Remote server (host_base): " + "http://inbox.dummy.org"
 	assert.Contains(suite.T(), string(uploadError), expectedHostBase)
 }
 func (suite *TestSuite) TestGetBody() {
