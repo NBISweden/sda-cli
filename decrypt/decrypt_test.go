@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	createKey "github.com/NBISweden/sda-cli/create_key"
@@ -167,7 +168,11 @@ func (suite *DecryptTest) TestDecryptWithCleanArgSuccess() {
 
 	// Check that the encrypted file was removed
 	_, err = os.Stat(suite.testFiles[0].encryptedFileName)
-	assert.ErrorContains(suite.T(), err, "no such file or directory")
+	noSuchFileMessage := "no such file or directory"
+	if runtime.GOOS == "windows" {
+		noSuchFileMessage = "The system cannot find the file specified."
+	}
+	assert.ErrorContains(suite.T(), err, noSuchFileMessage)
 
 	// Check content of the decrypted file
 	inFile, err := os.Open(suite.testFiles[0].decryptedFileName)
@@ -208,7 +213,11 @@ func (suite *DecryptTest) TestDecryptWrongPassword() {
 
 	// Check that the decrypted file does not exist
 	_, err = os.Stat(suite.testFiles[0].decryptedFileName)
-	assert.ErrorContains(suite.T(), err, "no such file or directory")
+	noSuchFileMessage := "no such file or directory"
+	if runtime.GOOS == "windows" {
+		noSuchFileMessage = "The system cannot find the file specified."
+	}
+	assert.ErrorContains(suite.T(), err, noSuchFileMessage)
 }
 
 func (suite *DecryptTest) TestDecryptMultipleFilesSuccess() {
