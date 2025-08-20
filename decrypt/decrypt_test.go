@@ -36,15 +36,11 @@ func (suite *DecryptTestSuite) SetupTest() {
 	// Clean any files created from previous test executions
 	suite.testFiles = make([]encryptedFile, 0)
 
-	var err error
-	suite.tempDir, err = os.MkdirTemp(os.TempDir(), "sda-cli-test-decrypt")
-	if err != nil {
-		suite.FailNow("failed to create temporary directory", err)
-	}
+	suite.tempDir = suite.T().TempDir()
 
 	suite.testKeyFile = filepath.Join(suite.tempDir, "testkey")
-	err = createKey.GenerateKeyPair(suite.testKeyFile, "")
-	if err != nil {
+
+	if err := createKey.GenerateKeyPair(suite.testKeyFile, ""); err != nil {
 		suite.FailNow("failed to generate key pair", err)
 	}
 	os.Setenv("C4GH_PASSWORD", "")
@@ -85,7 +81,8 @@ func (suite *DecryptTestSuite) createNewEncryptedFile() {
 }
 
 func (suite *DecryptTestSuite) TearDownTest() {
-	_ = os.RemoveAll(suite.tempDir)
+	// The temporary directory cleanup is managed by the testing library as documented
+	// at https://pkg.go.dev/testing#T.TempDir
 	_ = os.Remove("checksum_encrypted.md5")
 	_ = os.Remove("checksum_unencrypted.md5")
 	_ = os.Remove("checksum_encrypted.sha256")
