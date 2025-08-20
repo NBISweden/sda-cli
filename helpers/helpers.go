@@ -134,6 +134,8 @@ func getPositional(args []string) ([]string, []string) {
 		"--from-file",
 		"--clean",
 		"-clean",
+		"--continue",
+		"-continue",
 	}
 	i := 1
 	var positional []string
