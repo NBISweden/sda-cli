@@ -370,6 +370,7 @@ func readPublicKeyFile(filename string) (key *[32]byte, err error) {
 	if err != nil {
 		return nil, err
 	}
+	defer file.Close()
 
 	publicKey, err := keys.ReadPublicKey(file)
 	if err != nil {
