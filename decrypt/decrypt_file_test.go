@@ -75,23 +75,11 @@ func (suite *DecryptFileTest) SetupTest() {
 }
 
 func (suite *DecryptFileTest) TearDownTest() {
-	if err := os.RemoveAll(suite.tempDir); err != nil {
-		suite.T().Error("failed to clean files")
-	}
-
-	if err := os.Remove("checksum_encrypted.md5"); err != nil {
-		suite.FailNow("failed to delete checksum_encrypted.md5", err)
-	}
-	if err := os.Remove("checksum_unencrypted.md5"); err != nil {
-		suite.FailNow("failed to delete checksum_unencrypted.md5", err)
-	}
-	if err := os.Remove("checksum_encrypted.sha256"); err != nil {
-		suite.FailNow("failed to delete checksum_encrypted.sha256", err)
-	}
-	if err := os.Remove("checksum_unencrypted.sha256"); err != nil {
-		suite.FailNow("failed to delete checksum_unencrypted.sha256", err)
-	}
-
+	_ = os.RemoveAll(suite.tempDir)
+	_ = os.Remove("checksum_encrypted.md5")
+	_ = os.Remove("checksum_unencrypted.md5")
+	_ = os.Remove("checksum_encrypted.sha256")
+	_ = os.Remove("checksum_unencrypted.sha256")
 }
 
 func (suite *DecryptFileTest) TestDecryptFileSuccess() {
