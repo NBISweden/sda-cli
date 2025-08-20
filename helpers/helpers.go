@@ -260,8 +260,7 @@ func LoadConfigFile(path string) (*Config, error) {
 	config.HostBase = u.String()
 
 	// Parse URL again to validate that a host can be parsed after scheme has been enforced
-	u, _ = url.Parse(config.HostBase)
-	if u == nil || u.Host == "" {
+	if u, err = url.Parse(config.HostBase); err != nil || u.Host == "" {
 		return nil, fmt.Errorf("failed to parse host base from configuration file, reason: a valid host can not be parsed")
 	}
 
