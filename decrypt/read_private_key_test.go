@@ -11,11 +11,7 @@ import (
 )
 
 func TestReadPrivateKeyFile(t *testing.T) {
-	tempDir, err := os.MkdirTemp(os.TempDir(), "sda-cli-test-decrypt-read-private-key-file")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	testFile, err := os.CreateTemp(tempDir, "testfile-")
 	if err != nil {
