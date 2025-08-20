@@ -59,6 +59,8 @@ func (suite *DecryptFileTest) SetupTest() {
 		suite.FailNow("failed to write content to test file", err)
 	}
 
+	_ = testFile.Close()
+
 	encrypt.EmptyPublicKeyFileList()
 	err = encrypt.Encrypt([]string{"encrypt", "-key", fmt.Sprintf("%s.pub.pem", suite.testKeyFile), testFile.Name()})
 	if err != nil {
@@ -102,6 +104,7 @@ func (suite *DecryptFileTest) TestDecryptFileSuccess() {
 	inFile, err := os.Open(decryptedFile)
 	assert.NoError(suite.T(), err, "unable to open decrypted file")
 	fileData, err := io.ReadAll(inFile)
+	_ = inFile.Close()
 	assert.NoError(suite.T(), err, "unable to read decrypted file")
 	assert.Equal(suite.T(), fileData, suite.fileContent)
 

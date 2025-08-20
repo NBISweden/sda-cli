@@ -64,6 +64,8 @@ func (suite *DecryptTest) createNewEncryptedFile() {
 		suite.FailNow("failed to write content to test file", err)
 	}
 
+	_ = testFile.Close()
+
 	encrypt.EmptyPublicKeyFileList()
 	err = encrypt.Encrypt([]string{"encrypt", "-key", fmt.Sprintf("%s.pub.pem", suite.testKeyFile), testFile.Name()})
 	if err != nil {
@@ -119,6 +121,7 @@ func (suite *DecryptTest) TestDecryptSuccess() {
 	inFile, err := os.Open(suite.testFiles[0].decryptedFileName)
 	assert.NoError(suite.T(), err, "unable to open decrypted file")
 	fileData, err := io.ReadAll(inFile)
+	_ = inFile.Close()
 	assert.NoError(suite.T(), err, "unable to read decrypted file")
 	assert.Equal(suite.T(), string(suite.testFiles[0].content), string(fileData))
 }
@@ -146,6 +149,7 @@ func (suite *DecryptTest) TestDecryptExistingDecryptionFile() {
 	inFile, err := os.Open(suite.testFiles[0].decryptedFileName)
 	assert.NoError(suite.T(), err, "unable to open decrypted file")
 	fileData, err := io.ReadAll(inFile)
+	_ = inFile.Close()
 	assert.NoError(suite.T(), err, "unable to read decrypted file")
 	assert.Equal(suite.T(), "different content", string(fileData))
 }
@@ -169,6 +173,7 @@ func (suite *DecryptTest) TestDecryptWithCleanArgSuccess() {
 	inFile, err := os.Open(suite.testFiles[0].decryptedFileName)
 	assert.NoError(suite.T(), err, "unable to open decrypted file")
 	fileData, err := io.ReadAll(inFile)
+	_ = inFile.Close()
 	assert.NoError(suite.T(), err, "unable to read decrypted file")
 	assert.Equal(suite.T(), string(suite.testFiles[0].content), string(fileData))
 }
@@ -232,8 +237,10 @@ func (suite *DecryptTest) TestDecryptMultipleFilesSuccess() {
 		inFile, err := os.Open(file.decryptedFileName)
 		assert.NoError(suite.T(), err, "unable to open decrypted file")
 		fileData, err := io.ReadAll(inFile)
+		_ = inFile.Close()
 		assert.NoError(suite.T(), err, "unable to read decrypted file")
 		assert.Equal(suite.T(), string(file.content), string(fileData))
+
 	}
 }
 
@@ -275,6 +282,7 @@ func (suite *DecryptTest) TestDecryptMultipleFilesWithForceOverwriteArg() {
 		inFile, err := os.Open(file.decryptedFileName)
 		assert.NoError(suite.T(), err, "unable to open decrypted file")
 		fileData, err := io.ReadAll(inFile)
+		_ = inFile.Close()
 		assert.NoError(suite.T(), err, "unable to read decrypted file")
 		assert.Equal(suite.T(), string(file.content), string(fileData))
 	}
@@ -307,6 +315,7 @@ func (suite *DecryptTest) TestDecryptMultipleFilesOneNonExistentFile() {
 		inFile, err := os.Open(file.decryptedFileName)
 		assert.NoError(suite.T(), err, "unable to open decrypted file")
 		fileData, err := io.ReadAll(inFile)
+		_ = inFile.Close()
 		assert.NoError(suite.T(), err, "unable to read decrypted file")
 		assert.Equal(suite.T(), string(file.content), string(fileData))
 	}

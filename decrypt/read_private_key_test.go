@@ -29,6 +29,8 @@ func TestReadPrivateKeyFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	_ = testFile.Close()
+
 	for _, test := range []struct {
 		testName         string
 		fileName         string
