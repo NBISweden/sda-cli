@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type DecryptFileTest struct {
+type DecryptFileTestSuite struct {
 	suite.Suite
 	tempDir       string // The directory this test will take place in
 	encryptedFile string
@@ -24,10 +24,10 @@ type DecryptFileTest struct {
 }
 
 func TestDecryptFileTestSuite(t *testing.T) {
-	suite.Run(t, new(DecryptFileTest))
+	suite.Run(t, new(DecryptFileTestSuite))
 }
 
-func (suite *DecryptFileTest) SetupTest() {
+func (suite *DecryptFileTestSuite) SetupTest() {
 	var err error
 	suite.tempDir, err = os.MkdirTemp(os.TempDir(), "sda-cli-test-decrypt-file")
 	if err != nil {
@@ -74,7 +74,7 @@ func (suite *DecryptFileTest) SetupTest() {
 	suite.encryptedFile = fmt.Sprintf("%s.c4gh", testFile.Name())
 }
 
-func (suite *DecryptFileTest) TearDownTest() {
+func (suite *DecryptFileTestSuite) TearDownTest() {
 	_ = os.RemoveAll(suite.tempDir)
 	_ = os.Remove("checksum_encrypted.md5")
 	_ = os.Remove("checksum_unencrypted.md5")
@@ -82,7 +82,7 @@ func (suite *DecryptFileTest) TearDownTest() {
 	_ = os.Remove("checksum_unencrypted.sha256")
 }
 
-func (suite *DecryptFileTest) TestDecryptFileSuccess() {
+func (suite *DecryptFileTestSuite) TestDecryptFileSuccess() {
 	decryptedFile := filepath.Join(suite.tempDir, "decrypted_file")
 
 	err := decryptFile(suite.encryptedFile, decryptedFile, *suite.privateKey)
@@ -97,7 +97,7 @@ func (suite *DecryptFileTest) TestDecryptFileSuccess() {
 	assert.Equal(suite.T(), fileData, suite.fileContent)
 
 }
-func (suite *DecryptFileTest) TestDecryptFileMalformedKey() {
+func (suite *DecryptFileTestSuite) TestDecryptFileMalformedKey() {
 	decryptedFile := filepath.Join(suite.tempDir, "decrypted_file")
 
 	suite.privateKey = &[32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
@@ -106,7 +106,7 @@ func (suite *DecryptFileTest) TestDecryptFileMalformedKey() {
 	assert.EqualError(suite.T(), err, "could not create cryp4gh reader: could not find matching public key header, decryption failed")
 }
 
-func (suite *DecryptFileTest) TestDecryptFileNonExistentFile() {
+func (suite *DecryptFileTestSuite) TestDecryptFileNonExistentFile() {
 	msg := "no such file or directory"
 	if runtime.GOOS == "windows" {
 		msg = "The system cannot find the file specified."
