@@ -426,7 +426,7 @@ func ListFiles(config Config, prefix string) ([]types.Object, error) {
 			config.SecretKey,
 			config.AccessToken,
 		)),
-		awsConfig.WithRegion("eu-west-2"),
+		awsConfig.WithRegion("us-west-2"),
 		awsConfig.WithBaseEndpoint(config.HostBase),
 	)
 	if err != nil {
