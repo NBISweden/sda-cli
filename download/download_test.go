@@ -1,80 +1,157 @@
 package download
 
 import (
+	"flag"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 
+	createKey "github.com/NBISweden/sda-cli/create_key"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
-type TestSuite struct {
+type DownloadTestSuite struct {
 	suite.Suite
-	accessToken string
+	tempDir        string
+	accessToken    string
+	configFilePath string
+
+	httpTestServer *httptest.Server
 }
 
-func (suite *TestSuite) createConfigFile(fileName, token string) os.File {
-	// Create conf file for sda-cli
-	confFile := fmt.Sprintf(`
-	access_token = %[1]s
-	host_base = inbox.dummy.org
-	encoding = UTF-8
-	host_bucket = inbox.dummy.org
-	multipart_chunk_size_mb = 50
-	secret_key = dummy
-	access_key = dummy
-	use_https = False
-	check_ssl_certificate = False
-	check_ssl_hostname = False
-	socket_timeout = 30
-	human_readable_sizes = True
-	guess_mime_type = True
-	encrypt = False
-	`, token)
+var accessToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtleXN0b3JlLUNIQU5HRS1NRSJ9.eyJqdGkiOiJWTWpfNjhhcEMxR2FJbXRZdFExQ0ciLCJzdWIiOiJkdW1teSIsImlzcyI6Imh0dHA6Ly9vaWRjOjkwOTAiLCJpYXQiOjE3MDc3NjMyODksImV4cCI6MTg2NTU0NzkxOSwic2NvcGUiOiJvcGVuaWQgZ2E0Z2hfcGFzc3BvcnRfdjEgcHJvZmlsZSBlbWFpbCIsImF1ZCI6IlhDNTZFTDExeHgifQ.ZFfIAOGeM2I5cvqr1qJV74qU65appYjpNJVWevGHjGA5Xk_qoRMFJXmG6AiQnYdMKnJ58sYGNjWgs2_RGyw5NyM3-pgP7EKHdWU4PrDOU84Kosg4IPMSFxbBRAEjR5X04YX_CLYW2MFk_OyM9TIln522_JBVT_jA5WTTHSmBRHntVArYYHvQdF-oFRiqL8JXWlsUBh3tqQ33sZdqd9g64YhTk9a5lEC42gn5Hg9Hm_qvkl5orzEqIg7x9z5706IBE4Zypco5ohrAKsEbA8EKbEBb0jigGgCslQNde2owUyKIkvZYmxHA78X5xpymMp9K--PgbkyMS9GtA-YwOHPs-w"
+var configFormat = `
+access_token = %s
+host_base = inbox.dummy.org
+encoding = UTF-8
+host_bucket = inbox.dummy.org
+multipart_chunk_size_mb = 50
+secret_key = dummy
+access_key = dummy
+use_https = False
+check_ssl_certificate = False
+check_ssl_hostname = False
+socket_timeout = 30
+human_readable_sizes = True
+guess_mime_type = True
+encrypt = False
+`
+
+func (suite *DownloadTestSuite) SetupSuite() {
+	// Create a test httpTestServer
+	suite.httpTestServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+
+		switch req.RequestURI {
+		case "/metadata/datasets/TES01/files":
+			// Set the response status code
+			w.WriteHeader(http.StatusOK)
+			// Set the response body
+			fmt.Fprint(w, `[
+            {
+                "fileId": "file1id",
+				"datasetId": "TES01",
+				"displayFileName": "file1.c4gh",
+                "filePath": "files/file1.c4gh",
+				"fileName": "4293c9a7-re60-46ac-b79a-40ddc0ddd1c6"
+            },
+			{
+                "fileId": "file2id",
+				"datasetId": "TES01",
+				"displayFileName": "file2.c4gh",
+                "filePath": "files/file2.c4gh",
+				"fileName": "4b40bd16-9eba-4992-af39-a7f824e612e2"
+            },
+			{
+                "fileId": "file2id",
+				"datasetId": "TES01",
+				"displayFileName": "dummy-file.txt.c4gh",
+                "filePath": "files/dummy-file.txt.c4gh",
+				"fileName": "4b40bd16-9eba-4992-af39-a7f824e612e1"
+            }
+        	]`)
+
+		case "/s3/TES01/files/dummy-file.txt.c4gh":
+
+			// Set the response status code
+			w.WriteHeader(http.StatusOK)
+
+			fmt.Fprint(w, "test content dummy file")
+
+		case "/s3/TES01/files/file1.c4gh":
+
+			// Set the response status code
+			w.WriteHeader(http.StatusOK)
+
+			fmt.Fprint(w, "test content file 1")
+		case "/s3/TES01/files/file2.c4gh":
+
+			// Set the response status code
+			w.WriteHeader(http.StatusOK)
+
+			fmt.Fprint(w, "test content file 2")
+
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}))
+}
+
+func (suite *DownloadTestSuite) TearDownSuite() {
+	suite.httpTestServer.Close()
+}
+func (suite *DownloadTestSuite) SetupTest() {
+	// Reset flags from previous test executions
+	Args = flag.NewFlagSet("download", flag.ContinueOnError)
+	datasetID = Args.String("dataset-id", "", "Dataset ID for the file to download.")
+	URL = Args.String("url", "", "The url of the download server.")
+	outDir = Args.String("outdir", "", "Directory for downloaded files.")
+	datasetdownload = Args.Bool("dataset", false, "Download all the files of the dataset.")
+	pubKeyPath = Args.String("pubkey", "", "Public key file to use for encryption of files to download.")
+	recursiveDownload = Args.Bool("recursive", false, "Download content of the folder.")
+	fromFile = Args.Bool("from-file", false, "Download files from file list.")
+	pubKeyBase64 = ""
+	continueDownload = Args.Bool("continue", false, "Skip existing files and continue with the rest.")
+
+	// Create a temporary directory for our files
+	suite.tempDir = suite.T().TempDir()
 
 	// Create config file
-	configPath, err := os.CreateTemp(os.TempDir(), fileName)
+	configFile, err := os.CreateTemp(os.TempDir(), "sda-cli.conf")
 	if err != nil {
-		suite.FailNow("failed to create temp test config file", err)
+		suite.FailNow("failed to create config file in temporary directory", err)
 	}
+	suite.configFilePath = configFile.Name()
 
 	// Write config file
-	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
+	err = os.WriteFile(suite.configFilePath, []byte(fmt.Sprintf(configFormat, accessToken)), 0600)
 	if err != nil {
-		suite.FailNow("failed to write temp config file", err)
+		suite.FailNow("failed to write to config file", err)
 	}
-
-	return *configPath
 }
 
-func TestConfigTestSuite(t *testing.T) {
-	suite.Run(t, new(TestSuite))
+func TestConfigDownloadTestSuite(t *testing.T) {
+	suite.Run(t, new(DownloadTestSuite))
 }
 
-func (suite *TestSuite) SetupTest() {
-	suite.accessToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtleXN0b3JlLUNIQU5HRS1NRSJ9.eyJqdGkiOiJWTWpfNjhhcEMxR2FJbXRZdFExQ0ciLCJzdWIiOiJkdW1teSIsImlzcyI6Imh0dHA6Ly9vaWRjOjkwOTAiLCJpYXQiOjE3MDc3NjMyODksImV4cCI6MTg2NTU0NzkxOSwic2NvcGUiOiJvcGVuaWQgZ2E0Z2hfcGFzc3BvcnRfdjEgcHJvZmlsZSBlbWFpbCIsImF1ZCI6IlhDNTZFTDExeHgifQ.ZFfIAOGeM2I5cvqr1qJV74qU65appYjpNJVWevGHjGA5Xk_qoRMFJXmG6AiQnYdMKnJ58sYGNjWgs2_RGyw5NyM3-pgP7EKHdWU4PrDOU84Kosg4IPMSFxbBRAEjR5X04YX_CLYW2MFk_OyM9TIln522_JBVT_jA5WTTHSmBRHntVArYYHvQdF-oFRiqL8JXWlsUBh3tqQ33sZdqd9g64YhTk9a5lEC42gn5Hg9Hm_qvkl5orzEqIg7x9z5706IBE4Zypco5ohrAKsEbA8EKbEBb0jigGgCslQNde2owUyKIkvZYmxHA78X5xpymMp9K--PgbkyMS9GtA-YwOHPs-w"
-}
-
-func (suite *TestSuite) TestInvalidUrl() {
-	confPath := suite.createConfigFile("s3cmd.conf", suite.accessToken)
-
-	os.Args = []string{
+func (suite *DownloadTestSuite) TestInvalidUrl() {
+	err := Download([]string{
 		"download",
+		"-pubkey",
+		"",
 		"-dataset-id",
 		"TES01",
 		"-url",
 		"https://some/url",
 		"file1",
 		"file2",
-	}
+	}, suite.configFilePath)
 
-	err := Download(os.Args, confPath.Name())
 	assert.Contains(
 		suite.T(),
 		err.Error(),
@@ -82,243 +159,210 @@ func (suite *TestSuite) TestInvalidUrl() {
 	)
 }
 
-func (suite *TestSuite) TestPrintHostBase() {
-	confPath := suite.createConfigFile("s3cmd.conf", suite.accessToken)
+func (suite *DownloadTestSuite) TestDownloadOneFileNoPublicKey() {
 
-	os.Args = []string{
+	if err := Download([]string{
 		"download",
+		"-pubkey",
+		"",
 		"-dataset-id",
 		"TES01",
 		"-url",
-		"https://some/url",
-		"file1",
+		suite.httpTestServer.URL,
+		"-outdir",
+		suite.tempDir,
+		"files/dummy-file.txt",
+	}, suite.configFilePath); err != nil {
+		suite.FailNow("unexpected error from Download", err)
 	}
 
-	// check if the host_base is in the error output
-	rescueStderr := os.Stderr
-	r, w, _ := os.Pipe()
-	os.Stderr = w
+	// Read the downloaded file
+	downloadedContent, err := os.ReadFile(fmt.Sprintf("%s/files/dummy-file.txt", suite.tempDir))
+	assert.NoError(suite.T(), err)
 
-	_ = Download(os.Args, confPath.Name())
-
-	_ = w.Close()
-	os.Stderr = rescueStderr
-	uploadError, _ := io.ReadAll(r)
-
-	// check if the host_base is in the output
-
-	expectedHostBase := "Remote server (host_base): " + "http://inbox.dummy.org"
-	assert.Contains(suite.T(), string(uploadError), expectedHostBase)
-}
-func (suite *TestSuite) TestGetBody() {
-	// Create a test server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		// Set the response status code
-		w.WriteHeader(http.StatusOK)
-		// Set the response body
-		fmt.Fprint(w, "test response") //nolint:errcheck
-	}))
-	defer server.Close()
-
-	// Make a request to the test server with an empty public key
-	body, err := getBody(server.URL, "test-token", "")
-	if err != nil {
-		suite.T().Errorf("getBody returned an error: %v", err)
-	}
-
-	// Check the response body
-	expectedBody := "test response"
-	if string(body) != expectedBody {
-		suite.T().
-			Errorf("getBody returned incorrect response body, got: %s, want: %s", string(body), expectedBody)
-	}
-
-	// Make a request to the test server using a public key
-	body, err = getBody(server.URL, "test-token", "test-public-key")
-	if err != nil {
-		suite.T().Errorf("getBody returned an error: %v", err)
-	}
-
-	// Check the response body
-	expectedBody = "test response"
-	if string(body) != expectedBody {
-		suite.T().
-			Errorf("getBody returned incorrect response body, got: %s, want: %s", string(body), expectedBody)
-	}
+	// Check if the downloaded content matches the expected content
+	assert.Equal(suite.T(), "test content dummy file", string(downloadedContent))
 }
 
-func (suite *TestSuite) TestDownloadUrl() {
-	// Mock getBody function
-	defer func() { getResponseBody = getBody }()
-	getResponseBody = func(_, _, _ string) ([]byte, error) {
-		return []byte(`[
-            {
-                "fileId": "file1id",
-				"datasetId": "TES01",
-				"displayName": "file1",
-                "filePath": "path/to/file1.c4gh",
-				"fileName": "4293c9a7-re60-46ac-b79a-40ddc0ddd1c6"
-            }
-        ]`), nil
+func (suite *DownloadTestSuite) TestDownloadMultipleFilesNoPublicKey() {
+
+	if err := Download([]string{
+		"download",
+		"-pubkey",
+		"",
+		"-dataset-id",
+		"TES01",
+		"-url",
+		suite.httpTestServer.URL,
+		"-outdir",
+		suite.tempDir,
+		"files/dummy-file.txt",
+		"files/file1",
+		"files/file2",
+	}, suite.configFilePath); err != nil {
+		suite.FailNow("unexpected error from Download", err)
 	}
 
-	baseURL := "https://some/url"
-	token := suite.accessToken
-	datasetID := "test-dataset"
-	filepath := "path/to/file1"
-	expectedURL := "https://some/url/s3/test-dataset/path/to/file1.c4gh"
-
-	//-----------------------------------------------
-	// Test with an empty public key
-
-	// Test with valid base_url, token, dataset, and filename
-	url, _, err := getFileIDURL(baseURL, token, "", datasetID, filepath)
-	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), expectedURL, url)
-
-	// Test with url as dataset
-	datasetID = "https://doi.example/another/url/001"
-	_, _, err = getFileIDURL(baseURL, token, "", datasetID, filepath)
-	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), expectedURL, url)
-
-	// Test with filename not in response
-	filepath = "path/to/file2"
-	_, _, err = getFileIDURL(baseURL, token, "", datasetID, filepath)
-	assert.Error(suite.T(), err)
-
-	// Test with fileID
-	filepath = "file1id"
-	_, _, err = getFileIDURL(baseURL, token, "", datasetID, filepath)
+	// Read the downloaded file
+	downloadedContent, err := os.ReadFile(fmt.Sprintf("%s/files/dummy-file.txt", suite.tempDir))
 	assert.NoError(suite.T(), err)
 
-	// Testr with bad URL
-	_, _, err = getFileIDURL("some/url", token, "", datasetID, filepath)
-	assert.Error(suite.T(), err)
+	// Check if the downloaded content matches the expected content
+	assert.Equal(suite.T(), "test content dummy file", string(downloadedContent))
 
-	//-----------------------------------------------
-	// Test using a nonempty public key
-	// Test with valid base_url, token, dataset, and fileid
-	filepath = "path/to/file1.c4gh"
-	fileid := "file1id"
-	expectedURL = baseURL + "/s3/" + datasetID + "/" + filepath
-	pubKey := "test-public-key"
-	url, _, err = getFileIDURL(baseURL, token, pubKey, datasetID, fileid)
+	// Read the downloaded file
+	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file1", suite.tempDir))
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), expectedURL, url)
 
-	// Test with url as dataset
-	datasetID = "https://doi.example/another/url/001"
-	expectedURL = baseURL + "/s3/" + datasetID + "/" + filepath
-	url, _, err = getFileIDURL(baseURL, token, pubKey, datasetID, filepath)
+	// Check if the downloaded content matches the expected content
+	assert.Equal(suite.T(), "test content file 1", string(downloadedContent))
+
+	// Read the downloaded file
+	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file2", suite.tempDir))
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), expectedURL, url)
 
-	// Test with filename not in response
-	filepath = "path/to/file2"
-	_, _, err = getFileIDURL(baseURL, token, pubKey, datasetID, filepath)
-	assert.Error(suite.T(), err)
-
-	// Testr with bad URL
-	_, _, err = getFileIDURL("some/url", token, pubKey, datasetID, filepath)
-	assert.Error(suite.T(), err)
+	// Check if the downloaded content matches the expected content
+	assert.Equal(suite.T(), "test content file 2", string(downloadedContent))
 }
 
-func (suite *TestSuite) TestDownloadFile() {
-	// Create a temporary directory for testing
-	tempDir := suite.T().TempDir()
+func (suite *DownloadTestSuite) TestDownloadOneFileWithPublicKey() {
+	testKeyFile := filepath.Join(suite.tempDir, "testkey")
+	// generate key files
+	err := createKey.GenerateKeyPair(testKeyFile, "test")
+	assert.NoError(suite.T(), err)
 
-	// Create a temporary file for testing
-	tempFile := filepath.Join(tempDir, "dummy-file.txt")
-	err := os.WriteFile(tempFile, []byte("test content"), 0600)
-	require.NoError(suite.T(), err)
+	if err := Download([]string{
+		"download",
+		"-pubkey",
+		fmt.Sprintf("%s.pub.pem", testKeyFile),
+		"-dataset-id",
+		"TES01",
+		"-url",
+		suite.httpTestServer.URL,
+		"-outdir",
+		suite.tempDir,
+		"files/dummy-file.txt",
+	}, suite.configFilePath); err != nil {
+		suite.FailNow("unexpected error from Download", err)
+	}
 
-	// Create a test server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		// Set the response status code
-		w.WriteHeader(http.StatusOK)
-		// Set the response body
-		fmt.Fprint(w, "dummy response") //nolint:errcheck
-	}))
-	defer server.Close()
+	// Read the downloaded file
+	downloadedContent, err := os.ReadFile(fmt.Sprintf("%s/files/dummy-file.txt.c4gh", suite.tempDir))
+	assert.NoError(suite.T(), err)
 
-	// Call the downloadFile function without a public key
-	err = downloadFile(server.URL, "test-token", "", tempFile)
-	require.NoError(suite.T(), err)
+	// Check if the downloaded content matches the expected content
+	assert.Equal(suite.T(), "test content dummy file", string(downloadedContent))
+}
+
+func (suite *DownloadTestSuite) TestDownloadFileAlreadyExistsWithContinue() {
+	if err := os.Mkdir(path.Join(suite.tempDir, "files"), 0755); err != nil {
+		suite.FailNow("failed to create temporary directory", err)
+	}
+
+	tempFile := filepath.Join(suite.tempDir, "files", "dummy-file.txt")
+	if err := os.WriteFile(tempFile, []byte("NOT TO BE OVERWRITTEN"), 0600); err != nil {
+		suite.FailNow("failed to write temp file", err)
+	}
+
+	if err := Download([]string{
+		"download",
+		"-pubkey",
+		"",
+		"-dataset-id",
+		"TES01",
+		"-url",
+		suite.httpTestServer.URL,
+		"-outdir",
+		suite.tempDir,
+		"-continue",
+		"files/dummy-file.txt",
+	}, suite.configFilePath); err != nil {
+		suite.FailNow("unexpected error from Download", err)
+	}
 
 	// Read the downloaded file
 	downloadedContent, err := os.ReadFile(tempFile)
 	require.NoError(suite.T(), err)
 
-	// Check if the downloaded content matches the expected content
-	expectedContent := "dummy response"
-	assert.Equal(suite.T(), expectedContent, string(downloadedContent))
+	// Ensure existing file has not been overwritten
+	assert.Equal(suite.T(), "NOT TO BE OVERWRITTEN", string(downloadedContent))
+}
 
-	// Call the downloadFile function with a public key
-	err = downloadFile(server.URL, "test-token", "test-public-key", tempFile)
-	require.NoError(suite.T(), err)
+func (suite *DownloadTestSuite) TestDownloadDataset() {
+
+	if err := Download([]string{
+		"download",
+		"-pubkey",
+		"",
+		"-dataset-id",
+		"TES01",
+		"-url",
+		suite.httpTestServer.URL,
+		"-outdir",
+		suite.tempDir,
+		"-dataset",
+	}, suite.configFilePath); err != nil {
+		suite.FailNow("unexpected error from Download", err)
+	}
 
 	// Read the downloaded file
-	downloadedContent, err = os.ReadFile(tempFile)
-	require.NoError(suite.T(), err)
+	downloadedContent, err := os.ReadFile(fmt.Sprintf("%s/files/dummy-file.txt", suite.tempDir))
+	assert.NoError(suite.T(), err)
 
 	// Check if the downloaded content matches the expected content
-	expectedContent = "dummy response"
-	assert.Equal(suite.T(), expectedContent, string(downloadedContent))
+	assert.Equal(suite.T(), "test content dummy file", string(downloadedContent))
+
+	// Read the downloaded file
+	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file1", suite.tempDir))
+	assert.NoError(suite.T(), err)
+
+	// Check if the downloaded content matches the expected content
+	assert.Equal(suite.T(), "test content file 1", string(downloadedContent))
+
+	// Read the downloaded file
+	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file2", suite.tempDir))
+	assert.NoError(suite.T(), err)
+
+	// Check if the downloaded content matches the expected content
+	assert.Equal(suite.T(), "test content file 2", string(downloadedContent))
 }
 
-func (suite *TestSuite) TestGetFilesInfo() {
-	// Mock getBody function
-	defer func() { getResponseBody = getBody }()
-	getResponseBody = func(_, _, _ string) ([]byte, error) {
-		return []byte(`[
-            {
-                "fileId": "file1id",
-				"datasetId": "TES01",
-				"displayFileName": "file1",
-                "filePath": "path/to/file1",
-				"fileName": "4293c9a7-re60-46ac-b79a-40ddc0ddd1c6"
-            },
-			{
-                "fileId": "file2id",
-				"datasetId": "TES01",
-				"displayFileName": "file2",
-                "filePath": "path/to/file2",
-				"fileName": "4b40bd16-9eba-4992-af39-a7f824e612e2"
-            }
-        ]`), nil
+func (suite *DownloadTestSuite) TestDownloadRecursive() {
+
+	if err := Download([]string{
+		"download",
+		"-pubkey",
+		"",
+		"-dataset-id",
+		"TES01",
+		"-url",
+		suite.httpTestServer.URL,
+		"-outdir",
+		suite.tempDir,
+		"-recursive",
+		"files/",
+	}, suite.configFilePath); err != nil {
+		suite.FailNow("unexpected error from Download", err)
 	}
 
-	// Test
-	token := suite.accessToken
-	baseURL := "https://some/url"
-	datasetID := "test-dataset"
-	files, err := GetFilesInfo(baseURL, datasetID, "", token)
-	require.NoError(suite.T(), err)
-	require.Len(suite.T(), files, 2)
-	assert.Equal(suite.T(), "file1id", files[0].FileID)
-	assert.Equal(suite.T(), "file1", files[0].DisplayFileName)
-	assert.Equal(suite.T(), "path/to/file1", files[0].FilePath)
-	assert.Equal(suite.T(), "4293c9a7-re60-46ac-b79a-40ddc0ddd1c6", files[0].FileName)
-	assert.Equal(suite.T(), "TES01", files[0].DatasetID)
-	assert.Equal(suite.T(), "file2id", files[1].FileID)
-	assert.Equal(suite.T(), "file2", files[1].DisplayFileName)
-	assert.Equal(suite.T(), "path/to/file2", files[1].FilePath)
-	assert.Equal(suite.T(), "4b40bd16-9eba-4992-af39-a7f824e612e2", files[1].FileName)
-	assert.Equal(suite.T(), "TES01", files[1].DatasetID)
-}
+	// Read the downloaded file
+	downloadedContent, err := os.ReadFile(fmt.Sprintf("%s/files/dummy-file.txt", suite.tempDir))
+	assert.NoError(suite.T(), err)
 
-func (suite *TestSuite) TestGetDatasets() {
-	// Mock getBody function
-	defer func() { getResponseBody = getBody }()
-	getResponseBody = func(_, _, _ string) ([]byte, error) {
-		return []byte(`["https://doi.example/ty009.sfrrss/600.45asasga"]`), nil
-	}
+	// Check if the downloaded content matches the expected content
+	assert.Equal(suite.T(), "test content dummy file", string(downloadedContent))
 
-	// Test
-	token := suite.accessToken
-	baseURL := "https://some/url"
-	datasets, err := GetDatasets(baseURL, token)
-	require.NoError(suite.T(), err)
-	assert.Equal(suite.T(), datasets, []string{"https://doi.example/ty009.sfrrss/600.45asasga"})
+	// Read the downloaded file
+	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file1", suite.tempDir))
+	assert.NoError(suite.T(), err)
+
+	// Check if the downloaded content matches the expected content
+	assert.Equal(suite.T(), "test content file 1", string(downloadedContent))
+
+	// Read the downloaded file
+	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file2", suite.tempDir))
+	assert.NoError(suite.T(), err)
+
+	// Check if the downloaded content matches the expected content
+	assert.Equal(suite.T(), "test content file 2", string(downloadedContent))
 }

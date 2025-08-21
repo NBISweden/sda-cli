@@ -81,9 +81,6 @@ var pubKeyBase64 string
 
 var continueDownload = Args.Bool("continue", false, "Skip existing files and continue with the rest.")
 
-// necessary for mocking in testing
-var getResponseBody = getBody
-
 // File struct represents the file metadata
 type File struct {
 	FileID                    string `json:"fileId"`
@@ -315,7 +312,7 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	filePath = strings.TrimSuffix(outFilename, ".c4gh")
 
 	// Get the file body
-	body, err := getResponseBody(uri, token, pubKeyBase64)
+	body, err := getBody(uri, token, pubKeyBase64)
 	if err != nil {
 		return fmt.Errorf("failed to get file for download, reason: %v", err)
 	}
@@ -419,7 +416,7 @@ func GetDatasets(baseURL, token string) ([]string, error) {
 	// Make the url for listing datasets
 	datasetsURL := baseURL + "/metadata/datasets"
 	// Get the response body from the datasets API
-	allDatasets, err := getResponseBody(datasetsURL, token, "")
+	allDatasets, err := getBody(datasetsURL, token, "")
 	if err != nil {
 		return []string{}, fmt.Errorf("failed to get datasets, reason: %v", err)
 	}
@@ -443,7 +440,7 @@ func GetFilesInfo(baseURL, dataset, pubKeyBase64, token string) ([]File, error) 
 	// Make the url for listing files
 	filesURL := baseURL + "/metadata/datasets/" + dataset + "/files"
 	// Get the response body from the files API
-	allFiles, err := getResponseBody(filesURL, token, pubKeyBase64)
+	allFiles, err := getBody(filesURL, token, pubKeyBase64)
 	if err != nil {
 		return []File{}, fmt.Errorf("failed to get files, reason: %v", err)
 	}
