@@ -1,6 +1,8 @@
 package download
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"flag"
 	"fmt"
 	"net/http"
@@ -9,8 +11,10 @@ import (
 	"path"
 	"path/filepath"
 	"testing"
+	"time"
 
 	createKey "github.com/NBISweden/sda-cli/create_key"
+	"github.com/golang-jwt/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -19,13 +23,12 @@ import (
 type DownloadTestSuite struct {
 	suite.Suite
 	tempDir        string
-	accessToken    string
 	configFilePath string
+	accessToken    string
 
 	httpTestServer *httptest.Server
 }
 
-var accessToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtleXN0b3JlLUNIQU5HRS1NRSJ9.eyJqdGkiOiJWTWpfNjhhcEMxR2FJbXRZdFExQ0ciLCJzdWIiOiJkdW1teSIsImlzcyI6Imh0dHA6Ly9vaWRjOjkwOTAiLCJpYXQiOjE3MDc3NjMyODksImV4cCI6MTg2NTU0NzkxOSwic2NvcGUiOiJvcGVuaWQgZ2E0Z2hfcGFzc3BvcnRfdjEgcHJvZmlsZSBlbWFpbCIsImF1ZCI6IlhDNTZFTDExeHgifQ.ZFfIAOGeM2I5cvqr1qJV74qU65appYjpNJVWevGHjGA5Xk_qoRMFJXmG6AiQnYdMKnJ58sYGNjWgs2_RGyw5NyM3-pgP7EKHdWU4PrDOU84Kosg4IPMSFxbBRAEjR5X04YX_CLYW2MFk_OyM9TIln522_JBVT_jA5WTTHSmBRHntVArYYHvQdF-oFRiqL8JXWlsUBh3tqQ33sZdqd9g64YhTk9a5lEC42gn5Hg9Hm_qvkl5orzEqIg7x9z5706IBE4Zypco5ohrAKsEbA8EKbEBb0jigGgCslQNde2owUyKIkvZYmxHA78X5xpymMp9K--PgbkyMS9GtA-YwOHPs-w"
 var configFormat = `
 access_token = %s
 host_base = inbox.dummy.org
@@ -100,6 +103,8 @@ func (suite *DownloadTestSuite) SetupSuite() {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 	}))
+
+	suite.accessToken = generateDummyToken(suite.T())
 }
 
 func (suite *DownloadTestSuite) TearDownSuite() {
@@ -129,7 +134,7 @@ func (suite *DownloadTestSuite) SetupTest() {
 	suite.configFilePath = configFile.Name()
 
 	// Write config file
-	err = os.WriteFile(suite.configFilePath, []byte(fmt.Sprintf(configFormat, accessToken)), 0600)
+	err = os.WriteFile(suite.configFilePath, []byte(fmt.Sprintf(configFormat, suite.accessToken)), 0600)
 	if err != nil {
 		suite.FailNow("failed to write to config file", err)
 	}
@@ -365,4 +370,28 @@ func (suite *DownloadTestSuite) TestDownloadRecursive() {
 
 	// Check if the downloaded content matches the expected content
 	assert.Equal(suite.T(), "test content file 2", string(downloadedContent))
+}
+
+func generateDummyToken(t *testing.T) string {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Errorf("failed to generate key: %v", err)
+		t.FailNow()
+	}
+
+	// Create the Claims
+	claims := &jwt.StandardClaims{
+		Issuer:    "test",
+		ExpiresAt: time.Now().Add(1 * time.Hour).Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	accessToken, err := token.SignedString(privateKey)
+	if err != nil {
+		t.Errorf("failed to sign token: %v", err)
+		t.FailNow()
+	}
+
+	return accessToken
+
 }

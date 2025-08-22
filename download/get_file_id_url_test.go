@@ -27,43 +27,45 @@ func TestFileIdUrl(t *testing.T) {
 	}))
 	defer server.Close()
 
+	accessToken := generateDummyToken(t)
+
 	for _, test := range []struct {
-		testName, baseURL, datasetId, filePath string
+		testName, baseURL, datasetID, filePath string
 		expectedURL                            string
 		expectedError                          error
 	}{
 		{
 			testName:      "ValidInputNoPubKey",
 			baseURL:       server.URL,
-			datasetId:     "test-dataset",
+			datasetID:     "test-dataset",
 			filePath:      "path/to/file1",
 			expectedURL:   fmt.Sprintf("%s/s3/test-dataset/path/to/file1.c4gh", server.URL),
 			expectedError: nil,
 		}, {
 			testName:      "UnknownFilePath",
 			baseURL:       server.URL,
-			datasetId:     "test-dataset",
+			datasetID:     "test-dataset",
 			filePath:      "path/to/file2",
 			expectedURL:   "",
 			expectedError: fmt.Errorf("File not found in dataset path/to/file2.c4gh"),
 		}, {
 			testName:      "FileIdInFilePath",
 			baseURL:       server.URL,
-			datasetId:     "test-dataset",
+			datasetID:     "test-dataset",
 			filePath:      "file1id",
 			expectedURL:   fmt.Sprintf("%s/s3/test-dataset/path/to/file1.c4gh", server.URL),
 			expectedError: nil,
 		}, {
 			testName:      "InvalidUrl",
 			baseURL:       "some/url",
-			datasetId:     "test-dataset",
+			datasetID:     "test-dataset",
 			filePath:      "file1id",
 			expectedURL:   "",
 			expectedError: fmt.Errorf("invalid base URL"),
 		},
 	} {
 		t.Run(test.testName, func(t *testing.T) {
-			url, _, err := getFileIDURL(test.baseURL, accessToken, "", test.datasetId, test.filePath)
+			url, _, err := getFileIDURL(test.baseURL, accessToken, "", test.datasetID, test.filePath)
 			assert.Equal(t, test.expectedError, err)
 			assert.Equal(t, test.expectedURL, url)
 		})
