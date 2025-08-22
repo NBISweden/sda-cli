@@ -147,8 +147,6 @@ func TestConfigDownloadTestSuite(t *testing.T) {
 func (suite *DownloadTestSuite) TestInvalidUrl() {
 	err := Download([]string{
 		"download",
-		"-pubkey",
-		"",
 		"-dataset-id",
 		"TES01",
 		"-url",
@@ -168,8 +166,6 @@ func (suite *DownloadTestSuite) TestDownloadOneFileNoPublicKey() {
 
 	if err := Download([]string{
 		"download",
-		"-pubkey",
-		"",
 		"-dataset-id",
 		"TES01",
 		"-url",
@@ -193,8 +189,6 @@ func (suite *DownloadTestSuite) TestDownloadMultipleFilesNoPublicKey() {
 
 	if err := Download([]string{
 		"download",
-		"-pubkey",
-		"",
 		"-dataset-id",
 		"TES01",
 		"-url",
@@ -271,8 +265,6 @@ func (suite *DownloadTestSuite) TestDownloadFileAlreadyExistsWithContinue() {
 
 	if err := Download([]string{
 		"download",
-		"-pubkey",
-		"",
 		"-dataset-id",
 		"TES01",
 		"-url",
@@ -297,8 +289,6 @@ func (suite *DownloadTestSuite) TestDownloadDataset() {
 
 	if err := Download([]string{
 		"download",
-		"-pubkey",
-		"",
 		"-dataset-id",
 		"TES01",
 		"-url",
@@ -336,8 +326,6 @@ func (suite *DownloadTestSuite) TestDownloadRecursive() {
 
 	if err := Download([]string{
 		"download",
-		"-pubkey",
-		"",
 		"-dataset-id",
 		"TES01",
 		"-url",
