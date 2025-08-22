@@ -363,8 +363,7 @@ func (suite *DownloadTestSuite) TestDownloadRecursive() {
 func generateDummyToken(t *testing.T) string {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		t.Errorf("failed to generate key: %v", err)
-		t.FailNow()
+		t.Fatalf("failed to generate key: %v", err)
 	}
 
 	// Create the Claims
@@ -376,8 +375,7 @@ func generateDummyToken(t *testing.T) string {
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	accessToken, err := token.SignedString(privateKey)
 	if err != nil {
-		t.Errorf("failed to sign token: %v", err)
-		t.FailNow()
+		t.Fatalf("failed to sign token: %v", err)
 	}
 
 	return accessToken
