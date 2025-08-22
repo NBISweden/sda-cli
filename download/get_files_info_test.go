@@ -12,7 +12,7 @@ import (
 
 func TestGetFilesInfo(t *testing.T) {
 	// Create a test httpTestServer
-	httpTestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	httpTestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		// Set the response status code
 		w.WriteHeader(http.StatusOK)
 		// Set the response body
@@ -35,6 +35,7 @@ func TestGetFilesInfo(t *testing.T) {
 	}))
 	defer httpTestServer.Close()
 
+	accessToken := generateDummyToken(t)
 	// Test
 	files, err := GetFilesInfo(httpTestServer.URL, "test-dataset", "", accessToken)
 	require.NoError(t, err)

@@ -12,13 +12,15 @@ import (
 
 func TestGetDatasets(t *testing.T) {
 	// Create a test httpTestServer
-	httpTestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	httpTestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		// Set the response status code
 		w.WriteHeader(http.StatusOK)
 		// Set the response body
 		fmt.Fprint(w, `["https://doi.example/ty009.sfrrss/600.45asasga"]`)
 	}))
 	defer httpTestServer.Close()
+
+	accessToken := generateDummyToken(t)
 
 	// Test
 	datasets, err := GetDatasets(httpTestServer.URL, accessToken)
