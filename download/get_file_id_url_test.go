@@ -10,7 +10,6 @@ import (
 )
 
 func TestFileIdUrl(t *testing.T) {
-
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		// Set the response status code
 		w.WriteHeader(http.StatusOK)
@@ -70,5 +69,4 @@ func TestFileIdUrl(t *testing.T) {
 			assert.Equal(t, test.expectedURL, url)
 		})
 	}
-
 }
