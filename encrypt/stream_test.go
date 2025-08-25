@@ -150,7 +150,7 @@ func (suite *EncryptStreamTestSuite) TestStreamLargeFile() {
 	assert.Equal(suite.T(), 2098172, n)
 	_ = f.Close()
 
-	os.Setenv("C4GH_PASSWORD", "") //nolint:errcheck
+	_ = os.Setenv("C4GH_PASSWORD", "")
 	assert.NoError(suite.T(), decrypt.Decrypt([]string{"decrypt", "-key", suite.privateKey.Name(), "--force-overwrite", f.Name()}), "decrypting encrypted file failed unexpectedly")
 }
 func (suite *EncryptStreamTestSuite) TestStream_noPublicKey() {

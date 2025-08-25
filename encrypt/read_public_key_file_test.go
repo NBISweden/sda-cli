@@ -55,5 +55,4 @@ func TestReadPublicKeyFile(t *testing.T) {
 			assert.Equal(t, test.expectedFileContent, publicKey)
 		})
 	}
-
 }
