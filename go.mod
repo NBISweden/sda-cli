@@ -16,7 +16,7 @@ require (
 	github.com/manifoldco/promptui v0.9.0
 	github.com/neicnordic/crypt4gh v1.14.0
 	github.com/smallnest/ringbuffer v0.0.0-20250317021400-0da97b586904
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.0
 	github.com/vbauerster/mpb/v8 v8.10.2
 	golang.org/x/exp v0.0.0-20250711185948-6ae5c78190dc
 	gopkg.in/ini.v1 v1.67.0
