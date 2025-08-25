@@ -112,6 +112,76 @@ func (suite *DecryptTestSuite) TestDecryptSuccess() {
 	assert.Equal(suite.T(), string(suite.testFiles[0].content), string(fileData))
 }
 
+func (suite *DecryptTestSuite) TestDecryptWithWrongPrivateKey() {
+
+	wrongKeyFile := filepath.Join(suite.tempDir, "wrongKey")
+
+	if err := createKey.GenerateKeyPair(wrongKeyFile, ""); err != nil {
+		suite.FailNow("failed to generate key pair", err)
+	}
+
+	err := Decrypt([]string{
+		"decrypt",
+		"-key",
+		fmt.Sprintf("%s.sec.pem", wrongKeyFile),
+		suite.testFiles[0].encryptedFileName,
+	})
+
+	assert.NoError(suite.T(), err)
+
+	// check that decrypted file does not exist, as decryption of file should not have taken place with the wrong key
+	_, err = os.Stat(suite.testFiles[0].decryptedFileName)
+	noSuchFileMessage := "no such file or directory"
+	if runtime.GOOS == "windows" {
+		noSuchFileMessage = "The system cannot find the file specified."
+	}
+	assert.ErrorContains(suite.T(), err, noSuchFileMessage)
+}
+
+func (suite *DecryptTestSuite) TestDecryptWithMalformedPrivateKey() {
+	malformedKeyFile := fmt.Sprintf("%s/malformed_key.sec.pem", suite.tempDir)
+	if err := os.WriteFile(malformedKeyFile, []byte(`
+-----BEGIN CRYPT4GH ENCRYPTED PRIVATE KEY-----
+MalformedKey
+-----END CRYPT4GH ENCRYPTED PRIVATE KEY-----
+`), 0600); err != nil {
+		suite.FailNow("failed to write malformed private key")
+	}
+
+	err := Decrypt([]string{
+		"decrypt",
+		"-key",
+		malformedKeyFile,
+		suite.testFiles[0].encryptedFileName,
+	})
+
+	assert.EqualError(suite.T(), err, fmt.Sprintf("private key format not supported, file: %s", malformedKeyFile))
+}
+func (suite *DecryptTestSuite) TestDecryptWithMalformedPrivateKeyFile() {
+	malformedKeyFile := fmt.Sprintf("%s/malformed_key.sec.pem", suite.tempDir)
+	if err := os.WriteFile(malformedKeyFile, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 0600); err != nil {
+		suite.FailNow("failed to write malformed private key")
+	}
+
+	err := Decrypt([]string{
+		"decrypt",
+		"-key",
+		malformedKeyFile,
+		suite.testFiles[0].encryptedFileName,
+	})
+
+	assert.EqualError(suite.T(), err, fmt.Sprintf("read of unrecognized private key format failed; expected PEM encoded key, file: %s", malformedKeyFile))
+}
+func (suite *DecryptTestSuite) TestDecryptWithNonExistingPrivateKeyFile() {
+	err := Decrypt([]string{
+		"decrypt",
+		"-key",
+		fmt.Sprintf("%s/not-exist.sec.pem", suite.tempDir),
+		suite.testFiles[0].encryptedFileName,
+	})
+
+	assert.EqualError(suite.T(), err, fmt.Sprintf("private key file %s/not-exist.sec.pem doesn't exist", suite.tempDir))
+}
 func (suite *DecryptTestSuite) TestDecryptExistingDecryptionFile() {
 	// recreate unencrypted file with different content to verify it isn't overwritten
 	if err := os.WriteFile(suite.testFiles[0].decryptedFileName, []byte("different content"), 0600); err != nil {
