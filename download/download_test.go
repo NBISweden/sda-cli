@@ -163,7 +163,6 @@ func (suite *DownloadTestSuite) TestInvalidUrl() {
 }
 
 func (suite *DownloadTestSuite) TestDownloadOneFileNoPublicKey() {
-
 	if err := Download([]string{
 		"download",
 		"-dataset-id",
@@ -186,7 +185,6 @@ func (suite *DownloadTestSuite) TestDownloadOneFileNoPublicKey() {
 }
 
 func (suite *DownloadTestSuite) TestDownloadMultipleFilesNoPublicKey() {
-
 	if err := Download([]string{
 		"download",
 		"-dataset-id",
@@ -286,7 +284,6 @@ func (suite *DownloadTestSuite) TestDownloadFileAlreadyExistsWithContinue() {
 }
 
 func (suite *DownloadTestSuite) TestDownloadDataset() {
-
 	if err := Download([]string{
 		"download",
 		"-dataset-id",
@@ -323,7 +320,6 @@ func (suite *DownloadTestSuite) TestDownloadDataset() {
 }
 
 func (suite *DownloadTestSuite) TestDownloadRecursive() {
-
 	if err := Download([]string{
 		"download",
 		"-dataset-id",
@@ -379,5 +375,4 @@ func generateDummyToken(t *testing.T) string {
 	}
 
 	return accessToken
-
 }
