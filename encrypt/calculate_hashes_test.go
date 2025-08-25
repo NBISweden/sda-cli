@@ -73,6 +73,7 @@ func TestCalculateHashes(t *testing.T) {
 				assert.Equal(t, test.expectedUnencryptedSha256, hashes.unencryptedSha256)
 				assert.Equal(t, test.expectedEncryptedMd5, hashes.encryptedMd5)
 				assert.Equal(t, test.expectedEncryptedSha256, hashes.encryptedSha256)
+
 				return
 			}
 
