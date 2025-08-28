@@ -30,23 +30,6 @@ type DownloadTestSuite struct {
 	httpTestServer *httptest.Server
 }
 
-var configFormat = `
-access_token = %s
-host_base = inbox.dummy.org
-encoding = UTF-8
-host_bucket = inbox.dummy.org
-multipart_chunk_size_mb = 50
-secret_key = dummy
-access_key = dummy
-use_https = False
-check_ssl_certificate = False
-check_ssl_hostname = False
-socket_timeout = 30
-human_readable_sizes = True
-guess_mime_type = True
-encrypt = False
-`
-
 func (suite *DownloadTestSuite) SetupSuite() {
 	// Create a test httpTestServer
 	suite.httpTestServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -142,7 +125,22 @@ func (suite *DownloadTestSuite) SetupTest() {
 	suite.configFilePath = configFile.Name()
 
 	// Write config file
-	err = os.WriteFile(suite.configFilePath, []byte(fmt.Sprintf(configFormat, suite.accessToken)), 0600)
+	err = os.WriteFile(suite.configFilePath, []byte(fmt.Sprintf(`
+access_token = %s
+host_base = inbox.dummy.org
+encoding = UTF-8
+host_bucket = inbox.dummy.org
+multipart_chunk_size_mb = 50
+secret_key = dummy
+access_key = dummy
+use_https = False
+check_ssl_certificate = False
+check_ssl_hostname = False
+socket_timeout = 30
+human_readable_sizes = True
+guess_mime_type = True
+encrypt = False
+`, suite.accessToken)), 0600)
 	if err != nil {
 		suite.FailNow("failed to write to config file", err)
 	}
