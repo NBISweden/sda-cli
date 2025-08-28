@@ -3,6 +3,7 @@ package download
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -71,7 +72,7 @@ func (suite *DownloadTestSuite) SetupSuite() {
 				"fileName": "4b40bd16-9eba-4992-af39-a7f824e612e2"
             },
 			{
-                "fileId": "file2id",
+                "fileId": "dummyFile",
 				"datasetId": "TES01",
 				"displayFileName": "dummy-file.txt.c4gh",
                 "filePath": "files/dummy-file.txt.c4gh",
@@ -98,9 +99,16 @@ func (suite *DownloadTestSuite) SetupSuite() {
 			w.WriteHeader(http.StatusOK)
 
 			fmt.Fprint(w, "test content file 2")
-
+		case "/metadata/datasets":
+			// Set the response status code
+			w.WriteHeader(http.StatusOK)
+			// Set the response body
+			fmt.Fprint(w, `["https://doi.example/ty009.sfrrss/600.45asasga"]`)
 		default:
-			w.WriteHeader(http.StatusInternalServerError)
+			// Set the response status code
+			w.WriteHeader(http.StatusOK)
+			// Set the response body
+			fmt.Fprint(w, "test response")
 		}
 	}))
 
@@ -375,4 +383,103 @@ func generateDummyToken(t *testing.T) string {
 	}
 
 	return accessToken
+}
+
+func (suite *DownloadTestSuite) TestGetFilesInfo() {
+	files, err := GetFilesInfo(suite.httpTestServer.URL, "TES01", "", suite.accessToken)
+	require.NoError(suite.T(), err)
+	require.Len(suite.T(), files, 3)
+	assert.Equal(suite.T(), "file1id", files[0].FileID)
+	assert.Equal(suite.T(), "file1.c4gh", files[0].DisplayFileName)
+	assert.Equal(suite.T(), "files/file1.c4gh", files[0].FilePath)
+	assert.Equal(suite.T(), "4293c9a7-re60-46ac-b79a-40ddc0ddd1c6", files[0].FileName)
+	assert.Equal(suite.T(), "TES01", files[0].DatasetID)
+	assert.Equal(suite.T(), "file2id", files[1].FileID)
+	assert.Equal(suite.T(), "file2.c4gh", files[1].DisplayFileName)
+	assert.Equal(suite.T(), "files/file2.c4gh", files[1].FilePath)
+	assert.Equal(suite.T(), "4b40bd16-9eba-4992-af39-a7f824e612e2", files[1].FileName)
+	assert.Equal(suite.T(), "TES01", files[1].DatasetID)
+	assert.Equal(suite.T(), "dummyFile", files[2].FileID)
+	assert.Equal(suite.T(), "dummy-file.txt.c4gh", files[2].DisplayFileName)
+	assert.Equal(suite.T(), "files/dummy-file.txt.c4gh", files[2].FilePath)
+	assert.Equal(suite.T(), "4b40bd16-9eba-4992-af39-a7f824e612e1", files[2].FileName)
+	assert.Equal(suite.T(), "TES01", files[2].DatasetID)
+}
+
+func (suite *DownloadTestSuite) TestFileIdUrl() {
+	for _, test := range []struct {
+		testName, baseURL, datasetID, filePath string
+		expectedURL                            string
+		expectedError                          error
+	}{
+		{
+			testName:      "ValidInputNoPubKey",
+			baseURL:       suite.httpTestServer.URL,
+			datasetID:     "TES01",
+			filePath:      "files/file1",
+			expectedURL:   fmt.Sprintf("%s/s3/TES01/files/file1.c4gh", suite.httpTestServer.URL),
+			expectedError: nil,
+		}, {
+			testName:      "UnknownFilePath",
+			baseURL:       suite.httpTestServer.URL,
+			datasetID:     "TES01",
+			filePath:      "files/unknown",
+			expectedURL:   "",
+			expectedError: errors.New("File not found in dataset files/unknown.c4gh"),
+		}, {
+			testName:      "FileIdInFilePath",
+			baseURL:       suite.httpTestServer.URL,
+			datasetID:     "TES01",
+			filePath:      "file1id",
+			expectedURL:   fmt.Sprintf("%s/s3/TES01/files/file1.c4gh", suite.httpTestServer.URL),
+			expectedError: nil,
+		}, {
+			testName:      "InvalidUrl",
+			baseURL:       "some/url",
+			datasetID:     "TES01",
+			filePath:      "file1id",
+			expectedURL:   "",
+			expectedError: fmt.Errorf("invalid base URL"),
+		},
+	} {
+		suite.T().Run(test.testName, func(t *testing.T) {
+			url, _, err := getFileIDURL(test.baseURL, suite.accessToken, "", test.datasetID, test.filePath)
+			assert.Equal(t, test.expectedError, err)
+			assert.Equal(t, test.expectedURL, url)
+		})
+	}
+}
+
+func (suite *DownloadTestSuite) TestGetDatasets() {
+	// Test
+	datasets, err := GetDatasets(suite.httpTestServer.URL, suite.accessToken)
+	require.NoError(suite.T(), err)
+	assert.Equal(suite.T(), datasets, []string{"https://doi.example/ty009.sfrrss/600.45asasga"})
+}
+
+func (suite *DownloadTestSuite) TestGetBodyNoPublicKey() {
+	// Make a request to the test httpTestServer with an empty public key
+	body, err := getBody(suite.httpTestServer.URL, "test-token", "")
+	if err != nil {
+		suite.T().Errorf("getBody returned an error: %v", err)
+	}
+
+	// Check the response body
+	expectedBody := "test response"
+	if string(body) != expectedBody {
+		suite.T().Errorf("getBody returned incorrect response body, got: %s, want: %s", string(body), expectedBody)
+	}
+}
+func (suite *DownloadTestSuite) TestGetBodyWithPublicKey() {
+	// Make a request to the test httpTestServer using a public key
+	body, err := getBody(suite.httpTestServer.URL, "test-token", "test-public-key")
+	if err != nil {
+		suite.T().Errorf("getBody returned an error: %v", err)
+	}
+
+	// Check the response body
+	expectedBody := "test response"
+	if string(body) != expectedBody {
+		suite.T().Errorf("getBody returned incorrect response body, got: %s, want: %s", string(body), expectedBody)
+	}
 }
