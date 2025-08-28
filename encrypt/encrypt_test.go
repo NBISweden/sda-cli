@@ -1,7 +1,9 @@
 package encrypt
 
 import (
+	"crypto/md5"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -14,6 +16,8 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/NBISweden/sda-cli/decrypt"
+	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/NBISweden/sda-cli/login"
 	"github.com/neicnordic/crypt4gh/keys"
 	"github.com/neicnordic/crypt4gh/streaming"
@@ -23,10 +27,14 @@ import (
 
 type EncryptTestSuite struct {
 	suite.Suite
-	tempDir       string
-	publicKey     *os.File
-	fileToEncrypt *os.File
-	secKeyData    [32]byte
+	tempDir            string
+	pubKeyData         [32]byte
+	secKeyData         [32]byte
+	publicKey          *os.File
+	privateKey         *os.File
+	multiPublicKey     *os.File
+	fileToEncrypt      *os.File
+	largeFileToEncrypt *os.File
 }
 
 func TestEncryptTestSuite(t *testing.T) {
@@ -52,8 +60,7 @@ func (suite *EncryptTestSuite) SetupTest() {
 	var err error
 
 	// Generate a crypt4gh key pair
-	var pubKeyData [32]byte
-	pubKeyData, suite.secKeyData, err = keys.GenerateKeyPair()
+	suite.pubKeyData, suite.secKeyData, err = keys.GenerateKeyPair()
 	if err != nil {
 		suite.FailNow("failed to generate key pair", err)
 	}
@@ -64,10 +71,36 @@ func (suite *EncryptTestSuite) SetupTest() {
 		suite.FailNow("failed to create temp public key test file", err)
 	}
 
-	if err = keys.WriteCrypt4GHX25519PublicKey(suite.publicKey, pubKeyData); err != nil {
+	if err = keys.WriteCrypt4GHX25519PublicKey(suite.publicKey, suite.pubKeyData); err != nil {
 		suite.FailNow("failed to write to public key test file", err)
 	}
 	_ = suite.publicKey.Close()
+
+	suite.privateKey, err = os.CreateTemp(suite.tempDir, "seckey-")
+	if err != nil {
+		suite.FailNow("failed to create temp private key test file", err)
+	}
+
+	err = keys.WriteCrypt4GHX25519PrivateKey(suite.privateKey, suite.secKeyData, []byte(""))
+	if err != nil {
+		suite.FailNow("failed to write to private key", err)
+	}
+	_ = suite.privateKey.Close()
+
+	suite.multiPublicKey, err = os.CreateTemp(suite.tempDir, "multi-pubkey-")
+	if err != nil {
+		suite.FailNow("failed to create multi pub key test file", err)
+	}
+
+	input, err := os.ReadFile(suite.publicKey.Name())
+	if err != nil {
+		suite.FailNow("failed to read public key file", err)
+	}
+
+	if _, err := suite.multiPublicKey.Write(append(input, input...)); err != nil {
+		suite.FailNow("failed to write to multi public key test file", err)
+	}
+	_ = suite.multiPublicKey.Close()
 
 	// create an existing test file with some known content
 	suite.fileToEncrypt, err = os.CreateTemp(suite.tempDir, "testfile-")
@@ -80,6 +113,19 @@ func (suite *EncryptTestSuite) SetupTest() {
 		suite.FailNow("failed to write to test file", err)
 	}
 	_ = suite.fileToEncrypt.Close()
+
+	// create an large test file with some known content
+	suite.largeFileToEncrypt, err = os.CreateTemp(suite.tempDir, "largefile-")
+	if err != nil {
+		suite.FailNow("failed to create largefile test file", err)
+	}
+
+	for range 2 * 1024 * 1024 {
+		if _, err = suite.largeFileToEncrypt.WriteString("a"); err != nil {
+			suite.FailNow("failed to write largefile test file", err)
+		}
+	}
+	_ = suite.largeFileToEncrypt.Close()
 
 }
 
@@ -255,4 +301,298 @@ func (suite *EncryptTestSuite) TestEncryptWithOutdir() {
 	}
 
 	assert.Equal(suite.T(), []byte("content"), decryptedContent)
+}
+func (suite *EncryptTestSuite) TestStream() {
+	md5 := md5.New()
+
+	file, err := os.Open(suite.fileToEncrypt.Name())
+	if err != nil {
+		suite.FailNow("failed to open file", err)
+	}
+
+	fs, err := Stream(file, [][32]byte{suite.pubKeyData})
+	assert.NoError(suite.T(), err, "failed to create encryption stream")
+	// make sure that no data is being read in order to save on memory
+	assert.Equal(suite.T(), hex.EncodeToString(md5.Sum(nil)), hex.EncodeToString(fs.UnencryptedMD5.Sum(nil)))
+
+	enc, err := io.ReadAll(fs.Reader)
+	assert.NoError(suite.T(), err, "failed to read from encryption stream")
+	assert.Equal(suite.T(), "crypt4gh", string(enc[:8]))
+	md5.Write([]byte("content"))
+	// ensure that the MD5 is what we expect it to be after the file has been read fully.
+	assert.Equal(suite.T(), hex.EncodeToString(md5.Sum(nil)), hex.EncodeToString(fs.UnencryptedMD5.Sum(nil)))
+
+	_ = file.Close()
+	_ = fs.Reader.Close()
+}
+func (suite *EncryptTestSuite) TestStreamLargeFile() {
+	md5 := md5.New()
+
+	file, err := os.Open(suite.largeFileToEncrypt.Name())
+	assert.NoError(suite.T(), err, "opening file failed unexpectedly")
+	info, _ := file.Stat()
+	assert.Equal(suite.T(), int64(2*1024*1024), info.Size())
+
+	fs, err := Stream(file, [][32]byte{suite.pubKeyData})
+	assert.NoError(suite.T(), err, "failed to create encryption stream")
+	// make sure that no data is being read in order to save on memory
+	assert.Equal(suite.T(), hex.EncodeToString(md5.Sum(nil)), hex.EncodeToString(fs.UnencryptedMD5.Sum(nil)))
+
+	enc, err := io.ReadAll(fs.Reader)
+	assert.NoError(suite.T(), err, "failed to read from encryption stream")
+	_ = fs.Reader.Close()
+	_ = file.Close()
+
+	assert.Equal(suite.T(), "crypt4gh", string(enc[:8]))
+	assert.Greater(suite.T(), len(enc), 2*1024*1024)
+	assert.Equal(suite.T(), 2098172, len(enc))
+	// ensure that the MD5 is what we expect it to be after the file has been read fully.
+	assert.Equal(suite.T(), "de89461b64701958984c95d1bfb0065a", hex.EncodeToString(fs.UnencryptedMD5.Sum(nil)))
+
+	f, err := os.Create(fmt.Sprintf("%s/largefile2.c4gh", suite.tempDir))
+	assert.NoError(suite.T(), err, "failed to create temp file")
+	n, err := f.Write(enc)
+	assert.NoError(suite.T(), err, "failed write data to temp file")
+	assert.Equal(suite.T(), 2098172, n)
+	_ = f.Close()
+
+	_ = os.Setenv("C4GH_PASSWORD", "")
+	assert.NoError(suite.T(), decrypt.Decrypt([]string{"decrypt", "-key", suite.privateKey.Name(), "--force-overwrite", f.Name()}), "decrypting encrypted file failed unexpectedly")
+}
+func (suite *EncryptTestSuite) TestStream_noPublicKey() {
+	var file *os.File
+	_, err := Stream(file, [][32]byte{})
+	assert.ErrorContains(suite.T(), err, "no public key supplied")
+}
+
+func (suite *EncryptTestSuite) TestCalculateHashes() {
+
+	_, notFoundError := os.Open(fmt.Sprintf("%s/does-not-exist", suite.tempDir))
+
+	for _, test := range []struct {
+		testName                       string
+		unencryptedFile, encryptedFile string
+		expectedError                  error
+		expectedUnencryptedMd5         string
+		expectedUnencryptedSha256      string
+		expectedEncryptedMd5           string
+		expectedEncryptedSha256        string
+	}{
+		{
+			testName:                  "EncryptedNotExist",
+			unencryptedFile:           suite.fileToEncrypt.Name(),
+			encryptedFile:             fmt.Sprintf("%s/does-not-exist", suite.tempDir),
+			expectedError:             notFoundError,
+			expectedUnencryptedMd5:    "",
+			expectedUnencryptedSha256: "",
+			expectedEncryptedMd5:      "",
+			expectedEncryptedSha256:   "",
+		}, {
+			testName:                  "UnencryptedNotExist",
+			unencryptedFile:           fmt.Sprintf("%s/does-not-exist", suite.tempDir),
+			encryptedFile:             suite.fileToEncrypt.Name(),
+			expectedError:             notFoundError,
+			expectedUnencryptedMd5:    "",
+			expectedUnencryptedSha256: "",
+			expectedEncryptedMd5:      "",
+			expectedEncryptedSha256:   "",
+		}, {
+			testName:                  "BothExist",
+			unencryptedFile:           suite.fileToEncrypt.Name(),
+			encryptedFile:             suite.fileToEncrypt.Name(),
+			expectedError:             nil,
+			expectedUnencryptedMd5:    "9a0364b9e99bb480dd25e1f0284c8555",
+			expectedUnencryptedSha256: "ed7002b439e9ac845f22357d822bac1444730fbdb6016d3ec9432297b9ec9f73",
+			expectedEncryptedMd5:      "9a0364b9e99bb480dd25e1f0284c8555",
+			expectedEncryptedSha256:   "ed7002b439e9ac845f22357d822bac1444730fbdb6016d3ec9432297b9ec9f73",
+		},
+	} {
+		suite.T().Run(test.testName, func(t *testing.T) {
+			fileSet := helpers.EncryptionFileSet{Unencrypted: test.unencryptedFile, Encrypted: test.encryptedFile}
+			hashes, err := calculateHashes(fileSet)
+
+			assert.Equal(t, test.expectedError, err)
+
+			if hashes != nil {
+				assert.Equal(t, test.expectedUnencryptedMd5, hashes.unencryptedMd5)
+				assert.Equal(t, test.expectedUnencryptedSha256, hashes.unencryptedSha256)
+				assert.Equal(t, test.expectedEncryptedMd5, hashes.encryptedMd5)
+				assert.Equal(t, test.expectedEncryptedSha256, hashes.encryptedSha256)
+
+				return
+			}
+
+			assert.Equal(t, test.expectedUnencryptedMd5, "")
+			assert.Equal(t, test.expectedUnencryptedSha256, "")
+			assert.Equal(t, test.expectedEncryptedMd5, "")
+			assert.Equal(t, test.expectedEncryptedSha256, "")
+		})
+	}
+}
+
+func (suite *EncryptTestSuite) TestCheckFiles() {
+
+	// create an existing encrypted test file
+	encryptedFile, err := os.CreateTemp(suite.tempDir, "encrypted-input")
+	if err != nil {
+		suite.FailNow("failed to create encrypted input test file", err)
+	}
+
+	if _, err := encryptedFile.Write([]byte("crypt4gh")); err != nil {
+		suite.FailNow("failed to write to encrypted input test file", err)
+	}
+	_ = encryptedFile.Close()
+
+	for _, test := range []struct {
+		testName                       string
+		unencryptedFile, encryptedFile string
+		expectedError                  error
+	}{
+		{
+			testName:        "EncryptedNotExist",
+			unencryptedFile: suite.fileToEncrypt.Name(),
+			encryptedFile:   "does-not-exist",
+			expectedError:   nil,
+		}, {
+			testName:        "BothExist",
+			unencryptedFile: suite.fileToEncrypt.Name(),
+			encryptedFile:   suite.fileToEncrypt.Name(),
+			expectedError:   fmt.Errorf("outfile %s already exists", suite.fileToEncrypt.Name()),
+		}, {
+			testName:        "UnencryptedNotExist",
+			unencryptedFile: "does-not-exist",
+			encryptedFile:   suite.fileToEncrypt.Name(),
+			expectedError:   fmt.Errorf("cannot read input file does-not-exist"),
+		}, {
+			testName:        "EncryptedAsInput",
+			unencryptedFile: encryptedFile.Name(),
+			encryptedFile:   "does-not-exist",
+			expectedError:   fmt.Errorf("input file %s is already encrypted(.c4gh)", encryptedFile.Name()),
+		},
+	} {
+		suite.T().Run(test.testName, func(t *testing.T) {
+			fileSet := helpers.EncryptionFileSet{Unencrypted: test.unencryptedFile, Encrypted: test.encryptedFile}
+			assert.Equal(t, test.expectedError, checkFiles([]helpers.EncryptionFileSet{fileSet}))
+		})
+	}
+}
+
+func (suite *EncryptTestSuite) TestCheckKeyFile() {
+	specs := newKeySpecs()
+
+	notAKeyFile := fmt.Sprintf("%v/not_a_key", suite.tempDir)
+	if err := os.WriteFile(notAKeyFile, []byte("not a key file"), 0600); err != nil {
+		suite.FailNow("failed to write to not a key file", err)
+	}
+
+	_, notFoundError := os.Open("file-not-exists")
+
+	for _, test := range []struct {
+		testName        string
+		pubKeyFileName  string
+		expectedKeySize int64
+		expectedError   error
+	}{
+		{
+			testName:        "MultiPubKey",
+			pubKeyFileName:  suite.multiPublicKey.Name(),
+			expectedKeySize: int64(230),
+			expectedError:   nil,
+		}, {
+			testName:        "PubKey",
+			pubKeyFileName:  suite.publicKey.Name(),
+			expectedKeySize: int64(115),
+			expectedError:   nil,
+		}, {
+			testName:        "FileDoesNotExist",
+			pubKeyFileName:  "file-not-exists",
+			expectedKeySize: int64(0),
+			expectedError:   notFoundError,
+		}, {
+			testName:        "NotAKeyFile",
+			pubKeyFileName:  notAKeyFile,
+			expectedKeySize: int64(0),
+			expectedError:   fmt.Errorf("invalid key format in file: %v", notAKeyFile),
+		},
+	} {
+		suite.T().Run(test.testName, func(t *testing.T) {
+			keySize, err := checkKeyFile(test.pubKeyFileName, specs)
+			assert.Equal(t, test.expectedError, err)
+			assert.Equal(t, test.expectedKeySize, keySize)
+
+		})
+	}
+}
+
+func (suite *EncryptTestSuite) TestReadMultiPublicKeyFile() {
+	specs := newKeySpecs()
+
+	_, notFoundError := os.Open("file-not-exists")
+
+	for _, test := range []struct {
+		testName            string
+		multiPubKeyFileName string
+		expectedFileContent *[32]byte
+		expectedError       error
+	}{
+		{
+			testName:            "FileExists",
+			multiPubKeyFileName: suite.multiPublicKey.Name(),
+			expectedError:       nil,
+			expectedFileContent: &suite.pubKeyData,
+		}, {
+			testName:            "FileDoesNotExist",
+			multiPubKeyFileName: "file-not-exists",
+			expectedFileContent: nil,
+			expectedError:       notFoundError,
+		},
+	} {
+		suite.T().Run(test.testName, func(t *testing.T) {
+			publicKeys, err := readMultiPublicKeyFile(test.multiPubKeyFileName, specs)
+			assert.Equal(t, test.expectedError, err)
+
+			if publicKeys == nil && test.expectedFileContent != nil {
+				t.Error(t, "public keys was expected but returned nil")
+				t.FailNow()
+			}
+
+			if publicKeys == nil {
+				return
+			}
+			for _, key := range *publicKeys {
+				assert.Equal(t, *test.expectedFileContent, key)
+			}
+		})
+	}
+}
+
+func (suite *EncryptTestSuite) TestReadPublicKeyFile() {
+
+	_, notFoundError := os.Open("file-not-exists")
+
+	for _, test := range []struct {
+		testName            string
+		pubKeyFileName      string
+		expectedFileContent *[32]byte
+		expectedError       error
+	}{
+		{
+			testName:            "FileExists",
+			pubKeyFileName:      suite.publicKey.Name(),
+			expectedError:       nil,
+			expectedFileContent: &suite.pubKeyData,
+		}, {
+			testName:            "FileDoesNotExist",
+			pubKeyFileName:      "file-not-exists",
+			expectedFileContent: nil,
+			expectedError:       notFoundError,
+		},
+	} {
+		suite.T().Run(test.testName, func(t *testing.T) {
+
+			publicKey, err := readPublicKeyFile(test.pubKeyFileName)
+			assert.Equal(t, test.expectedError, err)
+			assert.Equal(t, test.expectedFileContent, publicKey)
+		})
+	}
 }
