@@ -1,6 +1,7 @@
 package decrypt
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -34,6 +35,12 @@ func TestDecryptTestSuite(t *testing.T) {
 }
 
 func (suite *DecryptTestSuite) SetupTest() {
+	// Reset flags from previous test executions
+	Args = flag.NewFlagSet("decrypt", flag.ContinueOnError)
+	privateKeyFile = Args.String("key", "", "Private key to use for decrypting files.")
+	forceOverwrite = Args.Bool("force-overwrite", false, "Force overwrite existing files.")
+	clean = Args.Bool("clean", false, "Remove the encrypted file after decryption.")
+
 	// Clean any files created from previous test executions
 	suite.testFiles = make([]encryptedFile, 0)
 
