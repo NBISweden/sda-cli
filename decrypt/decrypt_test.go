@@ -20,6 +20,7 @@ type DecryptTestSuite struct {
 	tempDir     string          // The directory this test will take place in
 	testFiles   []encryptedFile // SetupTest will generate one file
 	testKeyFile string          // SetupTest will generate key files used to encrypt / decrypt files in a test
+	privateKey  *[32]byte
 }
 
 type encryptedFile struct {
@@ -40,10 +41,16 @@ func (suite *DecryptTestSuite) SetupTest() {
 
 	suite.testKeyFile = filepath.Join(suite.tempDir, "testkey")
 
-	if err := createKey.GenerateKeyPair(suite.testKeyFile, ""); err != nil {
+	err := createKey.GenerateKeyPair(suite.testKeyFile, "test_pw")
+	if err != nil {
 		suite.FailNow("failed to generate key pair", err)
 	}
-	os.Setenv("C4GH_PASSWORD", "")
+	_ = os.Setenv("C4GH_PASSWORD", "test_pw")
+
+	suite.privateKey, err = readPrivateKeyFile(fmt.Sprintf("%s.sec.pem", suite.testKeyFile), "test_pw")
+	if err != nil {
+		suite.FailNow("failed to read private key", err)
+	}
 
 	suite.createNewEncryptedFile()
 }
@@ -119,6 +126,7 @@ func (suite *DecryptTestSuite) TestDecryptWithWrongPrivateKey() {
 	if err := createKey.GenerateKeyPair(wrongKeyFile, ""); err != nil {
 		suite.FailNow("failed to generate key pair", err)
 	}
+	_ = os.Setenv("C4GH_PASSWORD", "")
 
 	err := Decrypt([]string{
 		"decrypt",
@@ -371,4 +379,83 @@ func (suite *DecryptTestSuite) TestDecryptMultipleFilesOneNonExistentFile() {
 		assert.NoError(suite.T(), err, "unable to read decrypted file")
 		assert.Equal(suite.T(), string(file.content), string(fileData))
 	}
+}
+
+func (suite *DecryptTestSuite) TestReadPrivateKeyFile() {
+
+	for _, test := range []struct {
+		testName         string
+		fileName         string
+		password         string
+		expectedErrorMsg error
+	}{
+		{
+			testName:         "FileNotExists",
+			fileName:         suite.testKeyFile,
+			password:         "Doesnt matter",
+			expectedErrorMsg: fmt.Errorf("private key file %s doesn't exist", suite.testKeyFile),
+		},
+		{
+			testName:         "NotAKeyFile",
+			fileName:         suite.testFiles[0].encryptedFileName,
+			password:         "Doesnt matter",
+			expectedErrorMsg: fmt.Errorf("read of unrecognized private key format failed; expected PEM encoded key, file: %s", suite.testFiles[0].encryptedFileName),
+		},
+		{
+			testName:         "ReadPublicKey",
+			fileName:         fmt.Sprintf("%s.pub.pem", suite.testKeyFile),
+			password:         "Doesnt matter",
+			expectedErrorMsg: fmt.Errorf("private key format not supported, file: %s", fmt.Sprintf("%s.pub.pem", suite.testKeyFile)),
+		},
+		{
+			testName:         "WrongPassword",
+			fileName:         fmt.Sprintf("%s.sec.pem", suite.testKeyFile),
+			password:         "wrong",
+			expectedErrorMsg: fmt.Errorf("chacha20poly1305: message authentication failed, file: %s", fmt.Sprintf("%s.sec.pem", suite.testKeyFile)),
+		},
+		{
+			testName:         "Successful",
+			fileName:         fmt.Sprintf("%s.sec.pem", suite.testKeyFile),
+			password:         "test_pw",
+			expectedErrorMsg: nil,
+		},
+	} {
+		suite.T().Run(test.testName, func(t *testing.T) {
+			_, err := readPrivateKeyFile(test.fileName, test.password)
+			assert.Equal(t, err, test.expectedErrorMsg)
+		})
+	}
+}
+
+func (suite *DecryptTestSuite) TestDecryptFileSuccess() {
+	decryptedFile := filepath.Join(suite.tempDir, "decrypted_file")
+
+	err := decryptFile(suite.testFiles[0].encryptedFileName, decryptedFile, *suite.privateKey)
+	assert.NoError(suite.T(), err)
+
+	// Check content of the decrypted file
+	inFile, err := os.Open(decryptedFile)
+	assert.NoError(suite.T(), err, "unable to open decrypted file")
+	fileData, err := io.ReadAll(inFile)
+	_ = inFile.Close()
+	assert.NoError(suite.T(), err, "unable to read decrypted file")
+	assert.Equal(suite.T(), fileData, suite.testFiles[0].content)
+
+}
+func (suite *DecryptTestSuite) TestDecryptFileMalformedKey() {
+	decryptedFile := filepath.Join(suite.tempDir, "decrypted_file")
+
+	suite.privateKey = &[32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+
+	err := decryptFile(suite.testFiles[0].encryptedFileName, decryptedFile, *suite.privateKey)
+	assert.EqualError(suite.T(), err, "could not create cryp4gh reader: could not find matching public key header, decryption failed")
+}
+
+func (suite *DecryptTestSuite) TestDecryptFileNonExistentFile() {
+	msg := "no such file or directory"
+	if runtime.GOOS == "windows" {
+		msg = "The system cannot find the file specified."
+	}
+	err := decryptFile(filepath.Join(suite.tempDir, "non-existent"), "output_file", *suite.privateKey)
+	assert.ErrorContains(suite.T(), err, msg)
 }
