@@ -35,9 +35,9 @@ type ListTestSuite struct {
 	configPath   string
 	testFilePath string
 
-	s3HttpServer *httptest.Server
+	s3HTTPServer *httptest.Server
 
-	downloadMockHttpServer *httptest.Server
+	downloadMockHTTPServer *httptest.Server
 }
 
 var configFormat = `
@@ -69,12 +69,12 @@ func (suite *ListTestSuite) SetupSuite() {
 	// Create a fake s3 backend
 	backend := s3mem.New()
 	faker := gofakes3.New(backend)
-	suite.s3HttpServer = httptest.NewServer(faker.Server())
+	suite.s3HTTPServer = httptest.NewServer(faker.Server())
 
 	awsConfig, err := config.LoadDefaultConfig(context.Background(),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("dummy", "dummy", accessToken)),
 		config.WithRegion("eu-central-1"),
-		config.WithBaseEndpoint(suite.s3HttpServer.URL),
+		config.WithBaseEndpoint(suite.s3HTTPServer.URL),
 	)
 	if err != nil {
 		suite.FailNow("failed to create aws config", err)
@@ -89,7 +89,7 @@ func (suite *ListTestSuite) SetupSuite() {
 	suite.configPath = path.Join(suite.tempDir, "s3cmd.conf")
 
 	// Write config file
-	if err = os.WriteFile(suite.configPath, []byte(fmt.Sprintf(configFormat, accessToken, suite.s3HttpServer.URL)), 0600); err != nil {
+	if err = os.WriteFile(suite.configPath, []byte(fmt.Sprintf(configFormat, accessToken, suite.s3HTTPServer.URL)), 0600); err != nil {
 		suite.FailNow("failed to write to s3cmd.conf test file", err)
 	}
 
@@ -118,8 +118,8 @@ func (suite *ListTestSuite) SetupSuite() {
 		suite.FailNow("failed to upload test file", err)
 	}
 
-	// Create a test s3HttpServer
-	suite.downloadMockHttpServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	// Create a test http server
+	suite.downloadMockHTTPServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 
 		switch req.RequestURI {
 		case "/metadata/datasets/TES01/files":
@@ -166,9 +166,8 @@ func (suite *ListTestSuite) SetupSuite() {
 	}))
 }
 func (suite *ListTestSuite) TearDownSuite() {
-	suite.s3HttpServer.Close()
-	suite.downloadMockHttpServer.Close()
-
+	suite.s3HTTPServer.Close()
+	suite.downloadMockHTTPServer.Close()
 }
 
 func (suite *ListTestSuite) SetupTest() {
@@ -186,7 +185,6 @@ func (suite *ListTestSuite) TestListNoConfig() {
 }
 
 func (suite *ListTestSuite) TestListFiles() {
-
 	rescueStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
@@ -205,7 +203,7 @@ func (suite *ListTestSuite) TestListFiles() {
 	assert.Contains(suite.T(), string(listOutput), fmt.Sprintf("%v", filepath.Base(suite.testFilePath)))
 
 	// Check that host_base is in the error output, not in the stdout
-	expectedHostBase := fmt.Sprintf("Remote server (host_base): %s", suite.s3HttpServer.URL)
+	expectedHostBase := fmt.Sprintf("Remote server (host_base): %s", suite.s3HTTPServer.URL)
 	assert.NotContains(suite.T(), string(listOutput), expectedHostBase)
 
 	_ = errW.Close()
@@ -217,12 +215,11 @@ func (suite *ListTestSuite) TestListFiles() {
 }
 
 func (suite *ListTestSuite) TestListDatasets() {
-
 	rescueStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	err := List([]string{"list", "-url", suite.downloadMockHttpServer.URL, "-datasets"}, suite.configPath)
+	err := List([]string{"list", "-url", suite.downloadMockHTTPServer.URL, "-datasets"}, suite.configPath)
 	assert.NoError(suite.T(), err)
 
 	_ = w.Close()
@@ -233,12 +230,11 @@ func (suite *ListTestSuite) TestListDatasets() {
 }
 
 func (suite *ListTestSuite) TestListDataset() {
-
 	rescueStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	err := List([]string{"list", "-url", suite.downloadMockHttpServer.URL, "-dataset", "TES01"}, suite.configPath)
+	err := List([]string{"list", "-url", suite.downloadMockHTTPServer.URL, "-dataset", "TES01"}, suite.configPath)
 	assert.NoError(suite.T(), err)
 
 	_ = w.Close()
