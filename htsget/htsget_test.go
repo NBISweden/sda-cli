@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -131,7 +130,7 @@ func (suite *HtsgetTestSuite) SetupTest() {
 	suite.tempDir = suite.T().TempDir()
 
 	// Create config file
-	suite.configPath = path.Join(suite.tempDir, "s3cmd.conf")
+	suite.configPath = filepath.Join(suite.tempDir, "s3cmd.conf")
 
 	// Write config file
 	if err := os.WriteFile(suite.configPath, []byte(fmt.Sprintf(`
@@ -216,16 +215,12 @@ func (suite *HtsgetTestSuite) TestHtsgetMissingServer() {
 }
 
 func (suite *HtsgetTestSuite) TestHtsgetFailReadFileInfo() {
-	outFilePath := fmt.Sprintf("%s/htsnexus_test_NA12878", suite.tempDir)
-
 	err := Htsget([]string{
 		"htsget",
 		"-dataset",
 		"DATASET0001",
 		"-filename",
 		"htsnexus_test_NA12878_file_not_found",
-		"-output",
-		outFilePath,
 		"-host",
 		suite.httpTestServer.URL,
 		"-pubkey",
@@ -235,16 +230,12 @@ func (suite *HtsgetTestSuite) TestHtsgetFailReadFileInfo() {
 }
 
 func (suite *HtsgetTestSuite) TestHtsgetFailDownloadFileRange() {
-	outFilePath := fmt.Sprintf("%s/htsnexus_test_NA12878", suite.tempDir)
-
 	err := Htsget([]string{
 		"htsget",
 		"-dataset",
 		"DATASET0001",
 		"-filename",
 		"htsnexus_test_NA12878_file_range_not_found",
-		"-output",
-		outFilePath,
 		"-host",
 		suite.httpTestServer.URL,
 		"-pubkey",
@@ -255,7 +246,7 @@ func (suite *HtsgetTestSuite) TestHtsgetFailDownloadFileRange() {
 }
 
 func (suite *HtsgetTestSuite) TestHtsget() {
-	outFilePath := fmt.Sprintf("%s/htsnexus_test_NA12878", suite.tempDir)
+	outFilePath := filepath.Join(suite.tempDir, "htsnexus_test_NA12878")
 
 	err := Htsget([]string{
 		"htsget",
@@ -288,7 +279,7 @@ func (suite *HtsgetTestSuite) TestHtsget() {
 }
 
 func (suite *HtsgetTestSuite) TestHtsgetOutPutFileAlreadyExists() {
-	outFilePath := fmt.Sprintf("%s/htsnexus_test_NA12878", suite.tempDir)
+	outFilePath := filepath.Join(suite.tempDir, "htsnexus_test_NA12878")
 
 	if err := os.WriteFile(outFilePath, []byte("file already exists"), 0600); err != nil {
 		suite.FailNow("failed to write out file due to", err)
