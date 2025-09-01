@@ -263,7 +263,9 @@ func (suite *EncryptTestSuite) TestEncrypt() {
 }
 
 func (suite *EncryptTestSuite) TestEncryptWithOutdir() {
-	if err := os.Mkdir(fmt.Sprintf("%s/different_dir", suite.tempDir), 0700); err != nil {
+	targetDir := filepath.Join(suite.tempDir, "different_dir")
+
+	if err := os.Mkdir(targetDir, 0700); err != nil {
 		suite.FailNow("failed to create temporary dir", err)
 	}
 
@@ -272,8 +274,9 @@ func (suite *EncryptTestSuite) TestEncryptWithOutdir() {
 		"-key",
 		suite.publicKey.Name(),
 		"-outdir",
-		fmt.Sprintf("%s/different_dir", suite.tempDir),
-		suite.fileToEncrypt.Name()})
+		targetDir,
+		suite.fileToEncrypt.Name(),
+	})
 	assert.NoError(suite.T(), err)
 
 	// check that encrypted file does not exist in same dir as unencrypted file
@@ -284,7 +287,7 @@ func (suite *EncryptTestSuite) TestEncryptWithOutdir() {
 	}
 	assert.ErrorContains(suite.T(), err, msg)
 
-	encryptedContent, err := os.Open(fmt.Sprintf("%s/different_dir/%s.c4gh", suite.tempDir, filepath.Base(suite.fileToEncrypt.Name())))
+	encryptedContent, err := os.Open(fmt.Sprintf("%s.c4gh", filepath.Join(targetDir, filepath.Base(suite.fileToEncrypt.Name()))))
 	if err != nil {
 		suite.FailNow("failed to read encrypted test file", err)
 	}
@@ -349,7 +352,7 @@ func (suite *EncryptTestSuite) TestStreamLargeFile() {
 	// ensure that the MD5 is what we expect it to be after the file has been read fully.
 	assert.Equal(suite.T(), "de89461b64701958984c95d1bfb0065a", hex.EncodeToString(fs.UnencryptedMD5.Sum(nil)))
 
-	f, err := os.Create(fmt.Sprintf("%s/largefile2.c4gh", suite.tempDir))
+	f, err := os.Create(filepath.Join(suite.tempDir, "largefile2.c4gh"))
 	assert.NoError(suite.T(), err, "failed to create temp file")
 	n, err := f.Write(enc)
 	assert.NoError(suite.T(), err, "failed write data to temp file")
@@ -367,7 +370,7 @@ func (suite *EncryptTestSuite) TestStream_noPublicKey() {
 
 func (suite *EncryptTestSuite) TestCalculateHashes() {
 
-	_, notFoundError := os.Open(fmt.Sprintf("%s/does-not-exist", suite.tempDir))
+	_, notFoundError := os.Open(filepath.Join(suite.tempDir, "does-not-exist"))
 
 	for _, test := range []struct {
 		testName                       string
@@ -381,7 +384,7 @@ func (suite *EncryptTestSuite) TestCalculateHashes() {
 		{
 			testName:                  "EncryptedNotExist",
 			unencryptedFile:           suite.fileToEncrypt.Name(),
-			encryptedFile:             fmt.Sprintf("%s/does-not-exist", suite.tempDir),
+			encryptedFile:             filepath.Join(suite.tempDir, "does-not-exist"),
 			expectedError:             notFoundError,
 			expectedUnencryptedMd5:    "",
 			expectedUnencryptedSha256: "",
@@ -389,7 +392,7 @@ func (suite *EncryptTestSuite) TestCalculateHashes() {
 			expectedEncryptedSha256:   "",
 		}, {
 			testName:                  "UnencryptedNotExist",
-			unencryptedFile:           fmt.Sprintf("%s/does-not-exist", suite.tempDir),
+			unencryptedFile:           filepath.Join(suite.tempDir, "does-not-exist"),
 			encryptedFile:             suite.fileToEncrypt.Name(),
 			expectedError:             notFoundError,
 			expectedUnencryptedMd5:    "",
@@ -479,12 +482,13 @@ func (suite *EncryptTestSuite) TestCheckFiles() {
 func (suite *EncryptTestSuite) TestCheckKeyFile() {
 	specs := newKeySpecs()
 
-	notAKeyFile := fmt.Sprintf("%v/not_a_key", suite.tempDir)
+	notAKeyFile := filepath.Join(suite.tempDir, "not_a_key")
 	if err := os.WriteFile(notAKeyFile, []byte("not a key file"), 0600); err != nil {
 		suite.FailNow("failed to write to not a key file", err)
 	}
 
-	_, notFoundError := os.Open(fmt.Sprintf("%s/does-not-exist", suite.tempDir))
+	notExistFilePath := filepath.Join(suite.tempDir, "does-not-exist")
+	_, notFoundError := os.Open(notExistFilePath)
 
 	for _, test := range []struct {
 		testName        string
@@ -504,7 +508,7 @@ func (suite *EncryptTestSuite) TestCheckKeyFile() {
 			expectedError:   nil,
 		}, {
 			testName:        "FileDoesNotExist",
-			pubKeyFileName:  fmt.Sprintf("%s/does-not-exist", suite.tempDir),
+			pubKeyFileName:  notExistFilePath,
 			expectedKeySize: int64(0),
 			expectedError:   notFoundError,
 		}, {
@@ -526,7 +530,8 @@ func (suite *EncryptTestSuite) TestCheckKeyFile() {
 func (suite *EncryptTestSuite) TestReadMultiPublicKeyFile() {
 	specs := newKeySpecs()
 
-	_, notFoundError := os.Open(fmt.Sprintf("%s/does-not-exist", suite.tempDir))
+	notExistFilePath := filepath.Join(suite.tempDir, "does-not-exist")
+	_, notFoundError := os.Open(notExistFilePath)
 
 	for _, test := range []struct {
 		testName            string
@@ -541,7 +546,7 @@ func (suite *EncryptTestSuite) TestReadMultiPublicKeyFile() {
 			expectedFileContent: &suite.pubKeyData,
 		}, {
 			testName:            "FileDoesNotExist",
-			multiPubKeyFileName: fmt.Sprintf("%s/does-not-exist", suite.tempDir),
+			multiPubKeyFileName: notExistFilePath,
 			expectedFileContent: nil,
 			expectedError:       notFoundError,
 		},
@@ -566,7 +571,8 @@ func (suite *EncryptTestSuite) TestReadMultiPublicKeyFile() {
 }
 
 func (suite *EncryptTestSuite) TestReadPublicKeyFile() {
-	_, notFoundError := os.Open(fmt.Sprintf("%s/does-not-exist", suite.tempDir))
+	notExistFilePath := filepath.Join(suite.tempDir, "does-not-exist")
+	_, notFoundError := os.Open(notExistFilePath)
 
 	for _, test := range []struct {
 		testName            string
@@ -581,7 +587,7 @@ func (suite *EncryptTestSuite) TestReadPublicKeyFile() {
 			expectedFileContent: &suite.pubKeyData,
 		}, {
 			testName:            "FileDoesNotExist",
-			pubKeyFileName:      fmt.Sprintf("%s/does-not-exist", suite.tempDir),
+			pubKeyFileName:      notExistFilePath,
 			expectedFileContent: nil,
 			expectedError:       notFoundError,
 		},
