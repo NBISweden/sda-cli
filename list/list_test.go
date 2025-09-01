@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -86,7 +85,7 @@ func (suite *ListTestSuite) SetupSuite() {
 	})
 
 	// Create config file
-	suite.configPath = path.Join(suite.tempDir, "s3cmd.conf")
+	suite.configPath = filepath.Join(suite.tempDir, "s3cmd.conf")
 
 	// Write config file
 	if err = os.WriteFile(suite.configPath, []byte(fmt.Sprintf(configFormat, accessToken, suite.s3HTTPServer.URL)), 0600); err != nil {
