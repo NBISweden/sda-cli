@@ -68,7 +68,7 @@ func (suite *DecryptTestSuite) createNewEncryptedFile() {
 	if err != nil {
 		suite.FailNow("failed to create test file in temporary directory", err)
 	}
-	fileContent := []byte(fmt.Sprintf("This is some fine content right here, in file: %s", testFile.Name()))
+	fileContent := fmt.Appendf([]byte{}, "This is some fine content right here, in file: %s", testFile.Name())
 	// ... and write the known content to it
 	err = os.WriteFile(testFile.Name(), fileContent, 0600)
 	if err != nil {
@@ -254,7 +254,7 @@ func (suite *DecryptTestSuite) TestDecryptWithCleanArgSuccess() {
 }
 
 func (suite *DecryptTestSuite) TestDecryptWithCleanArgWrongPassword() {
-	os.Setenv("C4GH_PASSWORD", "wrong")
+	_ = os.Setenv("C4GH_PASSWORD", "wrong")
 
 	err := Decrypt([]string{
 		"decrypt",
@@ -294,7 +294,7 @@ func (suite *DecryptTestSuite) TestDecryptMultipleFilesSuccess() {
 	assert.NoError(suite.T(), err)
 
 	// Check the decrypted files
-	for _, file := range suite.testFiles { // Check file2.txt and file3.txt
+	for _, file := range suite.testFiles {
 
 		// Check that the encrypted file was remains
 		_, err = os.Stat(file.encryptedFileName)
@@ -340,7 +340,6 @@ func (suite *DecryptTestSuite) TestDecryptMultipleFilesWithForceOverwriteArg() {
 
 	// Check the decrypted files
 	for _, file := range suite.testFiles { // Check file2.txt and file3.txt
-
 		// Check that the encrypted file was remains
 		_, err = os.Stat(file.encryptedFileName)
 		assert.NoError(suite.T(), err, "encrypted file can not be found after decrypt")
@@ -373,7 +372,6 @@ func (suite *DecryptTestSuite) TestDecryptMultipleFilesOneNonExistentFile() {
 
 	// Check the decrypted files
 	for _, file := range suite.testFiles { // Check file2.txt and file3.txt
-
 		// Check that the encrypted file was remains
 		_, err = os.Stat(file.encryptedFileName)
 		assert.NoError(suite.T(), err, "encrypted file can not be found after decrypt")
@@ -389,7 +387,6 @@ func (suite *DecryptTestSuite) TestDecryptMultipleFilesOneNonExistentFile() {
 }
 
 func (suite *DecryptTestSuite) TestReadPrivateKeyFile() {
-
 	for _, test := range []struct {
 		testName         string
 		fileName         string
