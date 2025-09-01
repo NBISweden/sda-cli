@@ -32,23 +32,6 @@ type HtsgetTestSuite struct {
 	httpTestServer *httptest.Server
 }
 
-var configFormat = `
-access_token = %[1]s
-host_base = http://127.0.0.1:8000
-encoding = UTF-8
-host_bucket = http://127.0.0.1:8000
-multipart_chunk_size_mb = 50
-secret_key = dummy
-access_key = dummy
-use_https = False
-check_ssl_certificate = False
-check_ssl_hostname = False
-socket_timeout = 30
-human_readable_sizes = True
-guess_mime_type = True
-encrypt = False
-`
-
 func TestHtsgetTestSuite(t *testing.T) {
 	suite.Run(t, new(HtsgetTestSuite))
 }
@@ -151,7 +134,22 @@ func (suite *HtsgetTestSuite) SetupTest() {
 	suite.configPath = path.Join(suite.tempDir, "s3cmd.conf")
 
 	// Write config file
-	if err := os.WriteFile(suite.configPath, []byte(fmt.Sprintf(configFormat, suite.generateDummyToken())), 0600); err != nil {
+	if err := os.WriteFile(suite.configPath, []byte(fmt.Sprintf(`
+access_token = %[1]s
+host_base = http://127.0.0.1:8000
+encoding = UTF-8
+host_bucket = http://127.0.0.1:8000
+multipart_chunk_size_mb = 50
+secret_key = dummy
+access_key = dummy
+use_https = False
+check_ssl_certificate = False
+check_ssl_hostname = False
+socket_timeout = 30
+human_readable_sizes = True
+guess_mime_type = True
+encrypt = False
+`, suite.generateDummyToken())), 0600); err != nil {
 		suite.FailNow("failed to write to s3cmd.conf test file", err)
 	}
 
@@ -167,8 +165,6 @@ func (suite *HtsgetTestSuite) MissingArgument() {
 	err := Htsget([]string{"htsget"}, "")
 	assert.EqualError(suite.T(), err, "missing required arguments, dataset, filename, host and key are required")
 }
-
-// test Htsget with mocked http request
 
 func (suite *HtsgetTestSuite) TestHtsgetMissingConfig() {
 	err := Htsget([]string{
