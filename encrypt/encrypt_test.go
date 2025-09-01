@@ -126,7 +126,6 @@ func (suite *EncryptTestSuite) SetupTest() {
 		}
 	}
 	_ = suite.largeFileToEncrypt.Close()
-
 }
 
 func (suite *EncryptTestSuite) TearDownTest() {
@@ -144,11 +143,12 @@ func (suite *EncryptTestSuite) TestEncryptNoConfigOrKey() {
 
 }
 func (suite *EncryptTestSuite) TestEncryptKeyNotExist() {
-	_, notFoundError := os.Open("file-not-exists")
+	notExistFile := filepath.Join(suite.tempDir, "file-not-exists")
+	_, notFoundError := os.Open(notExistFile)
 	assert.Equal(suite.T(), notFoundError, Encrypt([]string{
 		"encrypt",
 		"-key",
-		"file-not-exists",
+		notExistFile,
 		suite.fileToEncrypt.Name(),
 	}))
 }
@@ -431,7 +431,6 @@ func (suite *EncryptTestSuite) TestCalculateHashes() {
 }
 
 func (suite *EncryptTestSuite) TestCheckFiles() {
-
 	// create an existing encrypted test file
 	encryptedFile, err := os.CreateTemp(suite.tempDir, "encrypted-input")
 	if err != nil {
@@ -485,7 +484,7 @@ func (suite *EncryptTestSuite) TestCheckKeyFile() {
 		suite.FailNow("failed to write to not a key file", err)
 	}
 
-	_, notFoundError := os.Open("file-not-exists")
+	_, notFoundError := os.Open(fmt.Sprintf("%s/does-not-exist", suite.tempDir))
 
 	for _, test := range []struct {
 		testName        string
@@ -505,7 +504,7 @@ func (suite *EncryptTestSuite) TestCheckKeyFile() {
 			expectedError:   nil,
 		}, {
 			testName:        "FileDoesNotExist",
-			pubKeyFileName:  "file-not-exists",
+			pubKeyFileName:  fmt.Sprintf("%s/does-not-exist", suite.tempDir),
 			expectedKeySize: int64(0),
 			expectedError:   notFoundError,
 		}, {
@@ -527,7 +526,7 @@ func (suite *EncryptTestSuite) TestCheckKeyFile() {
 func (suite *EncryptTestSuite) TestReadMultiPublicKeyFile() {
 	specs := newKeySpecs()
 
-	_, notFoundError := os.Open("file-not-exists")
+	_, notFoundError := os.Open(fmt.Sprintf("%s/does-not-exist", suite.tempDir))
 
 	for _, test := range []struct {
 		testName            string
@@ -542,7 +541,7 @@ func (suite *EncryptTestSuite) TestReadMultiPublicKeyFile() {
 			expectedFileContent: &suite.pubKeyData,
 		}, {
 			testName:            "FileDoesNotExist",
-			multiPubKeyFileName: "file-not-exists",
+			multiPubKeyFileName: fmt.Sprintf("%s/does-not-exist", suite.tempDir),
 			expectedFileContent: nil,
 			expectedError:       notFoundError,
 		},
@@ -567,8 +566,7 @@ func (suite *EncryptTestSuite) TestReadMultiPublicKeyFile() {
 }
 
 func (suite *EncryptTestSuite) TestReadPublicKeyFile() {
-
-	_, notFoundError := os.Open("file-not-exists")
+	_, notFoundError := os.Open(fmt.Sprintf("%s/does-not-exist", suite.tempDir))
 
 	for _, test := range []struct {
 		testName            string
@@ -583,7 +581,7 @@ func (suite *EncryptTestSuite) TestReadPublicKeyFile() {
 			expectedFileContent: &suite.pubKeyData,
 		}, {
 			testName:            "FileDoesNotExist",
-			pubKeyFileName:      "file-not-exists",
+			pubKeyFileName:      fmt.Sprintf("%s/does-not-exist", suite.tempDir),
 			expectedFileContent: nil,
 			expectedError:       notFoundError,
 		},
