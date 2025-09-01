@@ -64,23 +64,16 @@ func (suite *DownloadTestSuite) SetupSuite() {
         	]`)
 
 		case "/s3/TES01/files/dummy-file.txt.c4gh":
-
 			// Set the response status code
 			w.WriteHeader(http.StatusOK)
-
 			fmt.Fprint(w, "test content dummy file")
-
 		case "/s3/TES01/files/file1.c4gh":
-
 			// Set the response status code
 			w.WriteHeader(http.StatusOK)
-
 			fmt.Fprint(w, "test content file 1")
 		case "/s3/TES01/files/file2.c4gh":
-
 			// Set the response status code
 			w.WriteHeader(http.StatusOK)
-
 			fmt.Fprint(w, "test content file 2")
 		case "/metadata/datasets":
 			// Set the response status code
