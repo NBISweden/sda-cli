@@ -141,9 +141,8 @@ func Encrypt(args []string) (err error) {
 	// Make sure to exit with error status if any file is skipped
 	defer func() {
 		if skippedFiles != 0 {
-			filedSkippedError := fmt.Errorf("(%d/%d) files skipped", skippedFiles, len(files)+skippedFiles)
-			fmt.Fprintln(os.Stderr, filedSkippedError.Error())
-			err = errors.Join(err, filedSkippedError)
+			filesSkippedError := fmt.Errorf("(%d/%d) files skipped", skippedFiles, len(files)+skippedFiles)
+			err = errors.Join(err, filesSkippedError)
 		}
 	}()
 
