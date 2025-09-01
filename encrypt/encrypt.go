@@ -12,7 +12,6 @@ import (
 	"hash"
 	"io"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -154,8 +153,8 @@ func Encrypt(args []string) (err error) {
 		// Set directory for the output file
 		outFilename := filename + ".c4gh"
 		if *outDir != "" {
-			_, basename := path.Split(filename)
-			outFilename = path.Join(*outDir, basename) + ".c4gh"
+			_, basename := filepath.Split(filename)
+			outFilename = filepath.Join(*outDir, basename) + ".c4gh"
 		}
 
 		eachFile[0] = helpers.EncryptionFileSet{Unencrypted: filename, Encrypted: outFilename}
