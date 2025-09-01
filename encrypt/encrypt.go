@@ -364,6 +364,7 @@ func readPublicKeyFile(filename string) (key *[32]byte, err error) {
 	if err != nil {
 		return nil, err
 	}
+	defer file.Close()
 
 	publicKey, err := keys.ReadPublicKey(file)
 	if err != nil {
@@ -517,6 +518,12 @@ func checkKeyFile(pubkey string, k keySpecs) (int64, error) {
 	}
 
 	return fs.Size(), nil
+}
+
+// EmptyPublicKeyFileList cleans the publicKeyFileList
+// main use case is in unit tests when files are to be encrypted with different keys in different invocations
+func EmptyPublicKeyFileList() {
+	publicKeyFileList = make([]string, 0)
 }
 
 // Takes a key file list and specs about the expected key and returns the parsed public key(s)
