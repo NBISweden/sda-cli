@@ -29,13 +29,10 @@ import (
 
 type ListTestSuite struct {
 	suite.Suite
-
-	tempDir      string
-	configPath   string
-	testFilePath string
-
-	s3HTTPServer *httptest.Server
-
+	tempDir                string
+	configPath             string
+	testFilePath           string
+	s3HTTPServer           *httptest.Server
 	downloadMockHTTPServer *httptest.Server
 }
 
@@ -62,7 +59,6 @@ func TestListTestSuite(t *testing.T) {
 
 func (suite *ListTestSuite) SetupSuite() {
 	accessToken := suite.generateDummyToken()
-
 	suite.tempDir = suite.T().TempDir()
 
 	// Create a fake s3 backend
@@ -84,14 +80,6 @@ func (suite *ListTestSuite) SetupSuite() {
 		o.EndpointOptions.DisableHTTPS = true
 	})
 
-	// Create config file
-	suite.configPath = filepath.Join(suite.tempDir, "s3cmd.conf")
-
-	// Write config file
-	if err = os.WriteFile(suite.configPath, []byte(fmt.Sprintf(configFormat, accessToken, suite.s3HTTPServer.URL)), 0600); err != nil {
-		suite.FailNow("failed to write to s3cmd.conf test file", err)
-	}
-
 	// Create bucket named dummy
 	cparams := &s3.CreateBucketInput{
 		Bucket: aws.String("dummy"),
@@ -100,13 +88,10 @@ func (suite *ListTestSuite) SetupSuite() {
 	if err != nil {
 		suite.FailNow("failed to create s3 bucket", err)
 	}
-
-	fileToUpload := strings.NewReader("test content")
-
 	uploader := manager.NewUploader(s3Client)
 
+	fileToUpload := strings.NewReader("test content")
 	suite.testFilePath = "dummy/testfile"
-
 	// Upload the file to S3.
 	if _, err := uploader.Upload(context.Background(), &s3.PutObjectInput{
 		Body:            fileToUpload,
@@ -117,9 +102,15 @@ func (suite *ListTestSuite) SetupSuite() {
 		suite.FailNow("failed to upload test file", err)
 	}
 
+	// Create config file
+	suite.configPath = filepath.Join(suite.tempDir, "s3cmd.conf")
+	// Write config file
+	if err = os.WriteFile(suite.configPath, fmt.Appendf([]byte{}, configFormat, accessToken, suite.s3HTTPServer.URL), 0600); err != nil {
+		suite.FailNow("failed to write to s3cmd.conf test file", err)
+	}
+
 	// Create a test http server
 	suite.downloadMockHTTPServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-
 		switch req.RequestURI {
 		case "/metadata/datasets/TES01/files":
 			// Set the response status code
@@ -179,8 +170,7 @@ func (suite *ListTestSuite) SetupTest() {
 }
 
 func (suite *ListTestSuite) TestListNoConfig() {
-	err := List([]string{"list"}, "")
-	assert.EqualError(suite.T(), err, "failed to load config file, reason: failed to read the configuration file")
+	assert.EqualError(suite.T(), List([]string{"list"}, ""), "failed to load config file, reason: failed to read the configuration file")
 }
 
 func (suite *ListTestSuite) TestListFiles() {
@@ -209,7 +199,6 @@ func (suite *ListTestSuite) TestListFiles() {
 	os.Stderr = rescueStderr
 	listError, _ := io.ReadAll(errR)
 	_ = errR.Close()
-
 	assert.Contains(suite.T(), string(listError), expectedHostBase)
 }
 
