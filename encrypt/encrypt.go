@@ -79,10 +79,10 @@ func init() {
 
 // Encrypt takes a set of arguments, parses them, and attempts to encrypt the
 // given data files with the given public key file
-func Encrypt(args []string) (err error) {
+func Encrypt(args []string) error {
 	var pubKeyList [][32]byte
 	// Call ParseArgs to take care of all the flag parsing
-	err = helpers.ParseArgs(args, Args)
+	err := helpers.ParseArgs(args, Args)
 	if err != nil {
 		return err
 	}
@@ -141,8 +141,8 @@ func Encrypt(args []string) (err error) {
 	// Make sure to exit with error status if any file is skipped
 	defer func() {
 		if skippedFiles != 0 {
-			filesSkippedError := fmt.Errorf("(%d/%d) files skipped", skippedFiles, len(files)+skippedFiles)
-			err = errors.Join(err, filesSkippedError)
+			fmt.Fprintf(os.Stderr, "(%d/%d) files skipped\n", skippedFiles, len(files)+skippedFiles)
+			os.Exit(1)
 		}
 	}()
 

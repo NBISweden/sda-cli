@@ -208,30 +208,6 @@ func (suite *EncryptTestSuite) TestEncryptWithExistingFile() {
 
 	assert.Equal(suite.T(), encryptedContent, []byte("crypt4gh"))
 }
-func (suite *EncryptTestSuite) TestEncryptWithExistingFileAndContinue() {
-	// create an existing encrypted test file
-	encryptedFile := fmt.Sprintf("%s.c4gh", suite.fileToEncrypt.Name())
-	if err := os.WriteFile(encryptedFile, []byte("crypt4gh"), 0600); err != nil {
-		suite.FailNow("failed to create encrypted test file to be overwritten", err)
-	}
-
-	assert.Equal(suite.T(), errors.Join(errors.New("no input files"), errors.New("(1/1) files skipped")),
-		Encrypt([]string{
-			"encrypt",
-			"-key",
-			suite.publicKey.Name(),
-			"-continue",
-			suite.fileToEncrypt.Name(),
-		}),
-	)
-
-	encryptedContent, err := os.ReadFile(encryptedFile)
-	if err != nil {
-		suite.FailNow("failed to read encrypted test file", err)
-	}
-
-	assert.Equal(suite.T(), encryptedContent, []byte("crypt4gh"))
-}
 
 func (suite *EncryptTestSuite) TestEncrypt() {
 	err := Encrypt([]string{
