@@ -202,9 +202,9 @@ func (suite *UploadTestSuite) TestCreateFilePaths() {
 	_, publicKeyfileName := filepath.Split(suite.publicKeyFilePath)
 	_, configFileName := filepath.Split(suite.configFilePath)
 	expectedRelativePaths := []string{
-		filepath.Join(filepath.Base(suite.tempDir), publicKeyfileName),
-		filepath.Join(filepath.Base(suite.tempDir), filepath.Base(uploadTestFileDir), uploadTestFileName),
-		filepath.Join(filepath.Base(suite.tempDir), configFileName),
+		filepath.ToSlash(filepath.Join(filepath.Base(suite.tempDir), publicKeyfileName)),
+		filepath.ToSlash(filepath.Join(filepath.Base(suite.tempDir), filepath.Base(uploadTestFileDir), uploadTestFileName)),
+		filepath.ToSlash(filepath.Join(filepath.Base(suite.tempDir), configFileName)),
 	}
 	suite.ElementsMatch(expectedRelativePaths, relativePaths)
 }
