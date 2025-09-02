@@ -260,7 +260,7 @@ func Encrypt(args []string) (err error) {
 		}
 	}
 
-	return err
+	return nil
 }
 
 // Checks that all the input files exist, are readable and not already encrypted,
