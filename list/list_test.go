@@ -2,57 +2,74 @@ package list
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/NBISweden/sda-cli/upload"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/golang-jwt/jwt"
 	"github.com/johannesboyne/gofakes3"
 	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
-type TestSuite struct {
+type ListTestSuite struct {
 	suite.Suite
-	accessToken string
+	tempDir                string
+	configPath             string
+	testFilePath           string
+	s3HTTPServer           *httptest.Server
+	downloadMockHTTPServer *httptest.Server
 }
 
-func TestConfigTestSuite(t *testing.T) {
-	suite.Run(t, new(TestSuite))
+var configFormat = `
+access_token = %[1]s
+host_base = %[2]s
+encoding = UTF-8
+host_bucket = %[2]s
+multipart_chunk_size_mb = 50
+secret_key = dummy
+access_key = dummy
+use_https = False
+check_ssl_certificate = False
+check_ssl_hostname = False
+socket_timeout = 30
+human_readable_sizes = True
+guess_mime_type = True
+encrypt = False
+`
+
+func TestListTestSuite(t *testing.T) {
+	suite.Run(t, new(ListTestSuite))
 }
 
-func (suite *TestSuite) SetupTest() {
-	suite.accessToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtleXN0b3JlLUNIQU5HRS1NRSJ9.eyJqdGkiOiJWTWpfNjhhcEMxR2FJbXRZdFExQ0ciLCJzdWIiOiJkdW1teSIsImlzcyI6Imh0dHA6Ly9vaWRjOjkwOTAiLCJpYXQiOjE3MDc3NjMyODksImV4cCI6MTg2NTU0NzkxOSwic2NvcGUiOiJvcGVuaWQgZ2E0Z2hfcGFzc3BvcnRfdjEgcHJvZmlsZSBlbWFpbCIsImF1ZCI6IlhDNTZFTDExeHgifQ.ZFfIAOGeM2I5cvqr1qJV74qU65appYjpNJVWevGHjGA5Xk_qoRMFJXmG6AiQnYdMKnJ58sYGNjWgs2_RGyw5NyM3-pgP7EKHdWU4PrDOU84Kosg4IPMSFxbBRAEjR5X04YX_CLYW2MFk_OyM9TIln522_JBVT_jA5WTTHSmBRHntVArYYHvQdF-oFRiqL8JXWlsUBh3tqQ33sZdqd9g64YhTk9a5lEC42gn5Hg9Hm_qvkl5orzEqIg7x9z5706IBE4Zypco5ohrAKsEbA8EKbEBb0jigGgCslQNde2owUyKIkvZYmxHA78X5xpymMp9K--PgbkyMS9GtA-YwOHPs-w"
-}
+func (suite *ListTestSuite) SetupSuite() {
+	accessToken := suite.generateDummyToken()
+	suite.tempDir = suite.T().TempDir()
 
-func (suite *TestSuite) TestNoConfig() {
-	os.Args = []string{"list"}
-
-	err := List(os.Args, "")
-	assert.EqualError(suite.T(), err, "failed to load config file, reason: failed to read the configuration file")
-}
-
-func (suite *TestSuite) TestFunctionality() {
-	ctx := context.TODO()
 	// Create a fake s3 backend
 	backend := s3mem.New()
 	faker := gofakes3.New(backend)
-	ts := httptest.NewServer(faker.Server())
-	defer ts.Close()
+	suite.s3HTTPServer = httptest.NewServer(faker.Server())
 
-	awsConfig, err := config.LoadDefaultConfig(ctx,
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("dummy", "dummy", suite.accessToken)),
+	awsConfig, err := config.LoadDefaultConfig(context.Background(),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("dummy", "dummy", accessToken)),
 		config.WithRegion("eu-central-1"),
-		config.WithBaseEndpoint(ts.URL),
+		config.WithBaseEndpoint(suite.s3HTTPServer.URL),
 	)
 	if err != nil {
 		suite.FailNow("failed to create aws config", err)
@@ -67,78 +84,97 @@ func (suite *TestSuite) TestFunctionality() {
 	cparams := &s3.CreateBucketInput{
 		Bucket: aws.String("dummy"),
 	}
-	_, err = s3Client.CreateBucket(ctx, cparams)
+	_, err = s3Client.CreateBucket(context.Background(), cparams)
 	if err != nil {
 		suite.FailNow("failed to create s3 bucket", err)
 	}
+	uploader := manager.NewUploader(s3Client)
 
-	// Create conf file for sda-cli
-	var confFile = fmt.Sprintf(`
-	access_token = %[1]s
-	host_base = %[2]s
-	encoding = UTF-8
-	host_bucket = %[2]s
-	multipart_chunk_size_mb = 50
-	secret_key = dummy
-	access_key = dummy
-	use_https = False
-	check_ssl_certificate = False
-	check_ssl_hostname = False
-	socket_timeout = 30
-	human_readable_sizes = True
-	guess_mime_type = True
-	encrypt = False
-	`, suite.accessToken, ts.URL)
+	fileToUpload := strings.NewReader("test content")
+	suite.testFilePath = "dummy/testfile"
+	// Upload the file to S3.
+	if _, err := uploader.Upload(context.Background(), &s3.PutObjectInput{
+		Body:            fileToUpload,
+		Bucket:          aws.String("dummy"),
+		Key:             aws.String(suite.testFilePath),
+		ContentEncoding: aws.String("UTF-8"),
+	}); err != nil {
+		suite.FailNow("failed to upload test file", err)
+	}
 
 	// Create config file
-	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd.conf")
-	if err != nil {
-		suite.FailNow("failed to create s3cmd.conf test file", err)
-	}
-	defer os.Remove(configPath.Name()) //nolint:errcheck
-
+	suite.configPath = filepath.Join(suite.tempDir, "s3cmd.conf")
 	// Write config file
-	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
-	if err != nil {
+	if err = os.WriteFile(suite.configPath, fmt.Appendf([]byte{}, configFormat, accessToken, suite.s3HTTPServer.URL), 0600); err != nil {
 		suite.FailNow("failed to write to s3cmd.conf test file", err)
 	}
 
-	// Create dir for storing file
-	// The folder is not temp since list expects a prefix (bucket in s3proxy)
-	// and doesn't work with the random name of the temp var
-	dir := "dummy"
-	err = os.Mkdir(dir, 0755)
-	if err != nil {
-		suite.FailNow("failed to create test directory", err)
-	}
-	defer os.RemoveAll(dir) //nolint:errcheck
+	// Create a test http server
+	suite.downloadMockHTTPServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		switch req.RequestURI {
+		case "/metadata/datasets/TES01/files":
+			// Set the response status code
+			w.WriteHeader(http.StatusOK)
+			// Set the response body
+			fmt.Fprint(w, `[
+            {
+                "fileId": "file1id",
+				"datasetId": "TES01",
+				"displayFileName": "file1.c4gh",
+                "filePath": "files/file1.c4gh",
+				"fileName": "4293c9a7-re60-46ac-b79a-40ddc0ddd1c6",
+                "decryptedFileSize": 1024
+            },
+			{
+                "fileId": "file2id",
+				"datasetId": "TES01",
+				"displayFileName": "file2.c4gh",
+                "filePath": "files/file2.c4gh",
+				"fileName": "4b40bd16-9eba-4992-af39-a7f824e612e2",
+                "decryptedFileSize": 1024
+            },
+			{
+                "fileId": "dummyFile",
+				"datasetId": "TES01",
+				"displayFileName": "dummy-file.txt.c4gh",
+                "filePath": "files/dummy-file.txt.c4gh",
+				"fileName": "4b40bd16-9eba-4992-af39-a7f824e612e1",
+                "decryptedFileSize": 1024
+            }
+        	]`)
+		case "/metadata/datasets":
+			// Set the response status code
+			w.WriteHeader(http.StatusOK)
+			// Set the response body
+			fmt.Fprint(w, `["TES01"]`)
+		default:
+			// Set the response status code
+			w.WriteHeader(http.StatusInternalServerError)
+			// Set the response body
+			fmt.Fprint(w, "Unexpected path")
+		}
+	}))
+}
+func (suite *ListTestSuite) TearDownSuite() {
+	suite.s3HTTPServer.Close()
+	suite.downloadMockHTTPServer.Close()
+}
 
-	// Create test file to upload
-	testfile, err := os.CreateTemp(dir, "dummy")
-	if err != nil {
-		suite.FailNow("failed to create test file", err)
-	}
-	defer os.Remove(testfile.Name()) //nolint:errcheck
+func (suite *ListTestSuite) SetupTest() {
+	// Reset flag values from any previous test invocation
+	Args = flag.NewFlagSet("list", flag.ContinueOnError)
+	URL = Args.String("url", "", "The url of the sda-download server")
+	datasets = Args.Bool("datasets", false, "List all datasets in the user's folder.")
+	bytesFormat = Args.Bool("bytes", false, "Print file sizes in bytes (not human-readable format).")
+	dataset = Args.String("dataset", "", "List all files in the specified dataset.")
+}
 
+func (suite *ListTestSuite) TestListNoConfig() {
+	assert.EqualError(suite.T(), List([]string{"list"}, ""), "failed to load config file, reason: failed to read the configuration file")
+}
+
+func (suite *ListTestSuite) TestListFiles() {
 	rescueStdout := os.Stdout
-	uploadR, uploadW, _ := os.Pipe()
-	os.Stdout = uploadW
-
-	// Upload a file
-	os.Args = []string{"upload", "--force-unencrypted", "-r", dir}
-	err = upload.Upload(os.Args, configPath.Name())
-	assert.NoError(suite.T(), err)
-
-	_ = uploadW.Close()
-	os.Stdout = rescueStdout
-	uploadOutput, _ := io.ReadAll(uploadR)
-
-	// Check logs that file was uploaded
-	logMsg := fmt.Sprintf("%v", strings.TrimSuffix(string(uploadOutput), "\n"))
-	msg := "file uploaded"
-	assert.Contains(suite.T(), logMsg, msg)
-
-	rescueStdout = os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
@@ -146,22 +182,83 @@ func (suite *TestSuite) TestFunctionality() {
 	errR, errW, _ := os.Pipe()
 	os.Stderr = errW
 
-	os.Args = []string{"list"}
-	err = List(os.Args, configPath.Name())
+	err := List([]string{"list"}, suite.configPath)
 	assert.NoError(suite.T(), err)
 
 	_ = w.Close()
 	os.Stdout = rescueStdout
 	listOutput, _ := io.ReadAll(r)
-	msg1 := fmt.Sprintf("%v", filepath.Base(testfile.Name()))
-	assert.Contains(suite.T(), string(listOutput), msg1)
+	_ = r.Close()
+	assert.Contains(suite.T(), string(listOutput), fmt.Sprintf("%v", filepath.Base(suite.testFilePath)))
+
+	// Check that host_base is in the error output, not in the stdout
+	expectedHostBase := fmt.Sprintf("Remote server (host_base): %s", suite.s3HTTPServer.URL)
+	assert.NotContains(suite.T(), string(listOutput), expectedHostBase)
 
 	_ = errW.Close()
 	os.Stderr = rescueStderr
 	listError, _ := io.ReadAll(errR)
-
-	// Check that host_base is in the error output, not in the stdout
-	expectedHostBase := "Remote server (host_base): " + ts.URL
-	assert.NotContains(suite.T(), string(listOutput), expectedHostBase)
+	_ = errR.Close()
 	assert.Contains(suite.T(), string(listError), expectedHostBase)
+}
+
+func (suite *ListTestSuite) TestListDatasets() {
+	rescueStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := List([]string{"list", "-url", suite.downloadMockHTTPServer.URL, "-datasets"}, suite.configPath)
+	assert.NoError(suite.T(), err)
+
+	_ = w.Close()
+	os.Stdout = rescueStdout
+	listOutput, _ := io.ReadAll(r)
+	_ = r.Close()
+	assert.Contains(suite.T(), string(listOutput), fmt.Sprintf("%v", "TES01 \t 3 \t 3.1 kB"))
+}
+
+func (suite *ListTestSuite) TestListDataset() {
+	rescueStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := List([]string{"list", "-url", suite.downloadMockHTTPServer.URL, "-dataset", "TES01"}, suite.configPath)
+	assert.NoError(suite.T(), err)
+
+	_ = w.Close()
+	os.Stdout = rescueStdout
+	listOutput, _ := io.ReadAll(r)
+	_ = r.Close()
+	assert.Contains(suite.T(), string(listOutput), fmt.Sprintf("%v", "FileID               \t Size       \t Path\nfile1id \t 1.0 kB \t files/file1.c4gh\nfile2id \t 1.0 kB \t files/file2.c4gh\ndummyFile \t 1.0 kB \t files/dummy-file.txt.c4gh\nDataset size: 3.1 kB"))
+}
+
+func (suite *ListTestSuite) TestListDatasetNoUrl() {
+	err := List([]string{"list", "-dataset", "TES01"}, suite.configPath)
+	assert.EqualError(suite.T(), err, "invalid base URL")
+}
+func (suite *ListTestSuite) TestListDatasetsNoUrl() {
+	err := List([]string{"list", "-dataset", "TES01"}, suite.configPath)
+	assert.EqualError(suite.T(), err, "invalid base URL")
+}
+
+func (suite *ListTestSuite) generateDummyToken() string {
+	// Generate a new private key
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		suite.FailNow("failed to generate key", err)
+	}
+
+	// Create the Claims
+	claims := &jwt.StandardClaims{
+		Issuer:    "test",
+		ExpiresAt: time.Now().Add(time.Minute * 2).Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	ss, err := token.SignedString(privateKey)
+	if err != nil {
+		suite.FailNow("failed to sign token", err)
+	}
+
+	return ss
 }
