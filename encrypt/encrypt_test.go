@@ -223,18 +223,14 @@ func (suite *EncryptTestSuite) TestEncrypt() {
 	if err != nil {
 		suite.FailNow("failed to read encrypted test file", err)
 	}
-	defer func() {
-		_ = encryptedContent.Close()
-	}()
+	defer encryptedContent.Close() //nolint:errcheck
 
 	// Create crypt4gh reader
 	crypt4GHReader, err := streaming.NewCrypt4GHReader(encryptedContent, suite.secKeyData, nil)
 	if err != nil {
 		suite.FailNow("failed to read decrypted encrypted test file", err)
 	}
-	defer func() {
-		_ = crypt4GHReader.Close()
-	}()
+	defer crypt4GHReader.Close() //nolint:errcheck
 
 	decryptedContent, err := io.ReadAll(crypt4GHReader)
 	if err != nil {
@@ -273,18 +269,14 @@ func (suite *EncryptTestSuite) TestEncryptWithOutdir() {
 	if err != nil {
 		suite.FailNow("failed to read encrypted test file", err)
 	}
-	defer func() {
-		_ = encryptedContent.Close()
-	}()
+	defer encryptedContent.Close() //nolint:errcheck
 
 	// Create crypt4gh reader
 	crypt4GHReader, err := streaming.NewCrypt4GHReader(encryptedContent, suite.secKeyData, nil)
 	if err != nil {
 		suite.FailNow("failed to read decrypted encrypted test file", err)
 	}
-	defer func() {
-		_ = crypt4GHReader.Close()
-	}()
+	defer crypt4GHReader.Close() //nolint:errcheck
 
 	decryptedContent, err := io.ReadAll(crypt4GHReader)
 	if err != nil {
