@@ -122,6 +122,7 @@ func (suite *UploadTestSuite) SetupTest() {
 	if _, err := uploadTestFile.Write([]byte("test content")); err != nil {
 		suite.FailNow("failed to write to test upload file")
 	}
+	_ = uploadTestFile.Close()
 	suite.uploadTestFilePath = uploadTestFile.Name()
 
 	// Generate a crypt4gh pub key
@@ -137,6 +138,7 @@ func (suite *UploadTestSuite) SetupTest() {
 	if err := keys.WriteCrypt4GHX25519PublicKey(publicKey, pubKeyData); err != nil {
 		suite.FailNow("failed to write temporary public key file, %v", err)
 	}
+	_ = publicKey.Close()
 	suite.publicKeyFilePath = publicKey.Name()
 }
 
@@ -356,6 +358,7 @@ func (suite *UploadTestSuite) TestUploadWithEncryptionFileAlreadyExists() {
 	if err := os.WriteFile(encFile.Name(), []byte("crypt4gh"), 0600); err != nil {
 		suite.FailNow("failed to write to test file", err)
 	}
+	_ = encFile.Close()
 
 	assert.ErrorContains(suite.T(), Upload([]string{"upload", "--encrypt-with-key", suite.publicKeyFilePath, encFile.Name()}, suite.configFilePath), "is already encrypted")
 }
