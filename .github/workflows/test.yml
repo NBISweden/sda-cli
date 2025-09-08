@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Set up Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go-version }}
         id: go
@@ -32,7 +32,7 @@ jobs:
         run: go test -v -coverprofile=coverage -covermode=atomic ./...
 
       - name: Codecov
-        uses: codecov/codecov-action@v5.5.0
+        uses: codecov/codecov-action@v5.5.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage
