@@ -1,0 +1,4 @@
+c4gh:
+  privateKeys:
+    - filePath: "/dev_utils/c4gh.sec.pem"
+      passphrase: "oaagCP1YgAZeEyl2eJAkHv9lkcWXWFgm"
