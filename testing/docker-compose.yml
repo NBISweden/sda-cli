@@ -261,13 +261,12 @@ services:
     container_name: reencrypt
     environment:
       - LOG_LEVEL=debug
-      - C4GH_PASSPHRASE=oaagCP1YgAZeEyl2eJAkHv9lkcWXWFgm
-      - C4GH_FILEPATH=/dev_utils/c4gh.sec.pem
     ports:
       - "50051:50051"
     restart: always
     volumes:
-      - ./:/dev_utils/
+      - ./:/dev_utils
+      - ./reencrypt_config.yaml:/config.yaml
 volumes:
   data:
   dbdata:
