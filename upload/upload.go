@@ -105,30 +105,30 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 	// Loop through the list of files and check if they are encrypted
 	// If we run into an unencrypted file and the flag force-unencrypted is not set, we stop the upload
 	for _, filename := range files {
+		if *pubKeyPath != "" {
+			continue
+		}
+
 		f, err := os.Open(path.Clean(filename))
 		if err != nil {
 			return err
 		}
-
-		if *pubKeyPath == "" {
-			// Check if the file is encrypted and warn if not
-			// Extracting the first 8 bytes of the header - crypt4gh
-			magicWord := make([]byte, 8)
-			_, err = f.Read(magicWord)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error reading input file %s, reason: %v\n", filename, err)
-			}
-			if string(magicWord) != "crypt4gh" {
-				fmt.Fprintf(os.Stderr, "input file %s is not encrypted\n", filename)
-				if !*forceUnencrypted {
-					fmt.Println("Quitting...")
-
-					return errors.New("unencrypted file found")
-				}
-				fmt.Fprintf(os.Stderr, "force-unencrypted flag provided, continuing...\n")
-			}
+		// Check if the file is encrypted and warn if not
+		// Extracting the first 8 bytes of the header - crypt4gh
+		magicWord := make([]byte, 8)
+		if _, err := f.Read(magicWord); err != nil {
+			fmt.Fprintf(os.Stderr, "error reading input file %s, reason: %v\n", filename, err)
 		}
 		_ = f.Close()
+		if string(magicWord) != "crypt4gh" {
+			fmt.Fprintf(os.Stderr, "input file %s is not encrypted\n", filename)
+			if !*forceUnencrypted {
+				fmt.Println("Quitting...")
+
+				return errors.New("unencrypted file found")
+			}
+			fmt.Fprintf(os.Stderr, "force-unencrypted flag provided, continuing...\n")
+		}
 	}
 
 	awsConfig, err := awsConfig.LoadDefaultConfig(ctx,
@@ -159,6 +159,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		if err != nil {
 			return err
 		}
+		defer f.Close() //nolint:errcheck
 
 		if *forceOverwrite {
 			fmt.Println("force-overwrite flag provided, continuing by overwritting target...")
