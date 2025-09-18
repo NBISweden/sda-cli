@@ -137,7 +137,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 			config.SecretKey,
 			config.AccessToken,
 		)),
-		awsConfig.WithRegion("us-west-2"),
+		awsConfig.WithRegion("us-east-1"),
 		awsConfig.WithBaseEndpoint(config.HostBase),
 	)
 	if err != nil {
