@@ -147,6 +147,8 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 	s3Client := s3.NewFromConfig(awsConfig, func(o *s3.Options) {
 		o.UsePathStyle = true
 		o.EndpointOptions.DisableHTTPS = !config.UseHTTPS
+		o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
+		o.ResponseChecksumValidation = aws.ResponseChecksumValidationWhenRequired
 	})
 
 	// Create an uploader with the session and default options
