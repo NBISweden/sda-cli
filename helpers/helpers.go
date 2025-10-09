@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"net/mail"
@@ -26,13 +25,8 @@ import (
 	"github.com/golang-jwt/jwt"
 	"github.com/manifoldco/promptui"
 	"github.com/neicnordic/crypt4gh/keys"
-	"golang.org/x/exp/slices"
 	"gopkg.in/ini.v1"
 )
-
-//
-// Helper functions used by more than one module
-//
 
 // FileExists checks if a file exists in the file system. Note that this
 // function will not check if the file is readable, or if the file is a
@@ -66,29 +60,6 @@ func FileIsReadable(filename string) bool {
 	return err == nil
 }
 
-// FormatSubcommandUsage moves the lines in the standard usage strings around so
-// that the usage string is indented under the help text instead of above it.
-func FormatSubcommandUsage(usageString string) string {
-	// check that there's a formatting thing for os.Args[0]
-	if !strings.Contains(usageString, "%s") && !strings.Contains(usageString, "%v") {
-		return usageString
-	}
-
-	// format usage string with command name
-	usageString = fmt.Sprintf(usageString, os.Args[0])
-
-	// break string into lines
-	lines := strings.Split(strings.TrimSpace(usageString), "\n")
-	if len(lines) < 2 || !strings.HasPrefix(lines[0], "USAGE:") {
-		// if we don't have enough data, just return the usage string as is
-		return usageString
-	}
-	// reformat lines
-	usage := lines[0]
-
-	return fmt.Sprintf("\n%s\n\n    %s\n\n", strings.Join(lines[2:], "\n"), usage)
-}
-
 // PromptPassword creates a user prompt for inputting passwords, where all
 // characters are masked with "*"
 func PromptPassword(message string) (password string, err error) {
@@ -120,65 +91,6 @@ func ParseS3ErrorResponse(respBody io.Reader) (string, error) {
 
 	return fmt.Sprintf("%+v", xmlErrorResponse), nil
 }
-
-// Removes all positional arguments from args, and returns them.
-// This function assumes that all flags have exactly one value.
-func getPositional(args []string) ([]string, []string) {
-	argList := []string{
-		"-r",
-		"--r",
-		"--force-overwrite",
-		"-force-overwrite",
-		"--force-unencrypted",
-		"-force-unencrypted",
-		"--dataset",
-		"--datasets",
-		"--recursive",
-		"--from-file",
-		"--clean",
-		"-clean",
-		"--continue",
-		"-continue",
-	}
-	i := 1
-	var positional []string
-	for i < len(args) {
-		switch {
-		case slices.Contains(argList, args[i]):
-			// if the current args is a boolean flag, skip it
-			i++
-		case args[i][0] == '-':
-			// if the current arg is a flag, skip the flag and its value
-			i += 2
-		default:
-			// if the current arg is positional, remove it and add it to
-			// `positional`
-			positional = append(positional, args[i])
-			args = append(args[:i], args[i+1:]...)
-		}
-	}
-
-	return positional, args
-}
-
-func ParseArgs(args []string, argFlags *flag.FlagSet) error {
-	var pos []string
-	pos, args = getPositional(args)
-	// append positional args back at the end of args
-	args = append(args, pos...)
-	for _, item := range args {
-		if item == "-config" || item == "--config" {
-			return fmt.Errorf("the config flag should come before the subcommand. Eg 'sda-cli -config s3cfg %s'", argFlags.Name())
-		}
-	}
-	err := argFlags.Parse(args[1:])
-
-	return err
-}
-
-//
-// shared structs
-//
 
 // struct type to keep track of infiles and outfiles for encryption and
 // decryption
