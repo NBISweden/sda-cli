@@ -20,7 +20,6 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/vbauerster/mpb/v8 v8.10.2
 	go.nhat.io/cookiejar v0.3.0
-	golang.org/x/exp v0.0.0-20250711185948-6ae5c78190dc
 	golang.org/x/net v0.46.0
 	gopkg.in/ini.v1 v1.67.0
 )
