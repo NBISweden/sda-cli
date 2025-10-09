@@ -30,7 +30,7 @@ var loginCmd = &cobra.Command{
 	Long:  "Authenticates the user towards the Sensitive Data Archive (SDA) using a specified login target",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
-			return errors.New("atleast one login-target is needed")
+			return errors.New("at least one login-target is needed")
 		}
 		if len(args) > 1 {
 			return fmt.Errorf("too many arguments supplied, need 1, got: (%d) : %s", len(args), strings.Join(args, ", "))
