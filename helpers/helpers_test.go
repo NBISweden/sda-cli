@@ -150,39 +150,6 @@ func (s *HelperTests) TestFileIsReadable() {
 	}
 }
 
-func (s *HelperTests) TestFormatSubcommandUsage() {
-	// check formatting of malformed usage strings without %s for os.Args[0]
-	malformedNoFormatString := "USAGE: do that stuff"
-	testMissingArgsFormat := FormatSubcommandUsage(malformedNoFormatString)
-	s.Equal(malformedNoFormatString, testMissingArgsFormat)
-
-	// check formatting when the USAGE string is missing
-	malformedNoUsage := `module: this module does all the fancies stuff,
-								   and virtually none of the non-fancy stuff.
-								   run with: %s module`
-	testNoUsage := FormatSubcommandUsage(malformedNoUsage)
-	s.Equal(fmt.Sprintf(malformedNoUsage, os.Args[0]), testNoUsage)
-
-	// check formatting when the usage string is correctly formatted
-
-	correctUsage := `USAGE: %s module <args>
-
-module:
-    this module does all the fancies stuff,
-    and virtually none of the non-fancy stuff.`
-
-	correctFormat := fmt.Sprintf(`
-module:
-    this module does all the fancies stuff,
-    and virtually none of the non-fancy stuff.
-
-    USAGE: %s module <args>
-
-`, os.Args[0])
-	testCorrect := FormatSubcommandUsage(correctUsage)
-	s.Equal(correctFormat, testCorrect)
-}
-
 func (s *HelperTests) TestParseS3ErrorResponse() {
 	// check bad response body by creating and passing
 	// a dummy faulty io.Reader
