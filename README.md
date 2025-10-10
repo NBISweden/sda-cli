@@ -378,13 +378,6 @@ output folder, use the `-outdir` flag. Additionally, if `<filepath>` includes a
 nested folder structure, the original directory hierarchy will be preserved
 during the download process.
 
-#### Using file IDs
-
-Downloading specific files by their file IDs follows the same syntax as
-downloading files by file paths. The only difference is that you replace the
-file paths with their corresponding file IDs. Ensure that the file IDs do not
-contain slashes (`/`).
-
 ### Download files recursively
 
 To download the contents of a folder, including all subfolders, use the
