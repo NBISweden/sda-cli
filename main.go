@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/NBISweden/sda-cli/cmd"
@@ -19,7 +18,6 @@ import (
 func main() {
 	err := cmd.Execute()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error:", err)
-		os.Exit(1)
+		os.Exit(0)
 	}
 }
