@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -472,5 +474,90 @@ func (suite *DownloadTestSuite) TestGetBodyWithPublicKey() {
 	expectedBody := "test response"
 	if string(body) != expectedBody {
 		suite.T().Errorf("getBody returned incorrect response body, got: %s, want: %s", string(body), expectedBody)
+	}
+}
+func (suite *DownloadTestSuite) TestSetupCookiejar() {
+	pwdCookie, _ := filepath.Abs(".sda_cookie")
+	for _, test := range []struct {
+		cachePath     string
+		cookiePath    string
+		cookieString  string
+		createCookie  bool
+		expectedError error
+		testName      string
+	}{
+		{
+			cachePath:    suite.tempDir,
+			cookiePath:   filepath.Join(suite.tempDir, ".cache/sda-cli/sda_cookie"),
+			cookieString: "",
+			createCookie: false,
+			testName:     "cookie_file_doesn't_exist",
+		},
+		{
+			cachePath:    "",
+			cookiePath:   pwdCookie,
+			cookieString: "[{\"Name\":\"test-cookie\", \"Value\":\"current_dir_cookie\"}]",
+			createCookie: true,
+			testName:     "current_dir_cookie",
+		},
+		{
+			cachePath:    suite.tempDir,
+			cookiePath:   filepath.Join(suite.tempDir, ".cache/sda-cli/sda_cookie"),
+			cookieString: "[{\"Name\":\"test-cookie\", \"Value\":\"cache_path_cookie\"}]",
+			createCookie: true,
+			testName:     "cache_path_cookie",
+		},
+		{
+			cachePath:    suite.tempDir,
+			cookiePath:   filepath.Join(suite.tempDir, ".cache/sda-cli/sda_cookie"),
+			cookieString: "[{\"Name\":\"test-cookie\", \"Value\":\"test-data\",\"Domain\":\"example.org\"}]",
+			createCookie: true,
+			testName:     "wrong_domain",
+		},
+		{
+			cachePath:    suite.tempDir,
+			cookiePath:   filepath.Join(suite.tempDir, ".cache/sda-cli/sda_cookie"),
+			cookieString: "[{\"Name\":\"test-cookie\", \"Value\":\"test-data\",\"Expires\":\"2001-01-01T00:00:00Z\"}]",
+			createCookie: true,
+			testName:     "expired",
+		},
+		{
+			cachePath:    suite.tempDir,
+			cookiePath:   filepath.Join(suite.tempDir, ".cache/sda-cli/sda_cookie"),
+			cookieString: "[{\"Name\":\"test-cookie\", \"Value\":\"not_expired_cookie\",\"Expires\":\"2026-01-01T00:00:00Z\",\"MaxAge\":0}]",
+			createCookie: true,
+			testName:     "not_expired_cookie",
+		},
+		{
+			cachePath:    suite.tempDir,
+			cookiePath:   filepath.Join(suite.tempDir, ".cache/sda-cli/sda_cookie"),
+			cookieString: "[{\"Name\":\"test-cookie\", \"Value\":\"max-age_cookie\",\"Expires\":\"0001-01-01T00:00:00Z\",\"MaxAge\":300}]",
+			createCookie: true,
+			testName:     "max-age_cookie",
+		},
+	} {
+		suite.T().Run(test.testName, func(t *testing.T) {
+			os.Setenv("HOME", test.cachePath)
+			if test.createCookie {
+				cookieFile, _ := filepath.Abs(test.cookiePath)
+				if err := os.WriteFile(cookieFile, []byte(test.cookieString), 0600); err != nil {
+					fmt.Fprintln(os.Stderr, "failed to save cookie file ", err.Error())
+				}
+			}
+
+			u, _ := url.Parse(suite.httpTestServer.URL)
+			setupCookieJar(u)
+			assert.Equal(t, test.cookiePath, cookiePath)
+			cj := cookieJar.Cookies(u)
+
+			if strings.HasSuffix(test.testName, "cookie") {
+				assert.Equal(t, "test-cookie", cj[0].Name)
+				assert.Equal(t, test.testName, cj[0].Value)
+				assert.Equal(t, "0001-01-01T00:00:00Z", cj[0].Expires.Format(time.RFC3339))
+				_ = os.Remove(cookiePath)
+			} else {
+				assert.Nil(t, cj)
+			}
+		})
 	}
 }

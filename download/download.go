@@ -17,6 +17,8 @@ import (
 	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
+	"go.nhat.io/cookiejar"
+	"golang.org/x/net/publicsuffix"
 )
 
 // Help text and command line flags.
@@ -80,6 +82,9 @@ var fromFile = Args.Bool("from-file", false, "Download files from file list.")
 var pubKeyBase64 string
 
 var continueDownload = Args.Bool("continue", false, "Skip existing files and continue with the rest.")
+
+var cookieJar *cookiejar.PersistentJar
+var cookiePath string
 
 // File struct represents the file metadata
 type File struct {
@@ -508,4 +513,34 @@ func GetURLsFile(urlsFilePath string) (urlsList []string, err error) {
 	}
 
 	return urlsList, scanner.Err()
+}
+
+func setupCookieJar(u *url.URL) {
+	if cd, err := os.UserCacheDir(); err != nil {
+		fmt.Fprintln(os.Stderr, "cache dir not set, using current dir")
+		cookiePath, _ = filepath.Abs(".sda_cookie")
+	} else {
+		if err := os.MkdirAll(filepath.Join(cd, "sda-cli"), 0750); err != nil {
+			fmt.Fprintln(os.Stderr, "failed to create cache dir, using current dir")
+			cookiePath, _ = filepath.Abs(".sda_cookie")
+		} else {
+			cookiePath = filepath.Join(cd, "sda-cli/sda_cookie")
+		}
+	}
+	cookieJar = cookiejar.NewPersistentJar(
+		cookiejar.WithFilePath(cookiePath),
+		cookiejar.WithAutoSync(true),
+		cookiejar.WithPublicSuffixList(publicsuffix.List),
+	)
+	if _, err := os.Stat(cookiePath); err == nil {
+		cookieString, err := os.ReadFile(cookiePath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to read cookie file: %s", err.Error())
+		}
+
+		var parsedCookies []*http.Cookie
+		if err := json.Unmarshal(cookieString, &parsedCookies); err == nil && len(parsedCookies) > 0 {
+			cookieJar.SetCookies(u, parsedCookies)
+		}
+	}
 }
