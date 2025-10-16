@@ -115,6 +115,13 @@ func Download(args []string, configPath string) error {
 		return fmt.Errorf("missing required arguments, dataset-id, config and url are required")
 	}
 
+	// set up the cookie jar
+	u, err := url.Parse(*URL)
+	if err != nil || u.Scheme == "" {
+		return errors.New("invalid base URL")
+	}
+	setupCookieJar(u)
+
 	// Check if both -recursive and -dataset flags are set
 	if *recursiveDownload && *datasetdownload {
 		return fmt.Errorf("both -recursive and -dataset flags are set, choose one of them")
@@ -418,6 +425,10 @@ func GetDatasets(baseURL, token string) ([]string, error) {
 	if err != nil || u.Scheme == "" {
 		return []string{}, fmt.Errorf("invalid base URL")
 	}
+
+	// set up the cookie jar
+	setupCookieJar(u)
+
 	// Make the url for listing datasets
 	datasetsURL := baseURL + "/metadata/datasets"
 	// Get the response body from the datasets API
@@ -442,6 +453,10 @@ func GetFilesInfo(baseURL, dataset, pubKeyBase64, token string) ([]File, error) 
 	if err != nil || u.Scheme == "" {
 		return []File{}, fmt.Errorf("invalid base URL")
 	}
+
+	// set up the cookie jar
+	setupCookieJar(u)
+
 	// Make the url for listing files
 	filesURL := baseURL + "/metadata/datasets/" + dataset + "/files"
 	// Get the response body from the files API
@@ -473,8 +488,7 @@ func getBody(url, token, pubKeyBase64 string) ([]byte, error) {
 		req.Header.Add("Client-Public-Key", pubKeyBase64)
 	}
 
-	// Send the request
-	client := &http.Client{}
+	client := &http.Client{Jar: cookieJar}
 	res, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get response, reason: %v", err)
