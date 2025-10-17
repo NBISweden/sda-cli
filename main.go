@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	createKey "github.com/NBISweden/sda-cli/create_key"
+	createkey "github.com/NBISweden/sda-cli/create_key"
 	"github.com/NBISweden/sda-cli/decrypt"
 	"github.com/NBISweden/sda-cli/download"
 	"github.com/NBISweden/sda-cli/encrypt"
@@ -55,7 +55,7 @@ type commandInfo struct {
 
 var Commands = map[string]commandInfo{
 	"encrypt":   {encrypt.Args, encrypt.Usage},
-	"createKey": {createKey.Args, createKey.Usage},
+	"createKey": {createkey.Args, createkey.Usage},
 	"decrypt":   {decrypt.Args, decrypt.Usage},
 	"upload":    {upload.Args, upload.Usage},
 	"list":      {list.Args, list.Usage},
@@ -67,7 +67,6 @@ var Commands = map[string]commandInfo{
 
 // Main does argument parsing, then delegates to one of the sub modules
 func main() {
-
 	command, args, configPath := ParseArgs()
 
 	var err error
@@ -76,7 +75,7 @@ func main() {
 	case "encrypt":
 		err = encrypt.Encrypt(args)
 	case "createkey", "createKey", "create-key":
-		err = createKey.CreateKey(args)
+		err = createkey.CreateKey(args)
 	case "decrypt":
 		err = decrypt.Decrypt(args)
 	case "upload":
@@ -113,7 +112,7 @@ func ParseArgs() (string, []string, string) {
 		os.Exit(1)
 	}
 
-	switch os.Args[1] {
+	switch os.Args[1] { // nolint:revive
 	case "version", "-v", "-version", "--version":
 		if len(os.Args) != 2 {
 			_ = Help("version")
@@ -123,7 +122,7 @@ func ParseArgs() (string, []string, string) {
 		return "version", os.Args, ""
 	case "--config", "-config":
 		if len(os.Args) < 3 {
-			fmt.Fprintf(os.Stderr, "Error: --config requires an argument\n")
+			fmt.Fprintln(os.Stderr, "Error: --config requires an argument")
 			os.Exit(1)
 		}
 		configPath = os.Args[2]
@@ -133,7 +132,7 @@ func ParseArgs() (string, []string, string) {
 	// Extract the command from the 1st argument, then remove it
 	// from list of arguments.
 	if len(os.Args) < 2 {
-		fmt.Fprintf(os.Stderr, "Error: no command given\n")
+		fmt.Fprintln(os.Stderr, "Error: no command given")
 		os.Exit(1)
 	}
 	command := os.Args[1]
@@ -142,7 +141,7 @@ func ParseArgs() (string, []string, string) {
 	// If the command is "help-like", we print the help text and
 	// exit.  Let the Help function whether to exit with status zero
 	// or one depending on whether the subcommand is valid or not.
-	switch command {
+	switch command { // nolint:revive
 	case "help", "-h", "-help", "--help":
 		var subcommand string
 
@@ -157,7 +156,6 @@ func ParseArgs() (string, []string, string) {
 			os.Exit(1)
 		}
 		os.Exit(0)
-
 	}
 
 	// The "list" command can have no arguments since it can use the
