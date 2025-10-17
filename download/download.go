@@ -114,7 +114,7 @@ func Download(args []string, configPath, version string) error {
 	}
 
 	if *datasetID == "" || *URL == "" || configPath == "" {
-		return fmt.Errorf("missing required arguments, dataset-id, config and url are required")
+		return errors.New("missing required arguments, dataset-id, config and url are required")
 	}
 
 	// set up the cookie jar
@@ -126,28 +126,28 @@ func Download(args []string, configPath, version string) error {
 
 	// Check if both -recursive and -dataset flags are set
 	if *recursiveDownload && *datasetdownload {
-		return fmt.Errorf("both -recursive and -dataset flags are set, choose one of them")
+		return errors.New("both -recursive and -dataset flags are set, choose one of them")
 	}
 
 	// Check that file(s) are not missing if the -dataset flag is not set
 	if len(Args.Args()) == 0 && !*datasetdownload {
 		if !*recursiveDownload {
-			return fmt.Errorf("no files provided for download")
+			return errors.New("no files provided for download")
 		}
 
-		return fmt.Errorf("no folders provided for recursive download")
+		return errors.New("no folders provided for recursive download")
 	}
 
 	// Check if -dataset flag is set and files are provided
 	if *datasetdownload && len(Args.Args()) > 0 {
-		return fmt.Errorf(
+		return errors.New(
 			"files provided with -dataset flag, add either the flag or the file(s), not both",
 		)
 	}
 
 	// Check if -from-file flag is set and only one file is provided
 	if *fromFile && len(Args.Args()) != 1 {
-		return fmt.Errorf(
+		return errors.New(
 			"one file should be provided with the -from-file flag",
 		)
 	}
@@ -333,7 +333,7 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 
 	// Create the directory if it does not exist
 	fileDir := filepath.Dir(filePath)
-	err = os.MkdirAll(fileDir, os.ModePerm)
+	err = os.MkdirAll(fileDir, 0750)
 	if err != nil {
 		return fmt.Errorf("failed to create directory, reason: %v", err)
 	}
@@ -416,9 +416,9 @@ func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (strin
 	}
 
 	fileName := helpers.AnonymizeFilepath(datasetFiles[idx].FilePath)
-	url := baseURL + "/s3/" + dataset + "/" + fileName
+	fileURL := baseURL + "/s3/" + dataset + "/" + fileName
 
-	return url, fileName, nil
+	return fileURL, fileName, nil
 }
 
 func GetDatasets(baseURL, token, version string) ([]string, error) {
@@ -426,7 +426,7 @@ func GetDatasets(baseURL, token, version string) ([]string, error) {
 	// Sanitize the base_url
 	u, err := url.ParseRequestURI(baseURL)
 	if err != nil || u.Scheme == "" {
-		return []string{}, fmt.Errorf("invalid base URL")
+		return []string{}, errors.New("invalid base URL")
 	}
 
 	// set up the cookie jar
@@ -455,7 +455,7 @@ func GetFilesInfo(baseURL, dataset, pubKeyBase64, token, version string) ([]File
 	// Sanitize the base_url
 	u, err := url.ParseRequestURI(baseURL)
 	if err != nil || u.Scheme == "" {
-		return []File{}, fmt.Errorf("invalid base URL")
+		return []File{}, errors.New("invalid base URL")
 	}
 
 	// set up the cookie jar
@@ -479,8 +479,8 @@ func GetFilesInfo(baseURL, dataset, pubKeyBase64, token, version string) ([]File
 }
 
 // getBody gets the body of the response from the URL
-func getBody(url, token, pubKeyBase64 string) ([]byte, error) {
-	req, err := http.NewRequest("GET", url, nil)
+func getBody(requestURL, token, pubKeyBase64 string) ([]byte, error) {
+	req, err := http.NewRequest("GET", requestURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request, reason: %v", err)
 	}
@@ -528,7 +528,7 @@ func GetURLsFile(urlsFilePath string) (urlsList []string, err error) {
 		urlsList = append(urlsList, scanner.Text())
 	}
 	if len(urlsList) == 0 {
-		return urlsList, fmt.Errorf("failed to get list of files, empty file")
+		return urlsList, errors.New("failed to get list of files, empty file")
 	}
 
 	return urlsList, scanner.Err()
