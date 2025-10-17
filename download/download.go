@@ -85,6 +85,7 @@ var continueDownload = Args.Bool("continue", false, "Skip existing files and con
 
 var cookieJar *cookiejar.PersistentJar
 var cookiePath string
+var appVersion string
 
 // File struct represents the file metadata
 type File struct {
@@ -104,7 +105,8 @@ type File struct {
 
 // Download function downloads files from the SDA by using the
 // download's service APIs
-func Download(args []string, configPath string) error {
+func Download(args []string, configPath, version string) error {
+	appVersion = version
 	// Call ParseArgs to take care of all the flag parsing
 	err := helpers.ParseArgs(args, Args)
 	if err != nil {
@@ -204,7 +206,7 @@ func Download(args []string, configPath string) error {
 
 func datasetCase(token string) error {
 	fmt.Println("Downloading all files in the dataset")
-	files, err := GetFilesInfo(*URL, *datasetID, "", token)
+	files, err := GetFilesInfo(*URL, *datasetID, "", token, appVersion)
 	if err != nil {
 		return err
 	}
@@ -228,7 +230,7 @@ func datasetCase(token string) error {
 func recursiveCase(token string) error {
 	fmt.Println("Downloading content of the path(s)")
 	// get all the files of the dataset
-	files, err := GetFilesInfo(*URL, *datasetID, "", token)
+	files, err := GetFilesInfo(*URL, *datasetID, "", token, appVersion)
 	if err != nil {
 		return err
 	}
@@ -385,7 +387,7 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 // and returns the download URL for the file and the filepath from the API response
 func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (string, string, error) {
 	// Get the files of the dataset
-	datasetFiles, err := GetFilesInfo(baseURL, dataset, pubKeyBase64, token)
+	datasetFiles, err := GetFilesInfo(baseURL, dataset, pubKeyBase64, token, appVersion)
 	if err != nil {
 		return "", "", err
 	}
@@ -419,7 +421,8 @@ func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (strin
 	return url, fileName, nil
 }
 
-func GetDatasets(baseURL, token string) ([]string, error) {
+func GetDatasets(baseURL, token, version string) ([]string, error) {
+	appVersion = version
 	// Sanitize the base_url
 	u, err := url.ParseRequestURI(baseURL)
 	if err != nil || u.Scheme == "" {
@@ -447,7 +450,8 @@ func GetDatasets(baseURL, token string) ([]string, error) {
 }
 
 // GetFilesInfo gets the files of the dataset by using the dataset ID
-func GetFilesInfo(baseURL, dataset, pubKeyBase64, token string) ([]File, error) {
+func GetFilesInfo(baseURL, dataset, pubKeyBase64, token, version string) ([]File, error) {
+	appVersion = version
 	// Sanitize the base_url
 	u, err := url.ParseRequestURI(baseURL)
 	if err != nil || u.Scheme == "" {
@@ -482,6 +486,7 @@ func getBody(url, token, pubKeyBase64 string) ([]byte, error) {
 	}
 
 	// Add headers
+	req.Header.Add("SDA-Client-Version", appVersion)
 	req.Header.Add("Authorization", "Bearer "+token)
 	req.Header.Add("Content-Type", "application/json")
 	if pubKeyBase64 != "" {

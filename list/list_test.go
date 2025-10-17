@@ -170,7 +170,7 @@ func (suite *ListTestSuite) SetupTest() {
 }
 
 func (suite *ListTestSuite) TestListNoConfig() {
-	assert.EqualError(suite.T(), List([]string{"list"}, ""), "failed to load config file, reason: failed to read the configuration file")
+	assert.EqualError(suite.T(), List([]string{"list"}, "", "test-version"), "failed to load config file, reason: failed to read the configuration file")
 }
 
 func (suite *ListTestSuite) TestListFiles() {
@@ -182,7 +182,7 @@ func (suite *ListTestSuite) TestListFiles() {
 	errR, errW, _ := os.Pipe()
 	os.Stderr = errW
 
-	err := List([]string{"list"}, suite.configPath)
+	err := List([]string{"list"}, suite.configPath, "test-version")
 	assert.NoError(suite.T(), err)
 
 	_ = w.Close()
@@ -207,7 +207,7 @@ func (suite *ListTestSuite) TestListDatasets() {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	err := List([]string{"list", "-url", suite.downloadMockHTTPServer.URL, "-datasets"}, suite.configPath)
+	err := List([]string{"list", "-url", suite.downloadMockHTTPServer.URL, "-datasets"}, suite.configPath, "test-version")
 	assert.NoError(suite.T(), err)
 
 	_ = w.Close()
@@ -222,7 +222,7 @@ func (suite *ListTestSuite) TestListDataset() {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	err := List([]string{"list", "-url", suite.downloadMockHTTPServer.URL, "-dataset", "TES01"}, suite.configPath)
+	err := List([]string{"list", "-url", suite.downloadMockHTTPServer.URL, "-dataset", "TES01"}, suite.configPath, "test-version")
 	assert.NoError(suite.T(), err)
 
 	_ = w.Close()
@@ -233,11 +233,11 @@ func (suite *ListTestSuite) TestListDataset() {
 }
 
 func (suite *ListTestSuite) TestListDatasetNoUrl() {
-	err := List([]string{"list", "-dataset", "TES01"}, suite.configPath)
+	err := List([]string{"list", "-dataset", "TES01"}, suite.configPath, "test-version")
 	assert.EqualError(suite.T(), err, "invalid base URL")
 }
 func (suite *ListTestSuite) TestListDatasetsNoUrl() {
-	err := List([]string{"list", "-dataset", "TES01"}, suite.configPath)
+	err := List([]string{"list", "-dataset", "TES01"}, suite.configPath, "test-version")
 	assert.EqualError(suite.T(), err, "invalid base URL")
 }
 

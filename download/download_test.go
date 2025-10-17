@@ -154,7 +154,7 @@ func (suite *DownloadTestSuite) TestInvalidUrl() {
 		"https://some/url",
 		"file1",
 		"file2",
-	}, suite.configFilePath)
+	}, suite.configFilePath, "test-version")
 
 	assert.Contains(
 		suite.T(),
@@ -173,7 +173,7 @@ func (suite *DownloadTestSuite) TestDownloadOneFileNoPublicKey() {
 		"-outdir",
 		suite.tempDir,
 		"files/dummy-file.txt",
-	}, suite.configFilePath); err != nil {
+	}, suite.configFilePath, "test-version"); err != nil {
 		suite.FailNow("unexpected error from Download", err)
 	}
 
@@ -197,7 +197,7 @@ func (suite *DownloadTestSuite) TestDownloadMultipleFilesNoPublicKey() {
 		"files/dummy-file.txt",
 		"files/file1",
 		"files/file2",
-	}, suite.configFilePath); err != nil {
+	}, suite.configFilePath, "test-version"); err != nil {
 		suite.FailNow("unexpected error from Download", err)
 	}
 
@@ -240,7 +240,7 @@ func (suite *DownloadTestSuite) TestDownloadOneFileWithPublicKey() {
 		"-outdir",
 		suite.tempDir,
 		"files/dummy-file.txt",
-	}, suite.configFilePath); err != nil {
+	}, suite.configFilePath, "test-version"); err != nil {
 		suite.FailNow("unexpected error from Download", err)
 	}
 
@@ -272,7 +272,7 @@ func (suite *DownloadTestSuite) TestDownloadFileAlreadyExistsWithContinue() {
 		suite.tempDir,
 		"-continue",
 		"files/dummy-file.txt",
-	}, suite.configFilePath); err != nil {
+	}, suite.configFilePath, "test-version"); err != nil {
 		suite.FailNow("unexpected error from Download", err)
 	}
 
@@ -294,7 +294,7 @@ func (suite *DownloadTestSuite) TestDownloadDataset() {
 		"-outdir",
 		suite.tempDir,
 		"-dataset",
-	}, suite.configFilePath); err != nil {
+	}, suite.configFilePath, "test-version"); err != nil {
 		suite.FailNow("unexpected error from Download", err)
 	}
 
@@ -331,7 +331,7 @@ func (suite *DownloadTestSuite) TestDownloadRecursive() {
 		suite.tempDir,
 		"-recursive",
 		"files/",
-	}, suite.configFilePath); err != nil {
+	}, suite.configFilePath, "test-version"); err != nil {
 		suite.FailNow("unexpected error from Download", err)
 	}
 
@@ -379,7 +379,7 @@ func generateDummyToken(t *testing.T) string {
 }
 
 func (suite *DownloadTestSuite) TestGetFilesInfo() {
-	files, err := GetFilesInfo(suite.httpTestServer.URL, "TES01", "", suite.accessToken)
+	files, err := GetFilesInfo(suite.httpTestServer.URL, "TES01", "", suite.accessToken, "test-version")
 	require.NoError(suite.T(), err)
 	require.Len(suite.T(), files, 3)
 	assert.Equal(suite.T(), "file1id", files[0].FileID)
@@ -445,7 +445,7 @@ func (suite *DownloadTestSuite) TestFileIdUrl() {
 
 func (suite *DownloadTestSuite) TestGetDatasets() {
 	// Test
-	datasets, err := GetDatasets(suite.httpTestServer.URL, suite.accessToken)
+	datasets, err := GetDatasets(suite.httpTestServer.URL, suite.accessToken, "test-version")
 	require.NoError(suite.T(), err)
 	assert.Equal(suite.T(), datasets, []string{"https://doi.example/ty009.sfrrss/600.45asasga"})
 }

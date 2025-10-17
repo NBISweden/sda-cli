@@ -51,8 +51,11 @@ var bytesFormat = Args.Bool("bytes", false, "Print file sizes in bytes (not huma
 
 var dataset = Args.String("dataset", "", "List all files in the specified dataset.")
 
+var appVersion string
+
 // List function lists the contents of an s3
-func List(args []string, configPath string) error {
+func List(args []string, configPath, version string) error {
+	appVersion = version
 	// Call ParseArgs to take care of all the flag parsing
 	err := helpers.ParseArgs(args, Args)
 	if err != nil {
@@ -112,7 +115,7 @@ func List(args []string, configPath string) error {
 }
 
 func DatasetFiles(token string) error {
-	files, err := download.GetFilesInfo(*URL, *dataset, "", token)
+	files, err := download.GetFilesInfo(*URL, *dataset, "", token, appVersion)
 	if err != nil {
 		return err
 	}
@@ -139,14 +142,14 @@ func formatedBytes(size int) string {
 }
 
 func Datasets(token string) error {
-	datasets, err := download.GetDatasets(*URL, token)
+	datasets, err := download.GetDatasets(*URL, token, appVersion)
 	if err != nil {
 		return err
 	}
 
 	// Loop through the datasets and list them
 	for _, dataset := range datasets {
-		files, err := download.GetFilesInfo(*URL, dataset, "", token)
+		files, err := download.GetFilesInfo(*URL, dataset, "", token, appVersion)
 		if err != nil {
 			return err
 		}

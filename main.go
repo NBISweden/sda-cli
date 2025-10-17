@@ -82,13 +82,13 @@ func main() {
 	case "upload":
 		err = upload.Upload(args, configPath)
 	case "list":
-		err = list.List(args, configPath)
+		err = list.List(args, configPath, Version)
 	case "htsget":
 		err = htsget.Htsget(args, configPath)
 	case "login":
 		err = login.NewLogin(args)
 	case "download":
-		err = download.Download(args, configPath)
+		err = download.Download(args, configPath, Version)
 	case "version":
 		err = version.Version(Version)
 	default:
