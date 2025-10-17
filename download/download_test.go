@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -477,6 +478,10 @@ func (suite *DownloadTestSuite) TestGetBodyWithPublicKey() {
 	}
 }
 func (suite *DownloadTestSuite) TestSetupCookiejar() {
+	testCookie := filepath.Join(suite.tempDir, ".cache/sda-cli/sda_cookie")
+	if runtime.GOOS == "windows" {
+		testCookie = filepath.Join(suite.tempDir, "sda-cli/sda_cookie")
+	}
 	pwdCookie, _ := filepath.Abs(".sda_cookie")
 	for _, test := range []struct {
 		cachePath     string
@@ -488,7 +493,7 @@ func (suite *DownloadTestSuite) TestSetupCookiejar() {
 	}{
 		{
 			cachePath:    suite.tempDir,
-			cookiePath:   filepath.Join(suite.tempDir, ".cache/sda-cli/sda_cookie"),
+			cookiePath:   testCookie,
 			cookieString: "",
 			createCookie: false,
 			testName:     "cookie_file_doesn't_exist",
@@ -502,42 +507,46 @@ func (suite *DownloadTestSuite) TestSetupCookiejar() {
 		},
 		{
 			cachePath:    suite.tempDir,
-			cookiePath:   filepath.Join(suite.tempDir, ".cache/sda-cli/sda_cookie"),
+			cookiePath:   testCookie,
 			cookieString: "[{\"Name\":\"test-cookie\", \"Value\":\"cache_path_cookie\"}]",
 			createCookie: true,
 			testName:     "cache_path_cookie",
 		},
 		{
 			cachePath:    suite.tempDir,
-			cookiePath:   filepath.Join(suite.tempDir, ".cache/sda-cli/sda_cookie"),
+			cookiePath:   testCookie,
 			cookieString: "[{\"Name\":\"test-cookie\", \"Value\":\"test-data\",\"Domain\":\"example.org\"}]",
 			createCookie: true,
 			testName:     "wrong_domain",
 		},
 		{
 			cachePath:    suite.tempDir,
-			cookiePath:   filepath.Join(suite.tempDir, ".cache/sda-cli/sda_cookie"),
+			cookiePath:   testCookie,
 			cookieString: "[{\"Name\":\"test-cookie\", \"Value\":\"test-data\",\"Expires\":\"2001-01-01T00:00:00Z\"}]",
 			createCookie: true,
 			testName:     "expired",
 		},
 		{
 			cachePath:    suite.tempDir,
-			cookiePath:   filepath.Join(suite.tempDir, ".cache/sda-cli/sda_cookie"),
+			cookiePath:   testCookie,
 			cookieString: "[{\"Name\":\"test-cookie\", \"Value\":\"not_expired_cookie\",\"Expires\":\"2026-01-01T00:00:00Z\",\"MaxAge\":0}]",
 			createCookie: true,
 			testName:     "not_expired_cookie",
 		},
 		{
 			cachePath:    suite.tempDir,
-			cookiePath:   filepath.Join(suite.tempDir, ".cache/sda-cli/sda_cookie"),
+			cookiePath:   testCookie,
 			cookieString: "[{\"Name\":\"test-cookie\", \"Value\":\"max-age_cookie\",\"Expires\":\"0001-01-01T00:00:00Z\",\"MaxAge\":300}]",
 			createCookie: true,
 			testName:     "max-age_cookie",
 		},
 	} {
 		suite.T().Run(test.testName, func(t *testing.T) {
-			os.Setenv("HOME", test.cachePath)
+			if runtime.GOOS == "windows" {
+				os.Setenv("LocalAppData", test.cachePath)
+			} else {
+				os.Setenv("HOME", test.cachePath)
+			}
 			if test.createCookie {
 				cookieFile, _ := filepath.Abs(test.cookiePath)
 				if err := os.WriteFile(cookieFile, []byte(test.cookieString), 0600); err != nil {
