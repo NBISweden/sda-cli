@@ -17,6 +17,8 @@ import (
 	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
+	"go.nhat.io/cookiejar"
+	"golang.org/x/net/publicsuffix"
 )
 
 // Help text and command line flags.
@@ -81,6 +83,10 @@ var pubKeyBase64 string
 
 var continueDownload = Args.Bool("continue", false, "Skip existing files and continue with the rest.")
 
+var cookieJar *cookiejar.PersistentJar
+var cookiePath string
+var appVersion string
+
 // File struct represents the file metadata
 type File struct {
 	FileID                    string `json:"fileId"`
@@ -99,7 +105,8 @@ type File struct {
 
 // Download function downloads files from the SDA by using the
 // download's service APIs
-func Download(args []string, configPath string) error {
+func Download(args []string, configPath, version string) error {
+	appVersion = version
 	// Call ParseArgs to take care of all the flag parsing
 	err := helpers.ParseArgs(args, Args)
 	if err != nil {
@@ -107,33 +114,40 @@ func Download(args []string, configPath string) error {
 	}
 
 	if *datasetID == "" || *URL == "" || configPath == "" {
-		return fmt.Errorf("missing required arguments, dataset-id, config and url are required")
+		return errors.New("missing required arguments, dataset-id, config and url are required")
 	}
+
+	// set up the cookie jar
+	u, err := url.Parse(*URL)
+	if err != nil || u.Scheme == "" {
+		return errors.New("invalid base URL")
+	}
+	setupCookieJar(u)
 
 	// Check if both -recursive and -dataset flags are set
 	if *recursiveDownload && *datasetdownload {
-		return fmt.Errorf("both -recursive and -dataset flags are set, choose one of them")
+		return errors.New("both -recursive and -dataset flags are set, choose one of them")
 	}
 
 	// Check that file(s) are not missing if the -dataset flag is not set
 	if len(Args.Args()) == 0 && !*datasetdownload {
 		if !*recursiveDownload {
-			return fmt.Errorf("no files provided for download")
+			return errors.New("no files provided for download")
 		}
 
-		return fmt.Errorf("no folders provided for recursive download")
+		return errors.New("no folders provided for recursive download")
 	}
 
 	// Check if -dataset flag is set and files are provided
 	if *datasetdownload && len(Args.Args()) > 0 {
-		return fmt.Errorf(
+		return errors.New(
 			"files provided with -dataset flag, add either the flag or the file(s), not both",
 		)
 	}
 
 	// Check if -from-file flag is set and only one file is provided
 	if *fromFile && len(Args.Args()) != 1 {
-		return fmt.Errorf(
+		return errors.New(
 			"one file should be provided with the -from-file flag",
 		)
 	}
@@ -192,7 +206,7 @@ func Download(args []string, configPath string) error {
 
 func datasetCase(token string) error {
 	fmt.Println("Downloading all files in the dataset")
-	files, err := GetFilesInfo(*URL, *datasetID, "", token)
+	files, err := GetFilesInfo(*URL, *datasetID, "", token, appVersion)
 	if err != nil {
 		return err
 	}
@@ -216,7 +230,7 @@ func datasetCase(token string) error {
 func recursiveCase(token string) error {
 	fmt.Println("Downloading content of the path(s)")
 	// get all the files of the dataset
-	files, err := GetFilesInfo(*URL, *datasetID, "", token)
+	files, err := GetFilesInfo(*URL, *datasetID, "", token, appVersion)
 	if err != nil {
 		return err
 	}
@@ -319,7 +333,7 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 
 	// Create the directory if it does not exist
 	fileDir := filepath.Dir(filePath)
-	err = os.MkdirAll(fileDir, os.ModePerm)
+	err = os.MkdirAll(fileDir, 0750)
 	if err != nil {
 		return fmt.Errorf("failed to create directory, reason: %v", err)
 	}
@@ -373,7 +387,7 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 // and returns the download URL for the file and the filepath from the API response
 func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (string, string, error) {
 	// Get the files of the dataset
-	datasetFiles, err := GetFilesInfo(baseURL, dataset, pubKeyBase64, token)
+	datasetFiles, err := GetFilesInfo(baseURL, dataset, pubKeyBase64, token, appVersion)
 	if err != nil {
 		return "", "", err
 	}
@@ -402,17 +416,22 @@ func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (strin
 	}
 
 	fileName := helpers.AnonymizeFilepath(datasetFiles[idx].FilePath)
-	url := baseURL + "/s3/" + dataset + "/" + fileName
+	fileURL := baseURL + "/s3/" + dataset + "/" + fileName
 
-	return url, fileName, nil
+	return fileURL, fileName, nil
 }
 
-func GetDatasets(baseURL, token string) ([]string, error) {
+func GetDatasets(baseURL, token, version string) ([]string, error) {
+	appVersion = version
 	// Sanitize the base_url
 	u, err := url.ParseRequestURI(baseURL)
 	if err != nil || u.Scheme == "" {
-		return []string{}, fmt.Errorf("invalid base URL")
+		return []string{}, errors.New("invalid base URL")
 	}
+
+	// set up the cookie jar
+	setupCookieJar(u)
+
 	// Make the url for listing datasets
 	datasetsURL := baseURL + "/metadata/datasets"
 	// Get the response body from the datasets API
@@ -431,12 +450,17 @@ func GetDatasets(baseURL, token string) ([]string, error) {
 }
 
 // GetFilesInfo gets the files of the dataset by using the dataset ID
-func GetFilesInfo(baseURL, dataset, pubKeyBase64, token string) ([]File, error) {
+func GetFilesInfo(baseURL, dataset, pubKeyBase64, token, version string) ([]File, error) {
+	appVersion = version
 	// Sanitize the base_url
 	u, err := url.ParseRequestURI(baseURL)
 	if err != nil || u.Scheme == "" {
-		return []File{}, fmt.Errorf("invalid base URL")
+		return []File{}, errors.New("invalid base URL")
 	}
+
+	// set up the cookie jar
+	setupCookieJar(u)
+
 	// Make the url for listing files
 	filesURL := baseURL + "/metadata/datasets/" + dataset + "/files"
 	// Get the response body from the files API
@@ -455,21 +479,21 @@ func GetFilesInfo(baseURL, dataset, pubKeyBase64, token string) ([]File, error) 
 }
 
 // getBody gets the body of the response from the URL
-func getBody(url, token, pubKeyBase64 string) ([]byte, error) {
-	req, err := http.NewRequest("GET", url, nil)
+func getBody(requestURL, token, pubKeyBase64 string) ([]byte, error) {
+	req, err := http.NewRequest("GET", requestURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request, reason: %v", err)
 	}
 
 	// Add headers
+	req.Header.Add("SDA-Client-Version", appVersion)
 	req.Header.Add("Authorization", "Bearer "+token)
 	req.Header.Add("Content-Type", "application/json")
 	if pubKeyBase64 != "" {
 		req.Header.Add("Client-Public-Key", pubKeyBase64)
 	}
 
-	// Send the request
-	client := &http.Client{}
+	client := &http.Client{Jar: cookieJar}
 	res, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get response, reason: %v", err)
@@ -504,8 +528,38 @@ func GetURLsFile(urlsFilePath string) (urlsList []string, err error) {
 		urlsList = append(urlsList, scanner.Text())
 	}
 	if len(urlsList) == 0 {
-		return urlsList, fmt.Errorf("failed to get list of files, empty file")
+		return urlsList, errors.New("failed to get list of files, empty file")
 	}
 
 	return urlsList, scanner.Err()
+}
+
+func setupCookieJar(u *url.URL) {
+	if cd, err := os.UserCacheDir(); err != nil {
+		fmt.Fprintln(os.Stderr, "cache dir not set, using current dir")
+		cookiePath, _ = filepath.Abs(".sda_cookie")
+	} else {
+		if err := os.MkdirAll(filepath.Join(cd, "sda-cli"), 0750); err != nil {
+			fmt.Fprintln(os.Stderr, "failed to create cache dir, using current dir")
+			cookiePath, _ = filepath.Abs(".sda_cookie")
+		} else {
+			cookiePath = filepath.Join(cd, "sda-cli/sda_cookie")
+		}
+	}
+	cookieJar = cookiejar.NewPersistentJar(
+		cookiejar.WithFilePath(cookiePath),
+		cookiejar.WithAutoSync(true),
+		cookiejar.WithPublicSuffixList(publicsuffix.List),
+	)
+	if _, err := os.Stat(cookiePath); err == nil {
+		cookieString, err := os.ReadFile(cookiePath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to read cookie file: %s", err.Error())
+		}
+
+		var parsedCookies []*http.Cookie
+		if err := json.Unmarshal(cookieString, &parsedCookies); err == nil && len(parsedCookies) > 0 {
+			cookieJar.SetCookies(u, parsedCookies)
+		}
+	}
 }

@@ -57,22 +57,22 @@ func TestListTestSuite(t *testing.T) {
 	suite.Run(t, new(ListTestSuite))
 }
 
-func (suite *ListTestSuite) SetupSuite() {
-	accessToken := suite.generateDummyToken()
-	suite.tempDir = suite.T().TempDir()
+func (lts *ListTestSuite) SetupSuite() {
+	accessToken := lts.generateDummyToken()
+	lts.tempDir = lts.T().TempDir()
 
 	// Create a fake s3 backend
 	backend := s3mem.New()
 	faker := gofakes3.New(backend)
-	suite.s3HTTPServer = httptest.NewServer(faker.Server())
+	lts.s3HTTPServer = httptest.NewServer(faker.Server())
 
 	awsConfig, err := config.LoadDefaultConfig(context.Background(),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("dummy", "dummy", accessToken)),
 		config.WithRegion("eu-central-1"),
-		config.WithBaseEndpoint(suite.s3HTTPServer.URL),
+		config.WithBaseEndpoint(lts.s3HTTPServer.URL),
 	)
 	if err != nil {
-		suite.FailNow("failed to create aws config", err)
+		lts.FailNow("failed to create aws config", err)
 	}
 
 	s3Client := s3.NewFromConfig(awsConfig, func(o *s3.Options) {
@@ -86,31 +86,31 @@ func (suite *ListTestSuite) SetupSuite() {
 	}
 	_, err = s3Client.CreateBucket(context.Background(), cparams)
 	if err != nil {
-		suite.FailNow("failed to create s3 bucket", err)
+		lts.FailNow("failed to create s3 bucket", err)
 	}
 	uploader := manager.NewUploader(s3Client)
 
 	fileToUpload := strings.NewReader("test content")
-	suite.testFilePath = "dummy/testfile"
+	lts.testFilePath = "dummy/testfile"
 	// Upload the file to S3.
 	if _, err := uploader.Upload(context.Background(), &s3.PutObjectInput{
 		Body:            fileToUpload,
 		Bucket:          aws.String("dummy"),
-		Key:             aws.String(suite.testFilePath),
+		Key:             aws.String(lts.testFilePath),
 		ContentEncoding: aws.String("UTF-8"),
 	}); err != nil {
-		suite.FailNow("failed to upload test file", err)
+		lts.FailNow("failed to upload test file", err)
 	}
 
 	// Create config file
-	suite.configPath = filepath.Join(suite.tempDir, "s3cmd.conf")
+	lts.configPath = filepath.Join(lts.tempDir, "s3cmd.conf")
 	// Write config file
-	if err = os.WriteFile(suite.configPath, fmt.Appendf([]byte{}, configFormat, accessToken, suite.s3HTTPServer.URL), 0600); err != nil {
-		suite.FailNow("failed to write to s3cmd.conf test file", err)
+	if err = os.WriteFile(lts.configPath, fmt.Appendf([]byte{}, configFormat, accessToken, lts.s3HTTPServer.URL), 0600); err != nil {
+		lts.FailNow("failed to write to s3cmd.conf test file", err)
 	}
 
 	// Create a test http server
-	suite.downloadMockHTTPServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	lts.downloadMockHTTPServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		switch req.RequestURI {
 		case "/metadata/datasets/TES01/files":
 			// Set the response status code
@@ -155,12 +155,12 @@ func (suite *ListTestSuite) SetupSuite() {
 		}
 	}))
 }
-func (suite *ListTestSuite) TearDownSuite() {
-	suite.s3HTTPServer.Close()
-	suite.downloadMockHTTPServer.Close()
+func (lts *ListTestSuite) TearDownSuite() {
+	lts.s3HTTPServer.Close()
+	lts.downloadMockHTTPServer.Close()
 }
 
-func (suite *ListTestSuite) SetupTest() {
+func (lts *ListTestSuite) SetupTest() {
 	// Reset flag values from any previous test invocation
 	Args = flag.NewFlagSet("list", flag.ContinueOnError)
 	URL = Args.String("url", "", "The url of the sda-download server")
@@ -169,11 +169,11 @@ func (suite *ListTestSuite) SetupTest() {
 	dataset = Args.String("dataset", "", "List all files in the specified dataset.")
 }
 
-func (suite *ListTestSuite) TestListNoConfig() {
-	assert.EqualError(suite.T(), List([]string{"list"}, ""), "failed to load config file, reason: failed to read the configuration file")
+func (lts *ListTestSuite) TestListNoConfig() {
+	assert.EqualError(lts.T(), List([]string{"list"}, "", "test-version"), "failed to load config file, reason: failed to read the configuration file")
 }
 
-func (suite *ListTestSuite) TestListFiles() {
+func (lts *ListTestSuite) TestListFiles() {
 	rescueStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
@@ -182,70 +182,70 @@ func (suite *ListTestSuite) TestListFiles() {
 	errR, errW, _ := os.Pipe()
 	os.Stderr = errW
 
-	err := List([]string{"list"}, suite.configPath)
-	assert.NoError(suite.T(), err)
+	err := List([]string{"list"}, lts.configPath, "test-version")
+	assert.NoError(lts.T(), err)
 
 	_ = w.Close()
 	os.Stdout = rescueStdout
 	listOutput, _ := io.ReadAll(r)
 	_ = r.Close()
-	assert.Contains(suite.T(), string(listOutput), fmt.Sprintf("%v", filepath.Base(suite.testFilePath)))
+	assert.Contains(lts.T(), string(listOutput), fmt.Sprintf("%v", filepath.Base(lts.testFilePath)))
 
 	// Check that host_base is in the error output, not in the stdout
-	expectedHostBase := fmt.Sprintf("Remote server (host_base): %s", suite.s3HTTPServer.URL)
-	assert.NotContains(suite.T(), string(listOutput), expectedHostBase)
+	expectedHostBase := fmt.Sprintf("Remote server (host_base): %s", lts.s3HTTPServer.URL)
+	assert.NotContains(lts.T(), string(listOutput), expectedHostBase)
 
 	_ = errW.Close()
 	os.Stderr = rescueStderr
 	listError, _ := io.ReadAll(errR)
 	_ = errR.Close()
-	assert.Contains(suite.T(), string(listError), expectedHostBase)
+	assert.Contains(lts.T(), string(listError), expectedHostBase)
 }
 
-func (suite *ListTestSuite) TestListDatasets() {
+func (lts *ListTestSuite) TestListDatasets() {
 	rescueStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	err := List([]string{"list", "-url", suite.downloadMockHTTPServer.URL, "-datasets"}, suite.configPath)
-	assert.NoError(suite.T(), err)
+	err := List([]string{"list", "-url", lts.downloadMockHTTPServer.URL, "-datasets"}, lts.configPath, "test-version")
+	assert.NoError(lts.T(), err)
 
 	_ = w.Close()
 	os.Stdout = rescueStdout
 	listOutput, _ := io.ReadAll(r)
 	_ = r.Close()
-	assert.Contains(suite.T(), string(listOutput), fmt.Sprintf("%v", "TES01 \t 3 \t 3.1 kB"))
+	assert.Contains(lts.T(), string(listOutput), fmt.Sprintf("%v", "TES01 \t 3 \t 3.1 kB"))
 }
 
-func (suite *ListTestSuite) TestListDataset() {
+func (lts *ListTestSuite) TestListDataset() {
 	rescueStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	err := List([]string{"list", "-url", suite.downloadMockHTTPServer.URL, "-dataset", "TES01"}, suite.configPath)
-	assert.NoError(suite.T(), err)
+	err := List([]string{"list", "-url", lts.downloadMockHTTPServer.URL, "-dataset", "TES01"}, lts.configPath, "test-version")
+	assert.NoError(lts.T(), err)
 
 	_ = w.Close()
 	os.Stdout = rescueStdout
 	listOutput, _ := io.ReadAll(r)
 	_ = r.Close()
-	assert.Contains(suite.T(), string(listOutput), fmt.Sprintf("%v", "FileID               \t Size       \t Path\nfile1id \t 1.0 kB \t files/file1.c4gh\nfile2id \t 1.0 kB \t files/file2.c4gh\ndummyFile \t 1.0 kB \t files/dummy-file.txt.c4gh\nDataset size: 3.1 kB"))
+	assert.Contains(lts.T(), string(listOutput), fmt.Sprintf("%v", "FileID               \t Size       \t Path\nfile1id \t 1.0 kB \t files/file1.c4gh\nfile2id \t 1.0 kB \t files/file2.c4gh\ndummyFile \t 1.0 kB \t files/dummy-file.txt.c4gh\nDataset size: 3.1 kB"))
 }
 
-func (suite *ListTestSuite) TestListDatasetNoUrl() {
-	err := List([]string{"list", "-dataset", "TES01"}, suite.configPath)
-	assert.EqualError(suite.T(), err, "invalid base URL")
+func (lts *ListTestSuite) TestListDatasetNoUrl() {
+	err := List([]string{"list", "-dataset", "TES01"}, lts.configPath, "test-version")
+	assert.EqualError(lts.T(), err, "invalid base URL")
 }
-func (suite *ListTestSuite) TestListDatasetsNoUrl() {
-	err := List([]string{"list", "-dataset", "TES01"}, suite.configPath)
-	assert.EqualError(suite.T(), err, "invalid base URL")
+func (lts *ListTestSuite) TestListDatasetsNoUrl() {
+	err := List([]string{"list", "-dataset", "TES01"}, lts.configPath, "test-version")
+	assert.EqualError(lts.T(), err, "invalid base URL")
 }
 
-func (suite *ListTestSuite) generateDummyToken() string {
+func (lts *ListTestSuite) generateDummyToken() string {
 	// Generate a new private key
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		suite.FailNow("failed to generate key", err)
+		lts.FailNow("failed to generate key", err)
 	}
 
 	// Create the Claims
@@ -257,7 +257,7 @@ func (suite *ListTestSuite) generateDummyToken() string {
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	ss, err := token.SignedString(privateKey)
 	if err != nil {
-		suite.FailNow("failed to sign token", err)
+		lts.FailNow("failed to sign token", err)
 	}
 
 	return ss
