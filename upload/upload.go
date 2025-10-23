@@ -4,86 +4,64 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 
+	"github.com/NBISweden/sda-cli/cmd"
 	"github.com/NBISweden/sda-cli/encrypt"
 	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsConfig "github.com/aws/aws-sdk-go-v2/config"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/neicnordic/crypt4gh/keys"
+	"github.com/spf13/cobra"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 )
 
-// Help text and command line flags.
+var accessToken string
+var continueUpload bool
+var encryptWithKey string
+var forceUnencrypted bool
+var forceOverwrite bool
+var recursiveUpload bool
+var targetDirectory string
 
-// Usage text that will be displayed as command line help text when using the
-// `help upload` command
-var Usage = `
-Usage: %s -config <config-file> upload [OPTIONS] [file(s) | folder(s)]
-
-Upload files or directories to the Sensitive Data Archive (SDA). 
-
+var uploadCmd = &cobra.Command{
+	Use:   "upload [flags] [file(s) | folder(s)]",
+	Short: "Upload to SDA",
+	Long: `Upload files or directories to the Sensitive Data Archive (SDA)
 Important:
   - Files must be encrypted (Crypt4GH standard) unless the '-encrypt-with-key' flag is set.
   - When using the '-encrypt-with-key' flag, ensure that only unencrypted files are provided.
   - Use the '-force-unencrypted' flag with caution to upload unencrypted files explicitly.
+	`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		configPath := cmd.Root().Flag("config").Value.String()
+		err := Upload(args, configPath)
+		if err != nil {
+			return err
+		}
 
-Global options:
-  -config <config-file>       	   Path to the configuration file. 
+		return nil
+	},
+}
 
-Options:
-  -accessToken <access-token>      Access token for the SDA inbox service. This is optional 
-                                   if already set in the config file or as the 'ACCESSTOKEN' 
-                                   environment variable.
-  -continue                        Skip already uploaded files and continue with uploading the rest.
-                                   Useful for resuming an upload from a previous breakpoint.
-  -encrypt-with-key <public-key-file>
-                                   Encrypt files using the specified public key before upload. 
-                                   The key file may contain multiple concatenated public keys. 
-                                   Only unencrypted files should be provided when this flag is used.
-  -force-overwrite                 Overwrite existing files in the target directory without confirmation.
-  -force-unencrypted               Allow uploading unencrypted files (use with caution).
-  -r                               Upload directories recursively. Without this flag, directories 
-                                   will be skipped.
-  -targetDir <upload-directory>    Specify the target directory for uploaded files or folders. 
-                                   Defaults to the user's base directory if not set.
-
-Arguments:
-  [file(s) | folder(s)]            List of files or directories to upload. Directories are 
-                                   skipped unless the '-r' flag is provided.`
-
-// Args is a flagset that needs to be exported so that it can be written to the
-// main program help
-var Args = flag.NewFlagSet("upload", flag.ContinueOnError)
-
-var forceUnencrypted = Args.Bool("force-unencrypted", false, "Force uploading unencrypted files.")
-
-var dirUpload = Args.Bool("r", false, "Upload directories recursively.")
-
-var targetDir = Args.String("targetDir", "",
-	"Upload files or folders into this directory.  If flag is omitted,\n"+
-		"all data will be uploaded in the user's base directory.")
-
-var forceOverwrite = Args.Bool("force-overwrite", false, "Force overwrite existing files.")
-
-var continueUpload = Args.Bool("continue", false, "Skip existing files and continue with the rest.")
-
-var pubKeyPath = Args.String("encrypt-with-key", "",
-	"Public key file to use for encryption of files before upload.\n"+
-		"The key file may optionally contain several concatenated public keys.\n"+
-		"Only unencrypted data should be provided when this flag is set.",
-)
-
-var accessToken = Args.String("accessToken", "", "Access token to the inbox service.\n(optional, if it is set in the config file or exported as the ENV `ACCESSTOKEN`)")
+func init() {
+	cmd.AddCommand(uploadCmd)
+	uploadCmd.Flags().StringVar(&accessToken, "access-token", "", "Access token for the SDA inbox service. This is optional if already set in the config file or as 'ACCESSTOKEN' environment variable")
+	uploadCmd.Flags().BoolVar(&continueUpload, "continue", false, "Skip already uploaded files and continue with uploading the rest. Useful for resuming and upload from a previous breakpoint")
+	uploadCmd.Flags().StringVar(&encryptWithKey, "encrypt-with-key", "", "Encrypt files using the specified public key before upload. The key file may contain multiple concatenated public keys. Only unencrypted files should be provided when this flag is used.")
+	uploadCmd.Flags().BoolVar(&forceOverwrite, "force-overwrite", false, "Overwrite existing files in the target directory without confirmation")
+	uploadCmd.Flags().BoolVar(&forceUnencrypted, "force-unencrypted", false, "Allow uploading unencrypted files (use with caution)")
+	uploadCmd.Flags().BoolVarP(&recursiveUpload, "recursive", "r", false, "Upload directories recursively. Without this flag, directories will be skipped")
+	uploadCmd.Flags().StringVar(&targetDirectory, "target-directory", "", "Specifies the target directory for uploaded files or folders. Defaults to the user's base directory if not set")
+}
 
 // Function uploadFiles uploads the files in the input list to the s3 bucket
 func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Config) error {
@@ -105,7 +83,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 	// Loop through the list of files and check if they are encrypted
 	// If we run into an unencrypted file and the flag force-unencrypted is not set, we stop the upload
 	for _, filename := range files {
-		if *pubKeyPath != "" {
+		if encryptWithKey != "" {
 			continue
 		}
 
@@ -122,29 +100,29 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		_ = f.Close()
 		if string(magicWord) != "crypt4gh" {
 			fmt.Fprintf(os.Stderr, "input file %s is not encrypted\n", filename)
-			if !*forceUnencrypted {
+			if !forceUnencrypted {
 				fmt.Println("Quitting...")
 
 				return errors.New("unencrypted file found")
 			}
-			fmt.Fprintf(os.Stderr, "force-unencrypted flag provided, continuing...\n")
+			fmt.Fprint(os.Stderr, "force-unencrypted flag provided, continuing...\n")
 		}
 	}
 
-	awsConfig, err := awsConfig.LoadDefaultConfig(ctx,
-		awsConfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+	awsconf, err := awsconfig.LoadDefaultConfig(ctx,
+		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
 			config.AccessKey,
 			config.SecretKey,
 			config.AccessToken,
 		)),
-		awsConfig.WithRegion("us-east-1"),
-		awsConfig.WithBaseEndpoint(config.HostBase),
+		awsconfig.WithRegion("us-east-1"),
+		awsconfig.WithBaseEndpoint(config.HostBase),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to load aws config, reason %v", err)
 	}
 
-	s3Client := s3.NewFromConfig(awsConfig, func(o *s3.Options) {
+	s3Client := s3.NewFromConfig(awsconf, func(o *s3.Options) {
 		o.UsePathStyle = true
 		o.EndpointOptions.DisableHTTPS = !config.UseHTTPS
 		o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
@@ -161,11 +139,9 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		if err != nil {
 			return err
 		}
-		defer f.Close() //nolint:errcheck
+		defer f.Close() //revive:disable:defer
 
-		if *forceOverwrite {
-			fmt.Println("force-overwrite flag provided, continuing by overwritting target...")
-		} else {
+		if !forceOverwrite {
 			// Check if files exists in S3
 			listPrefix := outFiles[k]
 			if targetDir != "" {
@@ -178,13 +154,14 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 			}
 
 			fileExists := len(listResult) > 0 && aws.ToString(listResult[0].Key) == filepath.Clean(config.AccessKey+"/"+listPrefix)
-			switch {
-			case fileExists && *continueUpload:
+			if fileExists && !continueUpload {
+				return fmt.Errorf("file %s is already uploaded", filepath.Base(filename))
+			}
+
+			if fileExists {
 				fmt.Printf("File %s has already been uploaded, continuing with the next file...\n", filepath.Base(filename))
 
 				continue
-			case fileExists && !*continueUpload:
-				return fmt.Errorf("file %s is already uploaded", filepath.Base(filename))
 			}
 		}
 
@@ -195,7 +172,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 
 		fs := encrypt.FileStream{}
 		switch {
-		case *pubKeyPath != "":
+		case encryptWithKey != "":
 			magicWord := make([]byte, 8)
 			_, err := f.Read(magicWord)
 			if err != nil {
@@ -211,14 +188,14 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 			}
 
 			var pubKeyList [][32]byte
-			pubkey, err := os.Open(filepath.Clean(*pubKeyPath))
+			pubkey, err := os.Open(filepath.Clean(encryptWithKey))
 			if err != nil {
 				return err
 			}
 
 			publicKey, err := keys.ReadPublicKey(pubkey)
 			if err != nil {
-				return fmt.Errorf(err.Error()+", file: %s", *pubKeyPath)
+				return fmt.Errorf(err.Error()+", file: %s", encryptWithKey)
 			}
 			pubKeyList = append(pubKeyList, publicKey)
 			_ = pubkey.Close()
@@ -263,7 +240,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		}
 		fmt.Printf("file uploaded to %s\n", aws.ToString(&result.Location))
 
-		if *pubKeyPath != "" { //nolint: nestif
+		if encryptWithKey != "" { //nolint:nestif
 			checksumFileUnencMd5, err := os.OpenFile("checksum_unencrypted.md5", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 			if err != nil {
 				return err
@@ -356,32 +333,18 @@ func createFilePaths(dirPath string) ([]string, []string, error) {
 func Upload(args []string, configPath string) error {
 	var files []string
 	var outFiles []string
-	*pubKeyPath = ""
-	*targetDir = ""
 
-	// Call ParseArgs to take care of all the flag parsing
-	err := helpers.ParseArgs(args, Args)
+	err := helpers.CheckValidChars(filepath.ToSlash(targetDirectory))
 	if err != nil {
-		return fmt.Errorf("failed parsing arguments, reason: %v", err)
-	}
-
-	// Dereference the pointer to a string
-	var targetDirString string
-	if targetDir != nil {
-		targetDirString = *targetDir
-	}
-
-	err = helpers.CheckValidChars(filepath.ToSlash(targetDirString))
-	if err != nil {
-		return errors.New(*targetDir + " is not a valid target directory")
+		return errors.New(targetDirectory + " is not a valid target directory")
 	}
 
 	// Check that specified target directory is valid, i.e. not a filepath or a flag
-	info, err := os.Stat(*targetDir)
+	info, err := os.Stat(targetDirectory)
 
 	if (!os.IsNotExist(err) && !info.IsDir()) ||
-		(targetDirString != "" && targetDirString[0:1] == "-") {
-		return errors.New(*targetDir + " is not a valid target directory")
+		(targetDirectory != "" && targetDirectory[0:1] == "-") {
+		return errors.New(targetDirectory + " is not a valid target directory")
 	}
 
 	// Get the configuration file or the .sda-cli-session
@@ -390,13 +353,14 @@ func Upload(args []string, configPath string) error {
 		return err
 	}
 
-	switch {
-	case os.Getenv("ACCESSTOKEN") == "" && *accessToken == "" && config.AccessToken == "":
+	if accessToken == "" && os.Getenv("ACCESSTOKEN") == "" && config.AccessToken == "" {
 		return errors.New("no access token supplied")
-	case os.Getenv("ACCESSTOKEN") != "" && *accessToken == "":
-		config.AccessToken = os.Getenv("ACCESSTOKEN")
-	case *accessToken != "":
-		config.AccessToken = *accessToken
+	}
+
+	if accessToken != "" {
+		config.AccessToken = accessToken
+	} else if envToken := os.Getenv("ACCESSTOKEN"); envToken != "" {
+		config.AccessToken = envToken
 	}
 
 	err = helpers.CheckTokenExpiration(config.AccessToken)
@@ -408,19 +372,19 @@ func Upload(args []string, configPath string) error {
 	helpers.PrintHostBase(config.HostBase)
 
 	// Check that input file/folder list is not empty
-	if len(Args.Args()) == 0 {
+	if len(args) == 0 {
 		return errors.New("no files to upload")
 	}
 
 	// Check if input argument is a file or directory and
 	// populate file list for upload
-	for _, filePath := range Args.Args() {
+	for _, filePath := range args {
 		fileInfo, err := os.Stat(filePath)
 		if err != nil {
 			return err
 		}
 		if fileInfo.IsDir() {
-			if !*dirUpload {
+			if !recursiveUpload {
 				fmt.Println(errors.New("-r not specified; omitting directory: " + filePath))
 
 				continue
@@ -449,11 +413,11 @@ func Upload(args []string, configPath string) error {
 		return errors.New("no files to upload")
 	}
 
-	if *pubKeyPath != "" {
-		for k := 0; k < len(files); k++ {
+	if encryptWithKey != "" {
+		for k := range len(files) {
 			outFiles[k] += ".c4gh"
 		}
 	}
 
-	return uploadFiles(files, outFiles, filepath.ToSlash(*targetDir), config)
+	return uploadFiles(files, outFiles, filepath.ToSlash(targetDirectory), config)
 }

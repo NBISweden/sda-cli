@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -57,22 +56,21 @@ func TestListTestSuite(t *testing.T) {
 	suite.Run(t, new(ListTestSuite))
 }
 
-func (lts *ListTestSuite) SetupSuite() {
-	accessToken := lts.generateDummyToken()
-	lts.tempDir = lts.T().TempDir()
+func (s *ListTestSuite) SetupSuite() {
+	accessToken := s.generateDummyToken()
+	s.tempDir = s.T().TempDir()
 
-	// Create a fake s3 backend
 	backend := s3mem.New()
 	faker := gofakes3.New(backend)
-	lts.s3HTTPServer = httptest.NewServer(faker.Server())
+	s.s3HTTPServer = httptest.NewServer(faker.Server())
 
 	awsConfig, err := config.LoadDefaultConfig(context.Background(),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("dummy", "dummy", accessToken)),
 		config.WithRegion("eu-central-1"),
-		config.WithBaseEndpoint(lts.s3HTTPServer.URL),
+		config.WithBaseEndpoint(s.s3HTTPServer.URL),
 	)
 	if err != nil {
-		lts.FailNow("failed to create aws config", err)
+		s.FailNow("failed to create aws config", err)
 	}
 
 	s3Client := s3.NewFromConfig(awsConfig, func(o *s3.Options) {
@@ -80,42 +78,35 @@ func (lts *ListTestSuite) SetupSuite() {
 		o.EndpointOptions.DisableHTTPS = true
 	})
 
-	// Create bucket named dummy
 	cparams := &s3.CreateBucketInput{
 		Bucket: aws.String("dummy"),
 	}
 	_, err = s3Client.CreateBucket(context.Background(), cparams)
 	if err != nil {
-		lts.FailNow("failed to create s3 bucket", err)
+		s.FailNow("failed to create s3 bucket", err)
 	}
 	uploader := manager.NewUploader(s3Client)
 
 	fileToUpload := strings.NewReader("test content")
-	lts.testFilePath = "dummy/testfile"
-	// Upload the file to S3.
+	s.testFilePath = "dummy/testfile"
 	if _, err := uploader.Upload(context.Background(), &s3.PutObjectInput{
 		Body:            fileToUpload,
 		Bucket:          aws.String("dummy"),
-		Key:             aws.String(lts.testFilePath),
+		Key:             aws.String(s.testFilePath),
 		ContentEncoding: aws.String("UTF-8"),
 	}); err != nil {
-		lts.FailNow("failed to upload test file", err)
+		s.FailNow("failed to upload test file", err)
 	}
 
-	// Create config file
-	lts.configPath = filepath.Join(lts.tempDir, "s3cmd.conf")
-	// Write config file
-	if err = os.WriteFile(lts.configPath, fmt.Appendf([]byte{}, configFormat, accessToken, lts.s3HTTPServer.URL), 0600); err != nil {
-		lts.FailNow("failed to write to s3cmd.conf test file", err)
+	s.configPath = filepath.Join(s.tempDir, "s3cmd.conf")
+	if err = os.WriteFile(s.configPath, fmt.Appendf([]byte{}, configFormat, accessToken, s.s3HTTPServer.URL), 0600); err != nil {
+		s.FailNow("failed to write to s3cmd.conf test file", err)
 	}
 
-	// Create a test http server
-	lts.downloadMockHTTPServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	s.downloadMockHTTPServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		switch req.RequestURI {
 		case "/metadata/datasets/TES01/files":
-			// Set the response status code
 			w.WriteHeader(http.StatusOK)
-			// Set the response body
 			fmt.Fprint(w, `[
             {
                 "fileId": "file1id",
@@ -143,37 +134,35 @@ func (lts *ListTestSuite) SetupSuite() {
             }
         	]`)
 		case "/metadata/datasets":
-			// Set the response status code
 			w.WriteHeader(http.StatusOK)
-			// Set the response body
 			fmt.Fprint(w, `["TES01"]`)
 		default:
-			// Set the response status code
 			w.WriteHeader(http.StatusInternalServerError)
-			// Set the response body
 			fmt.Fprint(w, "Unexpected path")
 		}
 	}))
 }
-func (lts *ListTestSuite) TearDownSuite() {
-	lts.s3HTTPServer.Close()
-	lts.downloadMockHTTPServer.Close()
+
+func (s *ListTestSuite) TearDownSuite() {
+	s.s3HTTPServer.Close()
+	s.downloadMockHTTPServer.Close()
 }
 
-func (lts *ListTestSuite) SetupTest() {
-	// Reset flag values from any previous test invocation
-	Args = flag.NewFlagSet("list", flag.ContinueOnError)
-	URL = Args.String("url", "", "The url of the sda-download server")
-	datasets = Args.Bool("datasets", false, "List all datasets in the user's folder.")
-	bytesFormat = Args.Bool("bytes", false, "Print file sizes in bytes (not human-readable format).")
-	dataset = Args.String("dataset", "", "List all files in the specified dataset.")
+func (s *ListTestSuite) SetupTest() {
+	listCmd.Flag("bytes").Value.Set("false")
+	listCmd.Flag("dataset").Value.Set("")
+	listCmd.Flag("datasets").Value.Set("false")
+	listCmd.Flag("url").Value.Set("")
+	listCmd.Root().Flag("config").Value.Set(s.configPath)
+	os.Args = []string{"", "list"}
 }
 
-func (lts *ListTestSuite) TestListNoConfig() {
-	assert.EqualError(lts.T(), List([]string{"list"}, "", "test-version"), "failed to load config file, reason: failed to read the configuration file")
+func (s *ListTestSuite) TestListNoConfig() {
+	listCmd.InheritedFlags().Set("config", "")
+	assert.EqualError(s.T(), listCmd.Execute(), "failed to load config file, reason: failed to read the configuration file")
 }
 
-func (lts *ListTestSuite) TestListFiles() {
+func (s *ListTestSuite) TestListFiles() {
 	rescueStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
@@ -182,73 +171,80 @@ func (lts *ListTestSuite) TestListFiles() {
 	errR, errW, _ := os.Pipe()
 	os.Stderr = errW
 
-	err := List([]string{"list"}, lts.configPath, "test-version")
-	assert.NoError(lts.T(), err)
+	err := listCmd.Execute()
+	assert.NoError(s.T(), err)
 
 	_ = w.Close()
 	os.Stdout = rescueStdout
 	listOutput, _ := io.ReadAll(r)
 	_ = r.Close()
-	assert.Contains(lts.T(), string(listOutput), fmt.Sprintf("%v", filepath.Base(lts.testFilePath)))
+	assert.Contains(s.T(), string(listOutput), fmt.Sprintf("%v", filepath.Base(s.testFilePath)))
 
 	// Check that host_base is in the error output, not in the stdout
-	expectedHostBase := fmt.Sprintf("Remote server (host_base): %s", lts.s3HTTPServer.URL)
-	assert.NotContains(lts.T(), string(listOutput), expectedHostBase)
+	expectedHostBase := fmt.Sprintf("Remote server (host_base): %s", s.s3HTTPServer.URL)
+	assert.NotContains(s.T(), string(listOutput), expectedHostBase)
 
 	_ = errW.Close()
 	os.Stderr = rescueStderr
 	listError, _ := io.ReadAll(errR)
 	_ = errR.Close()
-	assert.Contains(lts.T(), string(listError), expectedHostBase)
+	assert.Contains(s.T(), string(listError), expectedHostBase)
 }
 
-func (lts *ListTestSuite) TestListDatasets() {
+func (s *ListTestSuite) TestListDatasets() {
 	rescueStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	err := List([]string{"list", "-url", lts.downloadMockHTTPServer.URL, "-datasets"}, lts.configPath, "test-version")
-	assert.NoError(lts.T(), err)
+	listCmd.Flag("datasets").Value.Set("true")
+	listCmd.Flag("url").Value.Set(s.downloadMockHTTPServer.URL)
+	err := listCmd.Execute()
+	assert.NoError(s.T(), err)
 
 	_ = w.Close()
 	os.Stdout = rescueStdout
 	listOutput, _ := io.ReadAll(r)
 	_ = r.Close()
-	assert.Contains(lts.T(), string(listOutput), fmt.Sprintf("%v", "TES01 \t 3 \t 3.1 kB"))
+	assert.Contains(s.T(), string(listOutput), fmt.Sprintf("%v", "TES01 \t 3 \t 3.1 kB"))
 }
 
-func (lts *ListTestSuite) TestListDataset() {
+func (s *ListTestSuite) TestListDataset() {
 	rescueStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	err := List([]string{"list", "-url", lts.downloadMockHTTPServer.URL, "-dataset", "TES01"}, lts.configPath, "test-version")
-	assert.NoError(lts.T(), err)
+	listCmd.Flag("dataset").Value.Set("TES01")
+	listCmd.Flag("url").Value.Set(s.downloadMockHTTPServer.URL)
+	err := listCmd.Execute()
+	assert.NoError(s.T(), err)
 
 	_ = w.Close()
 	os.Stdout = rescueStdout
 	listOutput, _ := io.ReadAll(r)
 	_ = r.Close()
-	assert.Contains(lts.T(), string(listOutput), fmt.Sprintf("%v", "FileID               \t Size       \t Path\nfile1id \t 1.0 kB \t files/file1.c4gh\nfile2id \t 1.0 kB \t files/file2.c4gh\ndummyFile \t 1.0 kB \t files/dummy-file.txt.c4gh\nDataset size: 3.1 kB"))
+	assert.Contains(s.T(), string(listOutput), fmt.Sprintf("%v", "FileID               \t Size       \t Path\nfile1id \t 1.0 kB \t files/file1.c4gh\nfile2id \t 1.0 kB \t files/file2.c4gh\ndummyFile \t 1.0 kB \t files/dummy-file.txt.c4gh\nDataset size: 3.1 kB"))
 }
 
-func (lts *ListTestSuite) TestListDatasetNoUrl() {
-	err := List([]string{"list", "-dataset", "TES01"}, lts.configPath, "test-version")
-	assert.EqualError(lts.T(), err, "invalid base URL")
-}
-func (lts *ListTestSuite) TestListDatasetsNoUrl() {
-	err := List([]string{"list", "-dataset", "TES01"}, lts.configPath, "test-version")
-	assert.EqualError(lts.T(), err, "invalid base URL")
+func (s *ListTestSuite) TestListDatasetNoUrl() {
+	listCmd.Flag("dataset").Value.Set("TES01")
+	listCmd.Flag("url").Value.Set("")
+	err := listCmd.Execute()
+	assert.EqualError(s.T(), err, "invalid base URL")
 }
 
-func (lts *ListTestSuite) generateDummyToken() string {
-	// Generate a new private key
+func (s *ListTestSuite) TestListDatasetsNoUrl() {
+	listCmd.Flag("datasets").Value.Set("true")
+	listCmd.Flag("url").Value.Set("")
+	err := listCmd.Execute()
+	assert.EqualError(s.T(), err, "invalid base URL")
+}
+
+func (s *ListTestSuite) generateDummyToken() string {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		lts.FailNow("failed to generate key", err)
+		s.FailNow("failed to generate key", err)
 	}
 
-	// Create the Claims
 	claims := &jwt.StandardClaims{
 		Issuer:    "test",
 		ExpiresAt: time.Now().Add(time.Minute * 2).Unix(),
@@ -257,7 +253,7 @@ func (lts *ListTestSuite) generateDummyToken() string {
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	ss, err := token.SignedString(privateKey)
 	if err != nil {
-		lts.FailNow("failed to sign token", err)
+		s.FailNow("failed to sign token", err)
 	}
 
 	return ss
