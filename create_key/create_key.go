@@ -2,65 +2,60 @@ package createkey
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/NBISweden/sda-cli/cmd"
 	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/neicnordic/crypt4gh/keys"
+	"github.com/spf13/cobra"
 )
 
-// Usage text that will be displayed when the `help createKey` command is invoked.
-var Usage = `
-Usage: %s createKey [OPTIONS] <name>
+var outDir string
 
-Generate a Crypt4GH encryption key pair and saves the keys as:
-  - <name>.pub.pem (public key)
-  - <name>.sec.pem (private key)
+var createKeyCmd = &cobra.Command{
+	Use:   "createKey [OPTIONS] <name>",
+	Short: "Generate a Crypt4GH key pair",
+	Long: `Generate a Crypt4GH encryption key pair and save the keys as :
+	- <name>.pub.pem (public key)
+	- <name>.sec.pem (private key)
 
-Important:
-  Keys generated with this command are intended for decrypting files 
-  downloaded from the archive. They should NOT be used for encrypting 
-  submission files.
+	Important:
+		Keys generated with this command are intended for decrypting files 
+		downloaded from the archive. They should NOT be used for encrypting 
+		submission files.`,
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) > 1 {
+			return fmt.Errorf("unknown arguments: %v, expected a single filename", strings.Join(args, ", "))
+		}
+		if len(args) < 1 {
+			return errors.New("no filename given")
+		}
 
-Options:
-  -outdir <dirname>  Directory where the generated keys will be saved. 
-                     If not specified, the current directory is used.
+		return nil
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		err := CreateKey(args)
+		if err != nil {
+			return err
+		}
 
-Arguments:
-    <name>           The basename of the keyfiles to generate.`
+		return nil
+	},
+}
 
-// Args is a flagset that needs to be exported so that it can be written to the
-// main program help
-var Args = flag.NewFlagSet("createKey", flag.ExitOnError)
+func init() {
+	cmd.AddCommand(createKeyCmd)
+	createKeyCmd.Flags().StringVar(&outDir, "outdir", "", "The directory where the generated keys will be saved. If not specified, the current directory is used")
+}
 
-var outDir = Args.String("outdir", "",
-	"Output directory for the key files.")
-
-// CreateKey takes two arguments, a base filename, and optionally an output
-// directory specified with `-outdir`.
 func CreateKey(args []string) error {
-	// Parse flags. There are no flags at the moment, but in case some are added
-	// we check for them.
-	err := Args.Parse(args[1:])
-	if err != nil {
-		return fmt.Errorf("could not parse arguments: %v", err)
-	}
-
-	// Args() returns the non-flag arguments, which we assume is the key
-	// filename. If more than one name is given, an error is returned.
-	if len(Args.Args()) > 1 {
-		return fmt.Errorf("unknown arguments: %v, expected a single filename", strings.Join(Args.Args(), ", "))
-	}
-	if len(Args.Args()) < 1 {
-		return errors.New("no filename given")
-	}
-	basename := Args.Args()[0]
+	basename := args[0]
 
 	// Add the output directory to the file path (does nothing if outDir is "")
-	basename = filepath.Join(*outDir, basename)
+	basename = filepath.Join(outDir, basename)
 
 	// Read password from user, to avoid having it in plaintext as an argument
 	password, err := helpers.PromptPassword("Enter private key password")

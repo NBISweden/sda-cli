@@ -2,29 +2,34 @@ package version
 
 import (
 	"encoding/json"
-	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"time"
 
+	rootcmd "github.com/NBISweden/sda-cli/cmd"
 	"github.com/hashicorp/go-version"
+	"github.com/spf13/cobra"
 )
 
-// Help text and command line flags.
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Show the version of sda-cli",
+	Long:  "Show the version of the sda-cli tool",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		err := printVersion(rootcmd.Version)
+		if err != nil {
+			return err
+		}
 
-// Usage text that will be displayed as command line help text when using the
-// `help version` command
-var Usage = `
-Usage: %s version
+		return nil
+	},
+}
 
-Show the version of the sda-cli tool.`
-
-// Args is a flagset that needs to be exported so that it can be written to the
-// main program help
-var Args = flag.NewFlagSet("version", flag.ExitOnError)
+func init() {
+	rootcmd.AddCommand(versionCmd)
+}
 
 type ghResponse struct {
 	Name      string `json:"name"`
@@ -32,16 +37,10 @@ type ghResponse struct {
 	URL       string `json:"html_url"`
 }
 
-// this is just so we can mock bad internet connection
 var url = "https://api.github.com/repos/NBISweden/sda-cli/releases/latest"
 var timeout = 30 * time.Second
 
-// Returns the version of the sda-cli tool.
-func Version(ver string) error {
-	if len(Args.Args()) > 0 {
-		return errors.New("version does not take any arguments")
-	}
-
+func printVersion(ver string) error {
 	req, err := http.NewRequest(http.MethodGet, url, http.NoBody)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "failed to initiate request")
@@ -49,6 +48,7 @@ func Version(ver string) error {
 
 		return nil
 	}
+
 	req.Header.Add("X-GitHub-Api-Version", "2022-11-28")
 	req.Header.Add("Accept", "application/vnd.github+json")
 
@@ -60,6 +60,7 @@ func Version(ver string) error {
 
 		return nil
 	}
+
 	if resp.StatusCode >= 400 {
 		fmt.Fprintf(os.Stderr, "failed to fetch releases, reason: %s\n", resp.Status)
 		fmt.Println("sda-cli version: ", ver)

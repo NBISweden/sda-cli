@@ -2,69 +2,70 @@ package decrypt
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/NBISweden/sda-cli/cmd"
 	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/neicnordic/crypt4gh/keys"
 	"github.com/neicnordic/crypt4gh/streaming"
+	"github.com/spf13/cobra"
 )
 
-// Usage text that will be displayed when the `help decrypt` command is invoked.
-var Usage = `
-Usage: %s decrypt -key <private-key-file> [OPTIONS] [file(s)]
+var privateKeyFile string
+var forceOverwrite bool
+var clean bool
 
-Decrypt files from the Sensitive Data Archive (SDA) using the specified private key.
-If the private key is password-protected, the password can be provided via the
-C4GH_PASSWORD environment variable or an interactive password prompt.
+var decryptCmd = &cobra.Command{
+	Use:   "decrypt [flags] [file(s)]",
+	Short: "Decryt files from the SDA",
+	Long: ` Decrypt files from the Sensitive Data Archive (SDA) using the specified private key.
+	If the private key is password-protected, the password can be provided via the
+	C4GH_PASSWORD environment variable or an interactive password prompt.`,
+	Args: func(cmd *cobra.Command, args []string) error {
+		return nil
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		err := Decrypt(args)
+		if err != nil {
+			return err
+		}
 
-Required options:
-  -key <private-key-file>  The private key to use for decryption.
+		return nil
+	},
+}
 
-Optional options:
-  -force-overwrite         Overwrite existing files without confirmation.
-  -clean                   Remove the encrypted files after successful decryption.
+func init() {
+	cmd.AddCommand(decryptCmd)
+	decryptCmd.Flags().StringVar(&privateKeyFile, "key", "", "Private key to use for decryption")
+	decryptCmd.Flags().BoolVar(&forceOverwrite, "force-overwrite", false, "Force overwrite existing files")
+	decryptCmd.Flags().BoolVar(&clean, "clean", false, "Remove the encrypted file after decryption")
+}
 
-Arguments:
-  [file(s)]                One or more files to decrypt. All flagless arguments are
-                           treated as filenames for decryption.`
-
-// Args is a flagset that needs to be exported so that it can be written to the
-// main program help
-var Args = flag.NewFlagSet("decrypt", flag.ContinueOnError)
-
-var privateKeyFile = Args.String("key", "", "Private key to use for decrypting files.")
-var forceOverwrite = Args.Bool("force-overwrite", false, "Force overwrite existing files.")
-var clean = Args.Bool("clean", false, "Remove the encrypted file after decryption.")
+// Needed for testing: used when calling the decrypt from the encrypt pacakge in encrypt_test.go
+func SetFlags(key string, value string) {
+	decryptCmd.Flag(key).Value.Set(value)
+}
 
 // Decrypt takes a set of arguments, parses them, and attempts to decrypt the
 // given data files with the given private key file..
 func Decrypt(args []string) error {
-	// Call ParseArgs to take care of all the flag parsing
-	err := helpers.ParseArgs(args, Args)
-	if err != nil {
-		return fmt.Errorf("failed parsing arguments, reason: %v", err)
-	}
-
-	// format input and output files
-	// Args() returns the non-flag arguments, which we assume are filenames.
-	// All filenames are read into a struct together with their output filenames
 	files := []helpers.EncryptionFileSet{}
-	for _, filename := range Args.Args() {
+	for _, filename := range args {
 		// Set directory for the output file
 		unencryptedFilename := strings.TrimSuffix(filename, ".c4gh")
 		files = append(files, helpers.EncryptionFileSet{Encrypted: filename, Unencrypted: unencryptedFilename})
 	}
 
 	// Check that we have a private key to decrypt with
-	if *privateKeyFile == "" {
+	if privateKeyFile == "" {
 		return errors.New("a private key is required to decrypt data")
 	}
 
+	var err error
 	password, available := os.LookupEnv("C4GH_PASSWORD")
 	if !available {
 		password, err = helpers.PromptPassword("Enter password to unlock private key")
@@ -74,7 +75,7 @@ func Decrypt(args []string) error {
 	}
 
 	// Loading private key file
-	privateKey, err := readPrivateKeyFile(*privateKeyFile, password)
+	privateKey, err := readPrivateKeyFile(privateKeyFile, password)
 	if err != nil {
 		return err
 	}
@@ -87,7 +88,7 @@ func Decrypt(args []string) error {
 		switch {
 		case !helpers.FileIsReadable(file.Encrypted):
 			fmt.Fprintf(os.Stderr, "Error: cannot read input file %s\n", file.Encrypted)
-		case *forceOverwrite:
+		case forceOverwrite:
 			fmt.Printf("Decrypting file %v/%v: %s\n", i+1, numFiles, file.Encrypted)
 			err := decryptFile(file.Encrypted, file.Unencrypted, *privateKey)
 			if err != nil {
@@ -109,7 +110,7 @@ func Decrypt(args []string) error {
 			decryptedCount++
 		}
 		// remove the encrypted file if the clean flag is set
-		if *clean {
+		if clean {
 			err = os.Remove(file.Encrypted)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Could not remove encrypted file %s: %v\n", file.Encrypted, err)
@@ -118,12 +119,11 @@ func Decrypt(args []string) error {
 			}
 			removedCount++
 		}
-
 	}
 	if decryptedCount != numFiles {
 		fmt.Printf("WARNING: %v file(s) could not be decrypted\n", numFiles-decryptedCount)
 	}
-	if *clean && removedCount != numFiles {
+	if clean && removedCount != numFiles {
 		fmt.Printf("WARNING: %v file(s) could not be removed\n", numFiles-removedCount)
 	}
 

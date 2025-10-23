@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsConfig "github.com/aws/aws-sdk-go-v2/config"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -109,7 +109,7 @@ func ParseS3ErrorResponse(respBody io.Reader) (string, error) {
 	}
 
 	if !strings.Contains(string(respMsg), `xml version`) {
-		return "", fmt.Errorf("cannot parse response body, reason: not xml")
+		return "", errors.New("cannot parse response body, reason: not xml")
 	}
 
 	xmlErrorResponse := XMLerrorResponse{}
@@ -261,7 +261,7 @@ func LoadConfigFile(path string) (*Config, error) {
 
 	// Parse URL again to validate that a host can be parsed after scheme has been enforced
 	if u, err = url.Parse(config.HostBase); err != nil || u.Host == "" {
-		return nil, fmt.Errorf("failed to parse host base from configuration file, reason: a valid host can not be parsed")
+		return nil, errors.New("failed to parse host base from configuration file, reason: a valid host can not be parsed")
 	}
 
 	if config.Encoding == "" {
@@ -362,7 +362,7 @@ func CheckTokenExpiration(accessToken string) error {
 
 	// Check if the token has exp claim
 	if claims["exp"] == nil {
-		return fmt.Errorf("could not parse token, reason: no expiration date")
+		return errors.New("could not parse token, reason: no expiration date")
 	}
 
 	// Parse the expiration date from token, handle cases where
@@ -381,7 +381,7 @@ func CheckTokenExpiration(accessToken string) error {
 		}
 		expiration = time.Unix(int64(i), 0)
 	default:
-		return fmt.Errorf("could not parse token, reason: unknown expiration date format")
+		return errors.New("could not parse token, reason: unknown expiration date format")
 	}
 
 	switch untilExp := time.Until(expiration); {
@@ -412,7 +412,7 @@ func CheckTokenExpiration(accessToken string) error {
 			"The provided access token expires on %s.\n", expiration.Format(time.RFC1123),
 		)
 	default:
-		return fmt.Errorf("the provided access token has expired, please renew it")
+		return errors.New("the provided access token has expired, please renew it")
 	}
 
 	return nil
@@ -420,20 +420,20 @@ func CheckTokenExpiration(accessToken string) error {
 
 // ListFiles returns a list for s3 objects that correspond to files with the specified prefix.
 func ListFiles(config Config, prefix string) ([]types.Object, error) {
-	awsConfig, err := awsConfig.LoadDefaultConfig(context.Background(),
-		awsConfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+	awsconf, err := awsconfig.LoadDefaultConfig(context.Background(),
+		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
 			config.AccessKey,
 			config.SecretKey,
 			config.AccessToken,
 		)),
-		awsConfig.WithRegion("us-west-2"),
-		awsConfig.WithBaseEndpoint(config.HostBase),
+		awsconfig.WithRegion("us-west-2"),
+		awsconfig.WithBaseEndpoint(config.HostBase),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load aws config, reason %v", err)
 	}
 
-	s3Client := s3.NewFromConfig(awsConfig, func(o *s3.Options) {
+	s3Client := s3.NewFromConfig(awsconf, func(o *s3.Options) {
 		o.UsePathStyle = true
 		o.EndpointOptions.DisableHTTPS = !config.UseHTTPS
 	})
@@ -534,7 +534,7 @@ func paginateList(svc *s3.Client, params *s3.ListObjectsInput) ([]types.Object, 
 
 		if result.NextMarker == nil && *result.IsTruncated {
 			// Catch the false positive case where the server does not support V1 pagination
-			return nil, fmt.Errorf("file markers not supported by backend")
+			return nil, errors.New("file markers not supported by backend")
 		}
 
 		fullResult = append(fullResult, result.Contents...)
@@ -567,7 +567,7 @@ func paginateListV2(svc *s3.Client, params *s3.ListObjectsV2Input) ([]types.Obje
 
 		if result.NextContinuationToken == nil && *result.IsTruncated {
 			// Catch the false positive case where the server does not support V2 pagination
-			return nil, fmt.Errorf("continuation tokens not supported by backend")
+			return nil, errors.New("continuation tokens not supported by backend")
 		}
 
 		fullResult = append(fullResult, result.Contents...)

@@ -10,9 +10,9 @@ else
 fi
 
 # Download file by using the sda-cli download command
-./sda-cli -config testing/s3cmd-download.conf download -pubkey user_key.pub.pem -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh
+./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir test-download main/subfolder/dummy_data.c4gh
 
-C4GH_PASSWORD="" ./sda-cli decrypt -key user_key.sec.pem test-download/main/subfolder/dummy_data.c4gh
+C4GH_PASSWORD="" ./sda-cli decrypt --key user_key.sec.pem test-download/main/subfolder/dummy_data.c4gh
 # Check if file exists in the path
 if [ ! -f "test-download/main/subfolder/dummy_data" ]; then
     echo "Downloaded file not found"
@@ -29,7 +29,7 @@ fi
 rm -r test-download
 
 # Download whole dataset by using the sda-cli download command
-./sda-cli -config testing/s3cmd-download.conf download -pubkey user_key.pub.pem  -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-dataset --dataset
+./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem  --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir download-dataset --dataset
 
 filepaths="download-dataset/main/subfolder/dummy_data download-dataset/main/subfolder2/dummy_data2 download-dataset/main/subfolder2/random/dummy_data3"
 
@@ -42,7 +42,7 @@ for filepath in $filepaths; do
 done
 
 # Try to download files again using the -continue flag
-testContinue=$(./sda-cli -config testing/s3cmd-download.conf download -pubkey user_key.pub.pem  -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-dataset --dataset -continue | grep -c Skipping)
+testContinue=$(./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem  --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir download-dataset --dataset --continue | grep -c Skipping)
 
 # Check if all existing files were skipped
 if  [ "$testContinue" -ne 3 ]; then
@@ -53,7 +53,7 @@ fi
 # Remove one file and try to download dataset again using the -continue flag
 testContinueFilePath=download-dataset/main/subfolder/dummy_data.c4gh
 rm "$testContinueFilePath"
-testContinue=$(./sda-cli -config testing/s3cmd-download.conf download -pubkey user_key.pub.pem  -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-dataset --dataset -continue | grep -c Skipping)
+testContinue=$(./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem  --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir download-dataset --dataset --continue | grep -c Skipping)
 
 # Check that only the existing files were skipped and the non-existing file was downloaded
 if  [ "$testContinue" -ne 2 ] || [ ! -f "$testContinueFilePath" ]; then
@@ -64,7 +64,7 @@ fi
 rm -r download-dataset
 
 # Download encrypted file by using the sda-cli download command
-./sda-cli -config testing/s3cmd-download.conf download -pubkey user_key.pub.pem -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh
+./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir test-download main/subfolder/dummy_data.c4gh
 
 # Check if file exists in the path
 if [ ! -f "test-download/main/subfolder/dummy_data.c4gh" ]; then
@@ -73,7 +73,7 @@ if [ ! -f "test-download/main/subfolder/dummy_data.c4gh" ]; then
 fi
 
 # Decrypt the downloaded file
-C4GH_PASSWORD="" ./sda-cli decrypt -key user_key.sec.pem test-download/main/subfolder/dummy_data.c4gh
+C4GH_PASSWORD="" ./sda-cli decrypt --key user_key.sec.pem test-download/main/subfolder/dummy_data.c4gh
 
 if [ -f test-download/main/subfolder/dummy_data  ]; then
     echo "Decrypting downloaded file succeeded"
@@ -91,7 +91,7 @@ fi
 
 # Download recursively a folder
 echo "Downloading content of folder"
-./sda-cli -config testing/s3cmd-download.conf download -pubkey user_key.pub.pem -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-folder --recursive main/subfolder2
+./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir download-folder --recursive main/subfolder2
 
 folderpaths="download-folder/main/subfolder2/dummy_data2 download-folder/main/subfolder2/random/dummy_data3"
 
@@ -106,7 +106,7 @@ done
 rm -r download-folder
 
 # Download dataset by providing the dataset id
-./sda-cli -config testing/s3cmd-download.conf download -pubkey user_key.pub.pem -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-fileid urn:neic:001-001
+./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir download-fileid urn:neic:001-001
 
 # Check if file exists in the path
 if [ ! -f "download-fileid/main/subfolder/dummy_data.c4gh" ]; then
@@ -114,7 +114,7 @@ if [ ! -f "download-fileid/main/subfolder/dummy_data.c4gh" ]; then
     exit 1
 fi
 
-C4GH_PASSWORD="" ./sda-cli decrypt -key user_key.sec.pem download-fileid/main/subfolder/dummy_data.c4gh
+C4GH_PASSWORD="" ./sda-cli decrypt --key user_key.sec.pem download-fileid/main/subfolder/dummy_data.c4gh
 # Check the first line of the file
 first_line_id=$(head -n 1 download-fileid/main/subfolder/dummy_data)
 if [[ $first_line_id != *"THIS FILE IS JUST DUMMY DATA"* ]]; then
@@ -126,7 +126,7 @@ rm -r download-fileid
 
 # Download the file paths content of a text file
 echo "Downloading content of a text file"
-./sda-cli -config testing/s3cmd-download.conf download -pubkey user_key.pub.pem -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir download-from-file --from-file testing/file-list.txt
+./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir download-from-file --from-file testing/file-list.txt
 
 # Check if the content of the text file has been downloaded
 content_paths="download-from-file/main/subfolder/dummy_data.c4gh download-from-file/main/subfolder2/dummy_data2.c4gh"
@@ -138,7 +138,7 @@ for content_path in $content_paths; do
     fi
 done
 
-C4GH_PASSWORD="" ./sda-cli decrypt -key user_key.sec.pem download-from-file/main/subfolder/dummy_data.c4gh
+C4GH_PASSWORD="" ./sda-cli decrypt --key user_key.sec.pem download-from-file/main/subfolder/dummy_data.c4gh
 # Check the first line of the file
 first_line_file=$(head -n 1 download-from-file/main/subfolder/dummy_data)
 if [[ $first_line_file != *"THIS FILE IS JUST DUMMY DATA"* ]]; then
@@ -147,14 +147,14 @@ if [[ $first_line_file != *"THIS FILE IS JUST DUMMY DATA"* ]]; then
 fi
 
 # Make sure files cannot be downloaded without giving a public key
-if ./sda-cli -config testing/s3cmd-download.conf download -dataset-id https://doi.example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -outdir test-download main/subfolder/dummy_data.c4gh; then
+if ./sda-cli --config testing/s3cmd-download.conf download --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir test-download main/subfolder/dummy_data.c4gh; then
     echo "Downloaded a file without using a public key"
     exit 1
 else
     echo "Error expected, continue."
 fi
 
-if ./sda-cli download -dataset-id https://doi .example/ty009.sfrrss/600.45asasga -url http://localhost:8080 -config  testing/s3cmd.conf 2> >(grep "the config flag should come before the subcommand. Eg 'sda-cli -config s3cfg download" > /dev/null ) -ne 1
+if ./sda-cli download --dataset-id https://doi .example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --config  testing/s3cmd.conf 2> >(grep "the config flag should come before the subcommand. Eg 'sda-cli -config s3cfg download" > /dev/null ) -ne 1
 then
     echo "Unexpected error message"
     exit 1
