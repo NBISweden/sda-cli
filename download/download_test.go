@@ -388,10 +388,10 @@ func (s *DownloadTestSuite) TestGetBodyWithPublicKey() {
 		s.T().Errorf("getBody returned incorrect response body, got: %s, want: %s", string(body), expectedBody)
 	}
 }
-func (dts *DownloadTestSuite) TestSetupCookiejar() {
-	testCookie := filepath.Join(dts.tempDir, ".cache/sda-cli/sda_cookie")
+func (s *DownloadTestSuite) TestSetupCookiejar() {
+	testCookie := filepath.Join(s.tempDir, ".cache/sda-cli/sda_cookie")
 	if runtime.GOOS == "windows" {
-		testCookie = filepath.Join(dts.tempDir, "sda-cli/sda_cookie")
+		testCookie = filepath.Join(s.tempDir, "sda-cli/sda_cookie")
 	}
 	pwdCookie, _ := filepath.Abs(".sda_cookie")
 	for _, test := range []struct {
@@ -403,7 +403,7 @@ func (dts *DownloadTestSuite) TestSetupCookiejar() {
 		testName      string
 	}{
 		{
-			cachePath:    dts.tempDir,
+			cachePath:    s.tempDir,
 			cookiePath:   testCookie,
 			cookieString: "",
 			createCookie: false,
@@ -417,42 +417,42 @@ func (dts *DownloadTestSuite) TestSetupCookiejar() {
 			testName:     "current_dir_cookie",
 		},
 		{
-			cachePath:    dts.tempDir,
+			cachePath:    s.tempDir,
 			cookiePath:   testCookie,
 			cookieString: "[{\"Name\":\"test-cookie\", \"Value\":\"cache_path_cookie\"}]",
 			createCookie: true,
 			testName:     "cache_path_cookie",
 		},
 		{
-			cachePath:    dts.tempDir,
+			cachePath:    s.tempDir,
 			cookiePath:   testCookie,
 			cookieString: "[{\"Name\":\"test-cookie\", \"Value\":\"test-data\",\"Domain\":\"example.org\"}]",
 			createCookie: true,
 			testName:     "wrong_domain",
 		},
 		{
-			cachePath:    dts.tempDir,
+			cachePath:    s.tempDir,
 			cookiePath:   testCookie,
 			cookieString: "[{\"Name\":\"test-cookie\", \"Value\":\"test-data\",\"Expires\":\"2001-01-01T00:00:00Z\"}]",
 			createCookie: true,
 			testName:     "expired",
 		},
 		{
-			cachePath:    dts.tempDir,
+			cachePath:    s.tempDir,
 			cookiePath:   testCookie,
 			cookieString: "[{\"Name\":\"test-cookie\", \"Value\":\"not_expired_cookie\",\"Expires\":\"2026-01-01T00:00:00Z\",\"MaxAge\":0}]",
 			createCookie: true,
 			testName:     "not_expired_cookie",
 		},
 		{
-			cachePath:    dts.tempDir,
+			cachePath:    s.tempDir,
 			cookiePath:   testCookie,
 			cookieString: "[{\"Name\":\"test-cookie\", \"Value\":\"max-age_cookie\",\"Expires\":\"0001-01-01T00:00:00Z\",\"MaxAge\":300}]",
 			createCookie: true,
 			testName:     "max-age_cookie",
 		},
 	} {
-		dts.T().Run(test.testName, func(t *testing.T) {
+		s.T().Run(test.testName, func(t *testing.T) {
 			if runtime.GOOS == "windows" {
 				os.Setenv("LocalAppData", test.cachePath)
 			} else {
@@ -465,7 +465,7 @@ func (dts *DownloadTestSuite) TestSetupCookiejar() {
 				}
 			}
 
-			u, _ := url.Parse(dts.httpTestServer.URL)
+			u, _ := url.Parse(s.httpTestServer.URL)
 			setupCookieJar(u)
 			assert.Equal(t, test.cookiePath, cookiePath)
 			cj := cookieJar.Cookies(u)
