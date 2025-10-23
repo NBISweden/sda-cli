@@ -18,7 +18,6 @@ builds:
     ldflags:
       - -s -w
       - -X github.com/NBISweden/sda-cli/cmd.Version={{ .Tag }}
-      - -X github.com/NBISweden/sda-cli/version.Version={{ .Tag }}
 archives:
   - name_template: >-
       {{ .ProjectName }}_
