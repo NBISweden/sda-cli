@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
-	"flag"
 	"fmt"
 	"hash"
 	"io"
@@ -16,84 +15,72 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/NBISweden/sda-cli/cmd"
 	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/NBISweden/sda-cli/login"
 	"github.com/neicnordic/crypt4gh/keys"
 	"github.com/neicnordic/crypt4gh/streaming"
 	"github.com/smallnest/ringbuffer"
+	"github.com/spf13/cobra"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 )
 
-// Help text and command line flags.
-
-// Usage text that will be displayed as command line help text when using the
-// `help encrypt` command
-var Usage = `
-Usage: %s encrypt [OPTIONS] [file(s)] 
-
-Encrypt files according to the Crypt4GH standard used in the Sensitive Data
-Archive (SDA). Each input file will be encrypted and saved as '<filename>.c4gh'.
-Additionally, checksums for both encrypted and unencrypted files will be
-calculated and written to the following files:
-  - checksum_unencrypted.md5
-  - checksum_encrypted.md5
-  - checksum_unencrypted.sha256
-  - checksum_encrypted.sha256
-
-Important:
-  Exactly one of '-key' or '-target' must be specified.
-
-Options:
-  -key <public-key-file>   Public key file(s) to use for encryption. This flag can be specified 
-                           multiple times to encrypt files with multiple public keys.
-                           Key files may contain concatenated keys.
-  -target <target>         Client target associated with the public key.
-  -outdir <dir>            Output directory for encrypted files. Defaults to the current directory.
-  -continue=true|false     Skip files with errors and continue processing others. Defaults to 'false'.
-
-Arguments:
-  [file(s)]                List of file paths to be encrypted.
-                           All flagless arguments are treated as filenames.`
-
-// Args is a flagset that needs to be exported so that it can be written to the
-// main program help
-var Args = flag.NewFlagSet("encrypt", flag.ContinueOnError)
-
-var outDir = Args.String("outdir", "",
-	"Output directory for encrypted files.")
-
-var continueEncrypt = Args.Bool("continue", false, "Skip files with errors and continue processing others. Defaults to 'false'.")
-
-var target = Args.String("target", "", "Client target associated with the public key.")
-
+var outDir string
+var continueEncrypt bool
+var target string
 var publicKeyFileList []string
 
-func init() {
-	Args.Func("key", "Public key file(s) to use for encryption. This flag can be specified\nmultiple times to encrypt files with multiple public keys. \nKey files may contain concatenated keys.", func(s string) error {
-		publicKeyFileList = append(publicKeyFileList, s)
+var encryptCmd = &cobra.Command{
+	Use:   "encrypt [flags] [file(s)]",
+	Short: "Encrypt files using Crypt4GH",
+	Long: `Encrypt files according to the Crypt4GH standard used in the Sensitive Data
+	Archive (SDA). Each input file will be encrypted and saved as '<filename>.c4gh'.
+	Additionally, checksums for both encrypted and unencrypted files will be
+	calculated and written to the following files:
+		- checksum_unencrypted.md5
+		- checksum_encrypted.md5
+		- checksum_unencrypted.sha256
+		- checksum_encrypted.sha256
+
+	Important:
+		Exactly one of '--key' or '--target' must be specified.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		err := Encrypt(args)
+		if err != nil {
+			return err
+		}
 
 		return nil
-	})
+	},
+}
+
+func init() {
+	cmd.AddCommand(encryptCmd)
+	encryptCmd.Flags().StringVar(&outDir, "outdir", "", "Output directory for encrypted files. Defaults to the current directory")
+	encryptCmd.Flags().BoolVar(&continueEncrypt, "continue", false, "Skip files with errors and continue processing others. (default=false)")
+	encryptCmd.Flags().StringVar(&target, "target", "", "Client target associated with the public key")
+	encryptCmd.Flags().StringArrayVarP(&publicKeyFileList, "key", "k", []string{}, "Public key file(s) to use for encryption (repeatable)")
+}
+
+// Needed for testing: used when calling encrypt from the decrypt package in decrypt_test.go
+func SetFlags(key string, value string) {
+	encryptCmd.Flag(key).Value.Set(value)
 }
 
 // Encrypt takes a set of arguments, parses them, and attempts to encrypt the
 // given data files with the given public key file
 func Encrypt(args []string) error {
+	var err error
 	var pubKeyList [][32]byte
-	// Call ParseArgs to take care of all the flag parsing
-	err := helpers.ParseArgs(args, Args)
-	if err != nil {
-		return err
-	}
 
 	switch {
-	case publicKeyFileList != nil && *target != "":
-		return errors.New("only one of -key or -target can be used")
-	case *target != "":
+	case len(publicKeyFileList) != 0 && target != "":
+		return errors.New("only one of --key or --target can be used")
+	case target != "":
 		// fetch info endpoint values
 		fmt.Println("fetching public key")
-		info, err := login.GetAuthInfo(*target)
+		info, err := login.GetAuthInfo(target)
 		if err != nil {
 			return err
 		}
@@ -109,7 +96,7 @@ func Encrypt(args []string) error {
 		}
 
 		pubKeyList = append(pubKeyList, pubkey)
-	case publicKeyFileList == nil:
+	case len(publicKeyFileList) == 0:
 		// check for public key in .sda-cli-session file from login
 		pubKey, err := helpers.GetPublicKeyFromSession()
 		if err != nil {
@@ -142,27 +129,28 @@ func Encrypt(args []string) error {
 	defer func() {
 		if skippedFiles != 0 {
 			fmt.Fprintf(os.Stderr, "(%d/%d) files skipped\n", skippedFiles, len(files)+skippedFiles)
+			// revive:disable:deep-exit
 			os.Exit(1)
 		}
 	}()
 
 	// Args() returns the non-flag arguments, which we assume are filenames.
 	fmt.Println("Checking files")
-	for _, filename := range Args.Args() {
+	for _, filename := range args {
 		// Set directory for the output file
 		outFilename := filename + ".c4gh"
-		if *outDir != "" {
+		if outDir != "" {
 			_, basename := filepath.Split(filename)
-			outFilename = filepath.Join(*outDir, basename) + ".c4gh"
+			outFilename = filepath.Join(outDir, basename) + ".c4gh"
 		}
 
 		eachFile[0] = helpers.EncryptionFileSet{Unencrypted: filename, Encrypted: outFilename}
 
 		// Skip files that do not pass the checks and print all error logs at the end
 		if err = checkFiles(eachFile); err != nil {
-			defer fmt.Fprintf(os.Stderr, "Skipping input file %s. Reason: %v.\n", filename, err)
-			if !*continueEncrypt {
-				return fmt.Errorf("aborting")
+			defer fmt.Fprintf(os.Stderr, "Skipping input file %s. Reason: %v.\n", filename, err) // revive:disable:defer
+			if !continueEncrypt {
+				return errors.New("aborting")
 			}
 			skippedFiles++
 
@@ -174,7 +162,7 @@ func Encrypt(args []string) error {
 
 	// exit if files slice is empty
 	if len(files) == 0 {
-		return fmt.Errorf("no input files")
+		return errors.New("no input files")
 	}
 
 	fmt.Printf("Ready to encrypt %d file(s)\n", len(files))
@@ -282,7 +270,7 @@ func checkFiles(files []helpers.EncryptionFileSet) error {
 		if err != nil {
 			return err
 		}
-		defer func() {
+		defer func() { // revive:disable:defer
 			if err := unEncryptedFile.Close(); err != nil {
 				fmt.Fprintf(os.Stderr, "Error closing file: %v\n", err)
 			}
@@ -575,8 +563,8 @@ type hashSet struct {
 }
 
 type keySpecs struct {
-	rgx    *regexp.Regexp // text pattern to match
-	nbytes int            // first n bytes of file to parse
+	rgx    *regexp.Regexp
+	nbytes int
 }
 
 func Stream(file *os.File, pubKeyList [][32]byte) (FileStream, error) {

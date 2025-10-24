@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"errors"
 	"fmt"
 	"io"
 	"net/http/httptest"
@@ -34,11 +35,11 @@ type HelperTests struct {
 }
 
 // generate jwts for testing the expDate
-func (suite *HelperTests) generateDummyToken(expDate int64) string {
+func (s *HelperTests) generateDummyToken(expDate int64) string {
 	// Generate a new private key
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		suite.FailNow("failed to generate key", err)
+		s.FailNow("failed to generate key", err)
 	}
 
 	// Create the Claims
@@ -55,7 +56,7 @@ func (suite *HelperTests) generateDummyToken(expDate int64) string {
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	ss, err := token.SignedString(privateKey)
 	if err != nil {
-		suite.FailNow("failed to sign token", err)
+		s.FailNow("failed to sign token", err)
 	}
 
 	return ss
@@ -65,153 +66,119 @@ func TestHelpersTestSuite(t *testing.T) {
 	suite.Run(t, new(HelperTests))
 }
 
-func (suite *HelperTests) SetupTest() {
-
+func (s *HelperTests) SetupTest() {
 	var err error
 
 	// Create a temporary directory for our files
-	suite.tempDir, err = os.MkdirTemp(os.TempDir(), "sda-cli-test-")
+	s.tempDir, err = os.MkdirTemp(os.TempDir(), "sda-cli-test-")
 	if err != nil {
-		suite.FailNow("failed to create temp test directory", err)
+		s.FailNow("failed to create temp test directory", err)
 	}
 
 	// create an existing test file with some known content
-	suite.testFile, err = os.CreateTemp(suite.tempDir, "testfile-")
+	s.testFile, err = os.CreateTemp(s.tempDir, "testfile-")
 	if err != nil {
-		suite.FailNow("failed to create temp test file", err)
+		s.FailNow("failed to create temp test file", err)
 	}
 
-	err = os.WriteFile(suite.testFile.Name(), []byte("content"), 0600)
+	err = os.WriteFile(s.testFile.Name(), []byte("content"), 0600)
 	if err != nil {
-		suite.FailNow("failed to write to test file", err)
+		s.FailNow("failed to write to test file", err)
 	}
 
 	// create another existing test file with some known content
-	suite.testFile1, err = os.CreateTemp(suite.tempDir, "testfile-")
+	s.testFile1, err = os.CreateTemp(s.tempDir, "testfile-")
 	if err != nil {
-		suite.FailNow("failed to create temp test file", err)
+		s.FailNow("failed to create temp test file", err)
 	}
 
-	err = os.WriteFile(suite.testFile1.Name(), []byte("more content"), 0600)
+	err = os.WriteFile(s.testFile1.Name(), []byte("more content"), 0600)
 	if err != nil {
-		suite.FailNow("failed to write to test file", err)
+		s.FailNow("failed to write to test file", err)
 	}
 
-	suite.accessToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtleXN0b3JlLUNIQU5HRS1NRSJ9.eyJqdGkiOiJWTWpfNjhhcEMxR2FJbXRZdFExQ0ciLCJzdWIiOiJkdW1teSIsImlzcyI6Imh0dHA6Ly9vaWRjOjkwOTAiLCJpYXQiOjE3MDc3NjMyODksImV4cCI6MTg2NTU0NzkxOSwic2NvcGUiOiJvcGVuaWQgZ2E0Z2hfcGFzc3BvcnRfdjEgcHJvZmlsZSBlbWFpbCIsImF1ZCI6IlhDNTZFTDExeHgifQ.ZFfIAOGeM2I5cvqr1qJV74qU65appYjpNJVWevGHjGA5Xk_qoRMFJXmG6AiQnYdMKnJ58sYGNjWgs2_RGyw5NyM3-pgP7EKHdWU4PrDOU84Kosg4IPMSFxbBRAEjR5X04YX_CLYW2MFk_OyM9TIln522_JBVT_jA5WTTHSmBRHntVArYYHvQdF-oFRiqL8JXWlsUBh3tqQ33sZdqd9g64YhTk9a5lEC42gn5Hg9Hm_qvkl5orzEqIg7x9z5706IBE4Zypco5ohrAKsEbA8EKbEBb0jigGgCslQNde2owUyKIkvZYmxHA78X5xpymMp9K--PgbkyMS9GtA-YwOHPs-w"
+	s.accessToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtleXN0b3JlLUNIQU5HRS1NRSJ9.eyJqdGkiOiJWTWpfNjhhcEMxR2FJbXRZdFExQ0ciLCJzdWIiOiJkdW1teSIsImlzcyI6Imh0dHA6Ly9vaWRjOjkwOTAiLCJpYXQiOjE3MDc3NjMyODksImV4cCI6MTg2NTU0NzkxOSwic2NvcGUiOiJvcGVuaWQgZ2E0Z2hfcGFzc3BvcnRfdjEgcHJvZmlsZSBlbWFpbCIsImF1ZCI6IlhDNTZFTDExeHgifQ.ZFfIAOGeM2I5cvqr1qJV74qU65appYjpNJVWevGHjGA5Xk_qoRMFJXmG6AiQnYdMKnJ58sYGNjWgs2_RGyw5NyM3-pgP7EKHdWU4PrDOU84Kosg4IPMSFxbBRAEjR5X04YX_CLYW2MFk_OyM9TIln522_JBVT_jA5WTTHSmBRHntVArYYHvQdF-oFRiqL8JXWlsUBh3tqQ33sZdqd9g64YhTk9a5lEC42gn5Hg9Hm_qvkl5orzEqIg7x9z5706IBE4Zypco5ohrAKsEbA8EKbEBb0jigGgCslQNde2owUyKIkvZYmxHA78X5xpymMp9K--PgbkyMS9GtA-YwOHPs-w"
 }
 
-func (suite *HelperTests) TearDownTest() {
-	os.Remove(suite.testFile.Name())  //nolint:errcheck
-	os.Remove(suite.testFile1.Name()) //nolint:errcheck
-	os.Remove(suite.tempDir)          //nolint:errcheck
+func (s *HelperTests) TearDownTest() {
+	os.Remove(s.testFile.Name())  //nolint:errcheck
+	os.Remove(s.testFile1.Name()) //nolint:errcheck
+	os.Remove(s.tempDir)          //nolint:errcheck
 }
 
-func (suite *HelperTests) TestFileExists() {
+func (s *HelperTests) TestFileExists() {
 	// file exists
-	testExists := FileExists(suite.testFile.Name())
-	suite.Equal(testExists, true)
+	testExists := FileExists(s.testFile.Name())
+	s.Equal(testExists, true)
 	// file does not exists
 	testMissing := FileExists("does-not-exist")
-	suite.Equal(testMissing, false)
+	s.Equal(testMissing, false)
 	// file is a directory
-	testIsDir := FileExists(suite.tempDir)
-	suite.Equal(testIsDir, true)
+	testIsDir := FileExists(s.tempDir)
+	s.Equal(testIsDir, true)
 }
 
-func (suite *HelperTests) TestFileIsReadable() {
+func (s *HelperTests) TestFileIsReadable() {
 	// file doesn't exist
 	testMissing := FileIsReadable("does-not-exist")
-	suite.Equal(testMissing, false)
+	s.Equal(testMissing, false)
 
 	// file is a directory
-	testIsDir := FileIsReadable(suite.tempDir)
-	suite.Equal(testIsDir, false)
+	testIsDir := FileIsReadable(s.tempDir)
+	s.Equal(testIsDir, false)
 
 	// file can be read
-	testFileOk := FileIsReadable(suite.testFile.Name())
-	suite.Equal(testFileOk, true)
+	testFileOk := FileIsReadable(s.testFile.Name())
+	s.Equal(testFileOk, true)
 
 	// test file permissions. This doesn't work on windows, so we do an extra
 	// check to see if this test makes sense.
 	if runtime.GOOS != "windows" {
-		err := os.Chmod(suite.testFile.Name(), 0000)
+		err := os.Chmod(s.testFile.Name(), 0000)
 		if err != nil {
-			suite.FailNow("failed to chmod test file", err)
+			s.FailNow("failed to chmod test file", err)
 		}
 		// file permissions don't allow reading
-		testDisallowed := FileIsReadable(suite.testFile.Name())
-		suite.Equal(testDisallowed, false)
+		testDisallowed := FileIsReadable(s.testFile.Name())
+		s.Equal(testDisallowed, false)
 
 		// restore permissions
-		err = os.Chmod(suite.testFile.Name(), 0600)
+		err = os.Chmod(s.testFile.Name(), 0600)
 		if err != nil {
-			suite.FailNow("failed to chmod test file", err)
+			s.FailNow("failed to chmod test file", err)
 		}
 	}
 }
 
-func (suite *HelperTests) TestFormatSubcommandUsage() {
-	// check formatting of malformed usage strings without %s for os.Args[0]
-	malformedNoFormatString := "USAGE: do that stuff"
-	testMissingArgsFormat := FormatSubcommandUsage(malformedNoFormatString)
-	suite.Equal(malformedNoFormatString, testMissingArgsFormat)
-
-	// check formatting when the USAGE string is missing
-	malformedNoUsage := `module: this module does all the fancies stuff,
-								   and virtually none of the non-fancy stuff.
-								   run with: %s module`
-	testNoUsage := FormatSubcommandUsage(malformedNoUsage)
-	suite.Equal(fmt.Sprintf(malformedNoUsage, os.Args[0]), testNoUsage)
-
-	// check formatting when the usage string is correctly formatted
-
-	correctUsage := `USAGE: %s module <args>
-
-module:
-    this module does all the fancies stuff,
-    and virtually none of the non-fancy stuff.`
-
-	correctFormat := fmt.Sprintf(`
-module:
-    this module does all the fancies stuff,
-    and virtually none of the non-fancy stuff.
-
-    USAGE: %s module <args>
-
-`, os.Args[0])
-	testCorrect := FormatSubcommandUsage(correctUsage)
-	suite.Equal(correctFormat, testCorrect)
-}
-
-func (suite *HelperTests) TestParseS3ErrorResponse() {
+func (s *HelperTests) TestParseS3ErrorResponse() {
 	// check bad response body by creating and passing
 	// a dummy faulty io.Reader
 	f, _ := os.Open(`doesn't exist`)
 	defer f.Close() //nolint:errcheck
 	msg, err := ParseS3ErrorResponse(f)
-	suite.Equal("", msg)
-	suite.ErrorContains(err, "failed to read from response body")
+	s.Equal("", msg)
+	s.ErrorContains(err, "failed to read from response body")
 
 	// check not xml
 	payload := strings.NewReader("some non xml text")
 	msg, err = ParseS3ErrorResponse(payload)
-	suite.Equal("", msg)
-	suite.EqualError(err, "cannot parse response body, reason: not xml")
+	s.Equal("", msg)
+	s.EqualError(err, "cannot parse response body, reason: not xml")
 
 	// check with malformed xml
 	payload.Reset("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><ed</Code><Message>All access to this bucket has been disabled.</Message><Resource>/minio/test/dummy/data_file1.c4gh</Resource><RequestId></RequestId><HostId>73e4c710-46e8-4846-b70b-86ee905a3ab0</HostId></Error>")
 	msg, err = ParseS3ErrorResponse(payload)
-	suite.Equal("", msg)
-	suite.ErrorContains(err, "failed to unmarshal xml response")
+	s.Equal("", msg)
+	s.ErrorContains(err, "failed to unmarshal xml response")
 
 	// check with good xml
 	payload.Reset("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>AllAccessDisabled</Code><Message>All access to this bucket has been disabled.</Message><Resource>/minio/test/dummy/data_file1.c4gh</Resource><RequestId></RequestId><HostId>73e4c710-46e8-4846-b70b-86ee905a3ab0</HostId></Error>")
 	msg, err = ParseS3ErrorResponse(payload)
-	suite.Equal("{Code:AllAccessDisabled Message:All access to this bucket has been disabled. Resource:/minio/test/dummy/data_file1.c4gh}", msg)
-	suite.NoError(err)
+	s.Equal("{Code:AllAccessDisabled Message:All access to this bucket has been disabled. Resource:/minio/test/dummy/data_file1.c4gh}", msg)
+	s.NoError(err)
 }
 
-func (suite *HelperTests) TestConfigNoFile() {
+func (s *HelperTests) TestConfigNoFile() {
 	msg := "open nofile.conf: no such file or directory"
 	if runtime.GOOS == "windows" {
 		msg = "open nofile.conf: The system cannot find the file specified."
@@ -219,11 +186,10 @@ func (suite *HelperTests) TestConfigNoFile() {
 	configPath := "nofile.conf"
 
 	_, err := LoadConfigFile(configPath)
-	assert.EqualError(suite.T(), err, msg)
+	assert.EqualError(s.T(), err, msg)
 }
 
-func (suite *HelperTests) TestLoadConfigHostBase() {
-
+func (s *HelperTests) TestLoadConfigHostBase() {
 	confFileFormat := `
 	host_base = %s
 	encoding = UTF-8
@@ -286,7 +252,7 @@ func (suite *HelperTests) TestLoadConfigHostBase() {
 			expectedHostBase: "",
 			inputUseHTTPS:    false,
 			expectedUseHTTPS: false,
-			expectedError:    fmt.Errorf("failed to parse host base from configuration file, reason: parse \"127.0.0.1:8001\": first path segment in URL cannot contain colon"),
+			expectedError:    errors.New("failed to parse host base from configuration file, reason: parse \"127.0.0.1:8001\": first path segment in URL cannot contain colon"),
 		}, {
 			testName:         "HostBaseAsIPWithHttpSchemeAndPort",
 			inputHostBase:    "http://127.0.0.1:8001",
@@ -307,19 +273,19 @@ func (suite *HelperTests) TestLoadConfigHostBase() {
 			expectedHostBase: "",
 			inputUseHTTPS:    false,
 			expectedUseHTTPS: false,
-			expectedError:    fmt.Errorf("failed to parse host base from configuration file, reason: a valid host can not be parsed"),
+			expectedError:    errors.New("failed to parse host base from configuration file, reason: a valid host can not be parsed"),
 		},
 	} {
-		suite.T().Run(test.testName, func(t *testing.T) {
+		s.T().Run(test.testName, func(t *testing.T) {
 			configPath, err := os.CreateTemp(os.TempDir(), "sda-cli-helper-test-")
 			if err != nil {
-				suite.FailNow("failed to create temporary directory", err)
+				s.FailNow("failed to create temporary directory", err)
 			}
 			defer os.RemoveAll(configPath.Name()) //nolint:errcheck
 
 			err = os.WriteFile(configPath.Name(), []byte(fmt.Sprintf(confFileFormat, test.inputHostBase, test.inputUseHTTPS)), 0600)
 			if err != nil {
-				suite.FailNow("failed to write config file", err)
+				s.FailNow("failed to write config file", err)
 			}
 
 			conf, err := LoadConfigFile(configPath.Name())
@@ -333,13 +299,11 @@ func (suite *HelperTests) TestLoadConfigHostBase() {
 
 			assert.Equal(t, test.expectedHostBase, conf.HostBase)
 			assert.Equal(t, test.expectedUseHTTPS, conf.UseHTTPS)
-
 		})
 	}
-
 }
 
-func (suite *HelperTests) TestConfigWrongFile() {
+func (s *HelperTests) TestConfigWrongFile() {
 	var confFile = `
 access_token = someToken
 access_key = someUser
@@ -350,21 +314,21 @@ encrypt = False
 
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
 	if err != nil {
-		suite.FailNow("failed to create temp s3cmd test file", err)
+		s.FailNow("failed to create temp s3cmd test file", err)
 	}
 
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		suite.FailNow("failed to write config file", err)
+		s.FailNow("failed to write config file", err)
 	}
 
 	_, err = LoadConfigFile(configPath.Name())
-	assert.EqualError(suite.T(), err, "key-value delimiter not found: guess_mime_type!True\n")
+	assert.EqualError(s.T(), err, "key-value delimiter not found: guess_mime_type!True\n")
 }
 
-func (suite *HelperTests) TestConfigS3cmdFileFormat() {
+func (s *HelperTests) TestConfigS3cmdFileFormat() {
 	var confFile = `
 	[some header]
 	access_token = someToken
@@ -376,54 +340,53 @@ func (suite *HelperTests) TestConfigS3cmdFileFormat() {
 
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
 	if err != nil {
-		suite.FailNow("failed to create temp s3cmd test file", err)
+		s.FailNow("failed to create temp s3cmd test file", err)
 	}
 
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		suite.FailNow("failed to write config file", err)
+		s.FailNow("failed to write config file", err)
 	}
 
 	_, err = LoadConfigFile(configPath.Name())
-	assert.NoError(suite.T(), err)
+	assert.NoError(s.T(), err)
 }
 
-func (suite *HelperTests) TestConfigMissingCredentials() {
-
+func (s *HelperTests) TestConfigMissingCredentials() {
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
 	if err != nil {
-		suite.FailNow("failed to create temp s3cmd test file", err)
+		s.FailNow("failed to create temp s3cmd test file", err)
 	}
 
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	_, err = LoadConfigFile(configPath.Name())
-	assert.EqualError(suite.T(), err, "failed to find credentials in configuration file")
+	assert.EqualError(s.T(), err, "failed to find credentials in configuration file")
 }
 
-func (suite *HelperTests) TestConfigMissingEndpoint() {
+func (s *HelperTests) TestConfigMissingEndpoint() {
 	var confFile = `
 access_token = someToken
 access_key = someUser
 `
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
 	if err != nil {
-		suite.FailNow("failed to create temp s3cmd test file", err)
+		s.FailNow("failed to create temp s3cmd test file", err)
 	}
 
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	if err := os.WriteFile(configPath.Name(), []byte(confFile), 0600); err != nil {
-		suite.FailNow("failed to write to temp s3cmd test file", err)
+		s.FailNow("failed to write to temp s3cmd test file", err)
 	}
 
 	_, err = LoadConfigFile(configPath.Name())
-	assert.EqualError(suite.T(), err, "failed to find endpoint in configuration file")
+	assert.EqualError(s.T(), err, "failed to find endpoint in configuration file")
 }
 
-func (suite *HelperTests) TestConfig() {
+func (s *HelperTests) TestConfig() {
 	var confFile = `
 access_token = someToken
 host_base = someHostBase
@@ -442,68 +405,68 @@ encrypt = False
 `
 	configPath, err := os.CreateTemp(os.TempDir(), "s3cmd-")
 	if err != nil {
-		suite.FailNow("failed to create temp s3cmd test file", err)
+		s.FailNow("failed to create temp s3cmd test file", err)
 	}
 
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		suite.FailNow("failed to write to temp s3cmd test file", err)
+		s.FailNow("failed to write to temp s3cmd test file", err)
 	}
 
 	_, err = LoadConfigFile(configPath.Name())
-	assert.NoError(suite.T(), err)
+	assert.NoError(s.T(), err)
 }
 
-func (suite *HelperTests) TestTokenExpiration() {
+func (s *HelperTests) TestTokenExpiration() {
 	// Token without exp claim
-	token := suite.generateDummyToken(0)
+	token := s.generateDummyToken(0)
 	err := CheckTokenExpiration(token)
-	assert.EqualError(suite.T(), err, "could not parse token, reason: no expiration date")
+	assert.EqualError(s.T(), err, "could not parse token, reason: no expiration date")
 
 	// Token with expired date
-	token = suite.generateDummyToken(time.Now().Unix())
+	token = s.generateDummyToken(time.Now().Unix())
 	err = CheckTokenExpiration(token)
-	assert.EqualError(suite.T(), err, "the provided access token has expired, please renew it")
+	assert.EqualError(s.T(), err, "the provided access token has expired, please renew it")
 
 	// Token with valid expiration, less than 2 hours
-	token = suite.generateDummyToken(time.Now().Add(time.Hour).Unix())
+	token = s.generateDummyToken(time.Now().Add(time.Hour).Unix())
 
 	storeStderr := os.Stderr
 	r, w, _ := os.Pipe()
 	os.Stderr = w
 
 	err = CheckTokenExpiration(token)
-	assert.NoError(suite.T(), err)
+	assert.NoError(s.T(), err)
 
 	_ = w.Close()
 	out, _ := io.ReadAll(r)
 	os.Stderr = storeStderr
 
 	msg := "WARNING! The provided access token expires in only 59 minutes."
-	assert.Contains(suite.T(), string(out), msg)
+	assert.Contains(s.T(), string(out), msg)
 
 	// Token with valid expiration, more than a day
 	exp := time.Now().Add(time.Hour * 72)
-	token = suite.generateDummyToken(exp.Unix())
+	token = s.generateDummyToken(exp.Unix())
 
 	storeStderr = os.Stderr
 	r, w, _ = os.Pipe()
 	os.Stderr = w
 
 	err = CheckTokenExpiration(token)
-	assert.NoError(suite.T(), err)
+	assert.NoError(s.T(), err)
 
 	_ = w.Close()
 	out, _ = io.ReadAll(r)
 	os.Stderr = storeStderr
 
 	msg = "The provided access token expires on " + exp.Format(time.RFC1123)
-	assert.Contains(suite.T(), string(out), msg)
+	assert.Contains(s.T(), string(out), msg)
 }
 
-func (suite *HelperTests) TestPubKeyEmptyField() {
+func (s *HelperTests) TestPubKeyEmptyField() {
 	var confFile = `
 access_token = someToken
 host_base = someHostBase
@@ -522,22 +485,21 @@ encrypt = False
 `
 	configPath, err := os.Create(".sda-cli-session")
 	if err != nil {
-		suite.FailNow("failed to create sda cli session test file", err)
+		s.FailNow("failed to create sda cli session test file", err)
 	}
 
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		suite.FailNow("failed to write to sda cli session test file", err)
+		s.FailNow("failed to write to sda cli session test file", err)
 	}
 
 	_, err = GetPublicKeyFromSession()
-	assert.EqualError(suite.T(), err, "public key not found in the configuration")
+	assert.EqualError(s.T(), err, "public key not found in the configuration")
 }
 
-func (suite *HelperTests) TestGetPublicKeyFromSession() {
-
+func (s *HelperTests) TestGetPublicKeyFromSession() {
 	var confFile = `
 access_token = someToken
 host_base = someHostBase
@@ -557,52 +519,51 @@ public_key = 27be42445fd9e39c9be39e6b36a55e61e3801fc845f63781a813d3fe9977e17a
 `
 	configPath, err := os.Create(".sda-cli-session")
 	if err != nil {
-		suite.FailNow("failed to create sda cli session test file", err)
+		s.FailNow("failed to create sda cli session test file", err)
 	}
 
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
 	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
 	if err != nil {
-		suite.FailNow("failed to write to sda cli session test file", err)
+		s.FailNow("failed to write to sda cli session test file", err)
 	}
 
 	_, err = GetPublicKeyFromSession()
-	assert.NoError(suite.T(), err)
+	assert.NoError(s.T(), err)
 
-	if assert.FileExists(suite.T(), "key-from-oidc.pub.pem") {
+	if assert.FileExists(s.T(), "key-from-oidc.pub.pem") {
 		os.Remove("key-from-oidc.pub.pem") //nolint:errcheck
 	}
 }
 
-func (suite *HelperTests) TestInvalidCharacters() {
+func (s *HelperTests) TestInvalidCharacters() {
 	// Test that file paths with invalid characters trigger errors
 	for _, badc := range "\x00\x7F\x1A:*?\\<>\"|!'();@&=+$,%#[]" {
 		badchar := string(badc)
 		testfilepath := "test" + badchar + "file"
 
 		err := CheckValidChars(testfilepath)
-		assert.Error(suite.T(), err)
-		assert.Equal(suite.T(), fmt.Sprintf("filepath %v contains disallowed characters: %+v", testfilepath, badchar), err.Error())
+		assert.Error(s.T(), err)
+		assert.Equal(s.T(), fmt.Sprintf("filepath %v contains disallowed characters: %+v", testfilepath, badchar), err.Error())
 	}
 }
 
-func (suite *HelperTests) TestCreatePubFile() {
+func (s *HelperTests) TestCreatePubFile() {
 	var pubKeyContent = `339eb2a458fec5e23aa8b57cfcb35f10e7389025816e44d4234f814ed2aeed3f`
 	var expectedPubKey = `-----BEGIN CRYPT4GH PUBLIC KEY-----
 MzM5ZWIyYTQ1OGZlYzVlMjNhYThiNTdjZmNiMzVmMTA=
 -----END CRYPT4GH PUBLIC KEY-----
 `
 	_, err := CreatePubFile(pubKeyContent, os.TempDir()+"/test_public_file.pub.pem")
-	assert.NoError(suite.T(), err)
+	assert.NoError(s.T(), err)
 
 	pubFile, _ := os.ReadFile(os.TempDir() + "/test_public_file.pub.pem")
-	s := string(pubFile)
-	assert.Equal(suite.T(), expectedPubKey, s)
+	assert.Equal(s.T(), expectedPubKey, string(pubFile))
 	defer os.Remove(os.TempDir() + "/test_public_file.pub.pem") //nolint:errcheck
 }
 
-func (suite *HelperTests) TestListFiles() {
+func (s *HelperTests) TestListFiles() {
 	ctx := context.TODO()
 	// Create a fake s3 backend
 	backend := s3mem.New()
@@ -611,12 +572,12 @@ func (suite *HelperTests) TestListFiles() {
 	defer ts.Close()
 
 	awsConfig, err := config.LoadDefaultConfig(ctx,
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("dummy", "dummy", suite.accessToken)),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("dummy", "dummy", s.accessToken)),
 		config.WithRegion("eu-central-1"),
 		config.WithBaseEndpoint(ts.URL),
 	)
 	if err != nil {
-		suite.FailNow("failed to create aws config", err)
+		s.FailNow("failed to create aws config", err)
 	}
 
 	s3Client := s3.NewFromConfig(awsConfig, func(o *s3.Options) {
@@ -630,41 +591,41 @@ func (suite *HelperTests) TestListFiles() {
 	}
 	_, err = s3Client.CreateBucket(ctx, cparams)
 	if err != nil {
-		suite.FailNow("failed to create s3 bucket", err)
+		s.FailNow("failed to create s3 bucket", err)
 	}
 
 	// Upload two test files
-	file, err := os.Open(suite.testFile.Name())
+	file, err := os.Open(s.testFile.Name())
 	if err != nil {
-		suite.FailNow("failed to open test file", err)
+		s.FailNow("failed to open test file", err)
 	}
 	defer file.Close() //nolint:errcheck
 
 	_, err = s3Client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String("dummy"),
-		Key:    aws.String("dummy/" + filepath.Base(suite.testFile.Name())),
+		Key:    aws.String("dummy/" + filepath.Base(s.testFile.Name())),
 		Body:   file,
 	})
 	if err != nil {
-		suite.FailNow("failed to put test file to s3 bucket", err)
+		s.FailNow("failed to put test file to s3 bucket", err)
 	}
 
-	file1, err := os.Open(suite.testFile1.Name())
+	file1, err := os.Open(s.testFile1.Name())
 	if err != nil {
-		suite.FailNow("failed to open test file", err)
+		s.FailNow("failed to open test file", err)
 	}
 	defer file1.Close() //nolint:errcheck
 	_, err = s3Client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String("dummy"),
-		Key:    aws.String("dummy/" + filepath.Base(suite.testFile1.Name())),
+		Key:    aws.String("dummy/" + filepath.Base(s.testFile1.Name())),
 		Body:   file1,
 	})
 	if err != nil {
-		suite.FailNow("failed to put test file to s3 bucket", err)
+		s.FailNow("failed to put test file to s3 bucket", err)
 	}
 
 	testConfig := &Config{
-		AccessToken: suite.accessToken,
+		AccessToken: s.accessToken,
 		AccessKey:   "dummy",
 		SecretKey:   "dummy",
 		HostBase:    ts.URL,
@@ -673,13 +634,13 @@ func (suite *HelperTests) TestListFiles() {
 
 	// Test list files
 	result, err := ListFiles(*testConfig, "")
-	assert.NoError(suite.T(), err, "failed when it shouldn't")
-	assert.Equal(suite.T(), len(result), 2)
+	assert.NoError(s.T(), err, "failed when it shouldn't")
+	assert.Equal(s.T(), len(result), 2)
 
 	// Test list files with prefix
-	result, err = ListFiles(*testConfig, filepath.Base(suite.testFile1.Name()))
-	assert.NoError(suite.T(), err, "failed when it shouldn't")
-	assert.Equal(suite.T(), len(result), 1)
+	result, err = ListFiles(*testConfig, filepath.Base(s.testFile1.Name()))
+	assert.NoError(s.T(), err, "failed when it shouldn't")
+	assert.Equal(s.T(), len(result), 1)
 
 	// Test list pagination.
 	// The used gofakeS3 version utilizes the continuationToken for paging.
@@ -687,11 +648,11 @@ func (suite *HelperTests) TestListFiles() {
 	// reverts to using ListObjectsV2 when ListObjects paging fails.
 	testConfig.MaxS3Keys = 1
 	result, err = ListFiles(*testConfig, "")
-	assert.NoError(suite.T(), err, "failed when it shouldn't")
-	assert.Equal(suite.T(), len(result), 2, "list pagination failed: expected 2 files, got %v", len(result))
+	assert.NoError(s.T(), err, "failed when it shouldn't")
+	assert.Equal(s.T(), len(result), 2, "list pagination failed: expected 2 files, got %v", len(result))
 
 	// Test list failure
 	testConfig.AccessKey = "wrong"
 	_, err = ListFiles(*testConfig, "")
-	assert.ErrorContains(suite.T(), err, "failed to list objects")
+	assert.ErrorContains(s.T(), err, "failed to list objects")
 }

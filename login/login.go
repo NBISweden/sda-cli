@@ -7,35 +7,51 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
+	urlpkg "net/url"
 	"os"
 	"os/exec"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/NBISweden/sda-cli/cmd"
+	"github.com/spf13/cobra"
 	"gopkg.in/ini.v1"
 )
 
-// Help text and command line flags.
+var loginURL string
 
-// Usage text that will be displayed as command line help text when using the
-// `help login` command
-var Usage = `
-Usage: %s login <login-target>
+var loginCmd = &cobra.Command{
+	Use:   "login <login-target>",
+	Short: "Authenticate the user towards the SDA",
+	Long:  "Authenticates the user towards the Sensitive Data Archive (SDA) using a specified login target",
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			return errors.New("at least one login-target is needed")
+		}
+		if len(args) > 1 {
+			return fmt.Errorf("too many arguments supplied, need 1, got: (%d) : %s", len(args), strings.Join(args, ", "))
+		}
+		loginURL = args[0]
 
-Authenticates the user with the Sensitive Data Archive (SDA) using the specified login target.
+		return nil
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		err := NewLogin(loginURL)
+		if err != nil {
+			return err
+		}
 
-Arguments:
-  <login-target>   The base URL of the service to log in to. This is required 
-                   and determines the SDA service to authenticate against.`
+		return nil
+	},
+}
 
-// Args is a flagset that needs to be exported so that it can be written to the
-// main program help
-var Args = flag.NewFlagSet("login", flag.ExitOnError)
+func init() {
+	cmd.AddCommand(loginCmd)
+}
 
 type S3Config struct {
 	AccessKey            string `ini:"access_key"`
@@ -158,56 +174,50 @@ func (login *DeviceLogin) UpdateConfigFile() error {
 	return nil
 }
 
-func NewLogin(args []string) error {
-	deviceLogin, err := NewDeviceLogin(args)
+func NewLogin(loginURL string) error {
+	info, err := GetAuthInfo(loginURL)
 	if err != nil {
-		return fmt.Errorf("failed to contact authentication service: %v", err)
+		return fmt.Errorf("failed to get auth info: %w", err)
 	}
-	err = deviceLogin.Login()
-	if err != nil {
-		return err
+
+	deviceLogin := DeviceLogin{
+		BaseURL:         info.OidcURI,
+		ClientID:        info.ClientID,
+		PollingInterval: 2,
+		S3Target:        info.InboxURI,
+		PublicKey:       info.PublicKey,
+	}
+
+	if err := deviceLogin.Login(); err != nil {
+		return fmt.Errorf("failed to log in: %w", err)
 	}
 	fmt.Printf("Logged in as %v\n", deviceLogin.UserInfo.Name)
 
-	return err
-}
-
-// NewDeviceLogin() returns a new `DeviceLogin` with the given `url` and
-// `clientID` set.
-func NewDeviceLogin(args []string) (DeviceLogin, error) {
-	var loginURL string
-	err := Args.Parse(args[1:])
-	if err != nil {
-		return DeviceLogin{}, fmt.Errorf("failed parsing arguments: %v", err)
-	}
-	if len(Args.Args()) == 1 {
-		loginURL = Args.Args()[0]
-	}
-	info, err := GetAuthInfo(loginURL)
-	if err != nil {
-		return DeviceLogin{}, fmt.Errorf("failed to get auth Info: %v", err)
-	}
-
-	return DeviceLogin{BaseURL: info.OidcURI, ClientID: info.ClientID, PollingInterval: 2, S3Target: info.InboxURI, PublicKey: info.PublicKey}, nil
+	return nil
 }
 
 // open opens the specified URL in the default browser of the user.
 func open(url string) error {
-	var cmd string
+	u, err := urlpkg.ParseRequestURI(url)
+	if err != nil {
+		return fmt.Errorf("invalid URL: %w", err)
+	}
+	var command string
 	var args []string
 
 	switch runtime.GOOS {
 	case "windows":
-		cmd = "cmd"
+		command = "cmd"
 		args = []string{"/c", "start"}
 	case "darwin":
-		cmd = "open"
+		command = "open"
 	default: // "linux", "freebsd", "openbsd", "netbsd"
-		cmd = "xdg-open"
+		command = "xdg-open"
 	}
-	args = append(args, url)
+	args = append(args, u.String())
 
-	return exec.Command(cmd, args...).Start()
+	// #nosec G204
+	return exec.Command(command, args...).Start()
 }
 
 // Login() does a full login by fetching the remote configuration, starting the
@@ -400,7 +410,7 @@ func (login *DeviceLogin) waitForLogin() (*Result, error) {
 		}
 
 		if resp.StatusCode == 200 {
-			defer resp.Body.Close() //nolint:errcheck
+			defer resp.Body.Close() //revive:disable:defer
 			respBody, err := io.ReadAll(resp.Body)
 			if err != nil {
 				return nil, err

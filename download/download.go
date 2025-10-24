@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,74 +13,58 @@ import (
 	"slices"
 	"strings"
 
+	rootcmd "github.com/NBISweden/sda-cli/cmd"
 	"github.com/NBISweden/sda-cli/helpers"
+	"github.com/spf13/cobra"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 	"go.nhat.io/cookiejar"
 	"golang.org/x/net/publicsuffix"
 )
 
-// Help text and command line flags.
-
-// Usage text that will be displayed as command line help text when using the
-// `help download` command
-var Usage = `
-Usage: %s [-config <config-file>] download [OPTIONS] [ARGUMENTS]
-
-Download files from the Sensitive Data Archive (SDA) using APIs at the
-specified URL. The user must have the necessary access rights (visas) to the
-datasets being downloaded.
-
-Important:
-  Provide exactly one of the following options to specify files to download:
-    - [filepath(s) or fileid(s)] 
-    - -dataset
-    - -recursive <dirpath>
-    - -from-file <list-filepath>
-
-Global options:
-  -config <config-file>       Path to the configuration file. 
-  
-Required options: 
-  -dataset-id <datasetID>     Dataset ID for the file(s) to download.
-  -url <uri>                  The url of the download server.
-
-Optional options:
-  -continue                   Skip already downloaded files and continue with downloading the rest.
-  -pubkey <public-key-file>   Key to use for encrypting downloaded files server-side.
-                              This key must be given here or in the config file.
-  -outdir <dir>               Directory to save the downloaded files.
-                              If not specified, files will be saved in the current directory.
-  -dataset                    Download all files in the dataset specified by '-dataset-id'.
-  -recursive <dirpath>        Download all files recursively from the given directory path.
-  -from-file <list-filepath>  Download all files listed in the specified file.
-
-Arguments:
-  [filepath(s)]          Specific file paths to download.
-  [fileid(s)]            File IDs of files to download.`
-
-// Args is a flagset that needs to be exported so that it can be written to the
-// main program help
-var Args = flag.NewFlagSet("download", flag.ContinueOnError)
-
-var datasetID = Args.String("dataset-id", "", "Dataset ID for the file to download.")
-
-var URL = Args.String("url", "", "The url of the download server.")
-
-var outDir = Args.String("outdir", "", "Directory for downloaded files.")
-
-var datasetdownload = Args.Bool("dataset", false, "Download all the files of the dataset.")
-
-var pubKeyPath = Args.String("pubkey", "",
-	"Public key file to use for encryption of files to download.")
-
-var recursiveDownload = Args.Bool("recursive", false, "Download content of the folder.")
-
-var fromFile = Args.Bool("from-file", false, "Download files from file list.")
-
+var datasetID string
+var URL string
+var continueDownload bool
+var outDir string
+var datasetDownload bool
+var pubKey string
+var recursiveDownload bool
+var fromFile bool
 var pubKeyBase64 string
 
-var continueDownload = Args.Bool("continue", false, "Skip existing files and continue with the rest.")
+var downloadCmd = &cobra.Command{
+	Use:   "download [flags] [filepath(s) | fileid(s)]",
+	Short: "Download files from SDA",
+	Long: `Download files from the Sensitive Data Archive (SDA) using APIs at the specified URL. 
+	The user must have the necessary access rights (visas) to the datasets being downloaded
+	Important:
+		Provide exactly one of the following options to specify files to download:
+			- [filepath(s) or fileid(s)] 
+			- --dataset
+			- --recursive <dirpath>
+			- --from-file <list-filepath>`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		configPath := cmd.Root().Flag("config").Value.String()
+		err := Download(args, configPath, rootcmd.Version)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	},
+}
+
+func init() {
+	rootcmd.AddCommand(downloadCmd)
+	downloadCmd.Flags().StringVar(&datasetID, "dataset-id", "", "Dataset ID for the file(s) to download")
+	downloadCmd.Flags().StringVar(&URL, "url", "", "The url of the download server")
+	downloadCmd.Flags().BoolVar(&continueDownload, "continue", false, "Skip existing files and continue with the rest")
+	downloadCmd.Flags().StringVar(&outDir, "outdir", "", "Directory to output downloaded files")
+	downloadCmd.Flags().BoolVar(&datasetDownload, "dataset", false, "Download all the files of the dataset")
+	downloadCmd.Flags().StringVar(&pubKey, "pubkey", "", "Path to the public key file to use for encryption of files to download")
+	downloadCmd.Flags().BoolVarP(&recursiveDownload, "recursive", "r", false, "Download all content from a folder recursively")
+	downloadCmd.Flags().BoolVar(&fromFile, "from-file", false, "Download files from file list")
+}
 
 var cookieJar *cookiejar.PersistentJar
 var cookiePath string
@@ -106,96 +89,73 @@ type File struct {
 // Download function downloads files from the SDA by using the
 // download's service APIs
 func Download(args []string, configPath, version string) error {
-	appVersion = version
-	// Call ParseArgs to take care of all the flag parsing
-	err := helpers.ParseArgs(args, Args)
-	if err != nil {
-		return fmt.Errorf("failed parsing arguments, reason: %v", err)
-	}
-
-	if *datasetID == "" || *URL == "" || configPath == "" {
+	if datasetID == "" || URL == "" || configPath == "" {
 		return errors.New("missing required arguments, dataset-id, config and url are required")
 	}
 
-	// set up the cookie jar
-	u, err := url.Parse(*URL)
+	u, err := url.Parse(URL)
 	if err != nil || u.Scheme == "" {
 		return errors.New("invalid base URL")
 	}
 	setupCookieJar(u)
 
 	// Check if both -recursive and -dataset flags are set
-	if *recursiveDownload && *datasetdownload {
+	if recursiveDownload && datasetDownload {
 		return errors.New("both -recursive and -dataset flags are set, choose one of them")
 	}
 
 	// Check that file(s) are not missing if the -dataset flag is not set
-	if len(Args.Args()) == 0 && !*datasetdownload {
-		if !*recursiveDownload {
+	if len(args) == 0 && !datasetDownload {
+		if !recursiveDownload {
 			return errors.New("no files provided for download")
 		}
 
 		return errors.New("no folders provided for recursive download")
 	}
 
-	// Check if -dataset flag is set and files are provided
-	if *datasetdownload && len(Args.Args()) > 0 {
-		return errors.New(
-			"files provided with -dataset flag, add either the flag or the file(s), not both",
-		)
+	if datasetDownload && len(args) > 0 {
+		return errors.New("files provided with -dataset flag, add either the flag or the file(s), not both")
 	}
 
-	// Check if -from-file flag is set and only one file is provided
-	if *fromFile && len(Args.Args()) != 1 {
-		return errors.New(
-			"one file should be provided with the -from-file flag",
-		)
+	if fromFile && len(args) != 1 {
+		return errors.New("one file should be provided with the -from-file flag")
 	}
 
-	// Get the configuration file or the .sda-cli-session
 	config, err := helpers.GetAuth(configPath)
 	if err != nil {
 		return err
 	}
 
-	// Check if the token has expired
 	err = helpers.CheckTokenExpiration(config.AccessToken)
 	if err != nil {
 		return err
 	}
-	pubKeyBase64, err = helpers.GetPublicKey64(pubKeyPath)
+
+	pubKeyBase64, err = helpers.GetPublicKey64(&pubKey)
 	if err != nil {
 		return err
 	}
 
-	// print the host_base for the user
 	helpers.PrintHostBase(config.HostBase)
 
 	switch {
-	// Case where the user is setting the -dataset flag
-	// then download all the files in the dataset.
-	// Case where the user is setting the -recursive flag
-	// then download the content of the path
-	// Case where the user is setting the -from-file flag
-	// then download the files from the file list
-	// Default case, download the provided files.
-	case *datasetdownload:
+	case datasetDownload:
 		err = datasetCase(config.AccessToken)
 		if err != nil {
 			return err
 		}
-	case *recursiveDownload:
-		err = recursiveCase(config.AccessToken)
+	case recursiveDownload:
+		err = recursiveCase(args, config.AccessToken)
 		if err != nil {
 			return err
 		}
-	case *fromFile:
-		err = fileCase(config.AccessToken, true)
+	case fromFile:
+		err = fileCase(args, config.AccessToken, true)
 		if err != nil {
 			return err
 		}
 	default:
-		err = fileCase(config.AccessToken, false)
+		err = fileCase(args, config.AccessToken, false)
 		if err != nil {
 			return err
 		}
@@ -206,15 +166,14 @@ func Download(args []string, configPath, version string) error {
 
 func datasetCase(token string) error {
 	fmt.Println("Downloading all files in the dataset")
-	files, err := GetFilesInfo(*URL, *datasetID, "", token, appVersion)
+	files, err := GetFilesInfo(URL, datasetID, "", token, appVersion)
 	if err != nil {
 		return err
 	}
-	// Loop through the files and download them
+
 	for _, file := range files {
-		// Download URL for the file
 		fileName := helpers.AnonymizeFilepath(file.FilePath)
-		fileURL := *URL + "/s3/" + file.DatasetID + "/" + fileName
+		fileURL := URL + "/s3/" + file.DatasetID + "/" + fileName
 		if err != nil {
 			return err
 		}
@@ -227,18 +186,15 @@ func datasetCase(token string) error {
 	return nil
 }
 
-func recursiveCase(token string) error {
+func recursiveCase(args []string, token string) error {
 	fmt.Println("Downloading content of the path(s)")
-	// get all the files of the dataset
-	files, err := GetFilesInfo(*URL, *datasetID, "", token, appVersion)
+	files, err := GetFilesInfo(URL, datasetID, "", token, appVersion)
 	if err != nil {
 		return err
 	}
-	// check all the provided paths and add a slash
-	// to each one of them if does not exist and
-	// append them in a slice
+
 	var dirPaths []string
-	for _, path := range Args.Args() {
+	for _, path := range args {
 		if !strings.HasSuffix(path, "/") {
 			path += "/"
 		}
@@ -254,23 +210,20 @@ func recursiveCase(token string) error {
 			if strings.Contains(file.FilePath, dirPath) {
 				pathExists = true
 				fileName := helpers.AnonymizeFilepath(file.FilePath)
-				fileURL := *URL + "/s3/" + file.DatasetID + "/" + fileName
+				fileURL := URL + "/s3/" + file.DatasetID + "/" + fileName
 				err = downloadFile(fileURL, token, pubKeyBase64, file.FilePath)
 				if err != nil {
 					return err
 				}
 			}
 		}
-		// If dirPath does not exist add in the list
 		if !pathExists {
 			missingPaths = append(missingPaths, dirPath)
 		}
 	}
-	// If all the given paths do not exist then return an error
 	if len(missingPaths) == len(dirPaths) {
 		return errors.New("given path(s) do not exist")
 	}
-	// If some of the give paths do not exist then just return a message
 	if len(missingPaths) > 0 {
 		for _, missingPath := range missingPaths {
 			fmt.Println("Non existing path: ", missingPath)
@@ -280,25 +233,22 @@ func recursiveCase(token string) error {
 	return nil
 }
 
-func fileCase(token string, fileList bool) error {
+func fileCase(args []string, token string, fileList bool) error {
 	var files []string
 	if fileList {
-		// get the files from the file list
 		fmt.Println("Downloading files from file list")
-		fileList, err := GetURLsFile(Args.Args()[0])
+		fileList, err := GetURLsFile(args[0])
 		if err != nil {
 			return err
 		}
 		files = append(files, fileList...)
 	} else {
-		// get the files from the arguments
 		fmt.Println("Downloading files")
-		files = append(files, Args.Args()...)
+		files = append(files, args...)
 	}
 
-	// Loop through the files and download them
 	for _, filePath := range files {
-		fileIDURL, apiFilePath, err := getFileIDURL(*URL, token, pubKeyBase64, *datasetID, filePath)
+		fileIDURL, apiFilePath, err := getFileIDURL(URL, token, pubKeyBase64, datasetID, filePath)
 		if err != nil {
 			return err
 		}
@@ -312,26 +262,21 @@ func fileCase(token string, fileList bool) error {
 	return nil
 }
 
-// downloadFile downloads the file by using the download URL
 func downloadFile(uri, token, pubKeyBase64, filePath string) error {
-	// Check if the file path contains a userID and if it does,
-	// do not keep it in the file path
 	filePath = helpers.AnonymizeFilepath(filePath)
 
 	outFilename := filePath
-	if *outDir != "" {
-		outFilename = *outDir + "/" + filePath
+	if outDir != "" {
+		outFilename = outDir + "/" + filePath
 	}
 
 	filePath = strings.TrimSuffix(outFilename, ".c4gh")
 
-	// Get the file body
 	body, err := getBody(uri, token, pubKeyBase64)
 	if err != nil {
 		return fmt.Errorf("failed to get file for download, reason: %v", err)
 	}
 
-	// Create the directory if it does not exist
 	fileDir := filepath.Dir(filePath)
 	err = os.MkdirAll(fileDir, 0750)
 	if err != nil {
@@ -342,7 +287,7 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 		filePath += ".c4gh"
 	}
 
-	if *continueDownload {
+	if continueDownload {
 		if _, err := os.Stat(filePath); !errors.Is(err, os.ErrNotExist) {
 			fmt.Printf("Skipping download to %s, file already exists\n", filePath)
 
@@ -356,47 +301,34 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	}
 	defer outfile.Close() //nolint:errcheck
 
-	// Create a new progress container
 	p := mpb.New()
-
-	// Create a new progress bar with the length of the body
 	bar := p.AddBar(int64(len(body)),
 		mpb.PrependDecorators(
 			decor.CountersKibiByte("% .2f / % .2f"),
 		),
 	)
 
-	// Create a proxy reader
 	reader := strings.NewReader(string(body))
 	proxyReader := bar.ProxyReader(reader)
-
 	fmt.Printf("Downloading file to %s\n", filePath)
-	// Copy from the proxy reader (which updates the progress bar) to the file
 	_, err = io.Copy(outfile, proxyReader)
 	if err != nil {
 		return fmt.Errorf("failed to write file, reason: %v", err)
 	}
-
-	// Wait for the progress bar to finish
 	p.Wait()
 
 	return nil
 }
 
-// getFileIDURL gets the datset files, parses the JSON response to get the file ID
-// and returns the download URL for the file and the filepath from the API response
 func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (string, string, error) {
-	// Get the files of the dataset
 	datasetFiles, err := GetFilesInfo(baseURL, dataset, pubKeyBase64, token, appVersion)
 	if err != nil {
 		return "", "", err
 	}
 
-	// Get the file ID for the filename
 	var idx int
 	switch {
 	case strings.Contains(filename, "/"):
-		// If filename does not have a crypt4gh suffix, add one
 		if !strings.HasSuffix(filename, ".c4gh") {
 			filename += ".c4gh"
 		}
@@ -423,23 +355,19 @@ func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (strin
 
 func GetDatasets(baseURL, token, version string) ([]string, error) {
 	appVersion = version
-	// Sanitize the base_url
 	u, err := url.ParseRequestURI(baseURL)
 	if err != nil || u.Scheme == "" {
 		return []string{}, errors.New("invalid base URL")
 	}
 
-	// set up the cookie jar
 	setupCookieJar(u)
 
-	// Make the url for listing datasets
 	datasetsURL := baseURL + "/metadata/datasets"
-	// Get the response body from the datasets API
 	allDatasets, err := getBody(datasetsURL, token, "")
 	if err != nil {
 		return []string{}, fmt.Errorf("failed to get datasets, reason: %v", err)
 	}
-	// Parse the JSON response
+
 	var datasets []string
 	err = json.Unmarshal(allDatasets, &datasets)
 	if err != nil {
@@ -452,23 +380,19 @@ func GetDatasets(baseURL, token, version string) ([]string, error) {
 // GetFilesInfo gets the files of the dataset by using the dataset ID
 func GetFilesInfo(baseURL, dataset, pubKeyBase64, token, version string) ([]File, error) {
 	appVersion = version
-	// Sanitize the base_url
 	u, err := url.ParseRequestURI(baseURL)
 	if err != nil || u.Scheme == "" {
 		return []File{}, errors.New("invalid base URL")
 	}
 
-	// set up the cookie jar
 	setupCookieJar(u)
 
-	// Make the url for listing files
 	filesURL := baseURL + "/metadata/datasets/" + dataset + "/files"
-	// Get the response body from the files API
 	allFiles, err := getBody(filesURL, token, pubKeyBase64)
 	if err != nil {
 		return []File{}, fmt.Errorf("failed to get files, reason: %v", err)
 	}
-	// Parse the JSON response
+
 	var files []File
 	err = json.Unmarshal(allFiles, &files)
 	if err != nil {
@@ -485,7 +409,6 @@ func getBody(requestURL, token, pubKeyBase64 string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to create request, reason: %v", err)
 	}
 
-	// Add headers
 	req.Header.Add("SDA-Client-Version", appVersion)
 	req.Header.Add("Authorization", "Bearer "+token)
 	req.Header.Add("Content-Type", "application/json")
@@ -499,12 +422,10 @@ func getBody(requestURL, token, pubKeyBase64 string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to get response, reason: %v", err)
 	}
 
-	// Check the status code
 	if res.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("server returned status %d", res.StatusCode)
 	}
 
-	// Read the response body
 	resBody, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body, reason: %v", err)
@@ -515,7 +436,6 @@ func getBody(requestURL, token, pubKeyBase64 string) ([]byte, error) {
 	return resBody, nil
 }
 
-// GetURLsFile reads the urls_list.txt file and returns the urls of the files in a list
 func GetURLsFile(urlsFilePath string) (urlsList []string, err error) {
 	urlsFile, err := os.Open(filepath.Clean(urlsFilePath))
 	if err != nil {
