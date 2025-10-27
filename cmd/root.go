@@ -14,7 +14,6 @@ var rootCmd = &cobra.Command{
 	Short:         "CLI tool used to interact with SDA",
 	Long:          `Command line tool used to interact with the Sensitive Data Archive (SDA)`,
 	SilenceUsage:  true,
-	SilenceErrors: true,
 }
 
 func Execute() error {
