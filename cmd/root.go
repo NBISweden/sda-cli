@@ -10,10 +10,10 @@ import (
 var Version = "0-development"
 
 var rootCmd = &cobra.Command{
-	Use:           "sda-cli",
-	Short:         "CLI tool used to interact with SDA",
-	Long:          `Command line tool used to interact with the Sensitive Data Archive (SDA)`,
-	SilenceUsage:  true,
+	Use:          "sda-cli",
+	Short:        "CLI tool used to interact with SDA",
+	Long:         `Command line tool used to interact with the Sensitive Data Archive (SDA)`,
+	SilenceUsage: true,
 }
 
 func Execute() error {
