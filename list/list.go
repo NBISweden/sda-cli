@@ -1,73 +1,66 @@
 package list
 
 import (
-	"flag"
 	"fmt"
 	"strconv"
 	"strings"
 
+	rootcmd "github.com/NBISweden/sda-cli/cmd"
 	"github.com/NBISweden/sda-cli/download"
 	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/dustin/go-humanize"
 	"github.com/inhies/go-bytesize"
+	"github.com/spf13/cobra"
 )
 
-// Help text and command line flags.
+var dataset string
+var datasets bool
+var url string
+var prefix string
+var bytesFormat bool
 
-// Usage text that will be displayed as command line help text when using the
-// `help list` command
-var Usage = `
-Usage: %s [-config <config-file>] list [prefix] [OPTIONS]
+var listCmd = &cobra.Command{
+	Use:   "list [flags] [args]",
+	Short: "List files and datasets",
+	Long: `Recursively list files and datasets in the user's folder in the Sensitive Data Archive (SDA). 
+	By default, it lists all files under the user's folder. 
+	Use a prefix as optional argument to list files under a specific path.
 
-Recursively list files and datasets in the user's folder in the Sensitive Data
-Archive (SDA). By default, it lists all files under the user's folder. Use the
-optional [prefix] argument to list files under a specific path. 
+	Notice: If using '--datasets' or '--dataset' the '-url' flag is required to specify the SDA download server URL
+`,
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) > 1 {
+			return fmt.Errorf("can only accept 1 prefix argument, got %d : %s", len(args), args)
+		}
+		if len(args) == 0 {
+			prefix = ""
 
-Important:
-  If using '-datasets' or '-dataset', the '-url' flag is required to specify
-  the SDA download server URL.
+			return nil
+		}
+		prefix = args[0]
 
-Global options:
-  -config <config-file>   Path to the configuration file.
+		return nil
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		configPath := cmd.Root().Flag("config").Value.String()
+		err := list(configPath, prefix)
+		if err != nil {
+			return err
+		}
 
-Options:
-  -bytes                  Display file sizes in bytes instead of a human-readable format.
-  -dataset <dataset-id>   List all files in the specified dataset, including the dataset size.
-  -datasets               List all datasets available in the user's folder.
-  -url <uri>              Specify the SDA download server URL when using '-datasets' or '-dataset'.
+		return nil
+	},
+}
 
-Arguments:
-  [prefix]                Optional prefix to filter results to a specific location or folder path.`
+func init() {
+	rootcmd.AddCommand(listCmd)
+	listCmd.Flags().BoolVar(&bytesFormat, "bytes", false, "Display file sizes in bytes instead of human-readable format")
+	listCmd.Flags().StringVar(&dataset, "dataset", "", "List all files in the sepcified dataset, including dataset size")
+	listCmd.Flags().BoolVar(&datasets, "datasets", false, "List all datasets available in the user's folder")
+	listCmd.Flags().StringVar(&url, "url", "", "Specify the SDA download server URL")
+}
 
-// Args is a flagset that needs to be exported so that it can be written to the
-// main program help
-var Args = flag.NewFlagSet("list", flag.ContinueOnError)
-
-var URL = Args.String("url", "", "The url of the sda-download server")
-
-var datasets = Args.Bool("datasets", false, "List all datasets in the user's folder.")
-
-var bytesFormat = Args.Bool("bytes", false, "Print file sizes in bytes (not human-readable format).")
-
-var dataset = Args.String("dataset", "", "List all files in the specified dataset.")
-
-var appVersion string
-
-// List function lists the contents of an s3
-func List(args []string, configPath, version string) error {
-	appVersion = version
-	// Call ParseArgs to take care of all the flag parsing
-	err := helpers.ParseArgs(args, Args)
-	if err != nil {
-		return fmt.Errorf("failed parsing arguments, reason: %v", err)
-	}
-
-	prefix := ""
-	if len(Args.Args()) == 1 {
-		prefix = Args.Args()[0]
-	}
-
-	// // Get the configuration file or the .sda-cli-session
+func list(configPath string, prefix string) error {
 	config, err := helpers.GetAuth(configPath)
 	if err != nil {
 		return fmt.Errorf("failed to load config file, reason: %v", err)
@@ -78,12 +71,10 @@ func List(args []string, configPath, version string) error {
 		return err
 	}
 
-	// print the host_base for the user
 	helpers.PrintHostBase(config.HostBase)
 
-	// case datasets
-	if *datasets {
-		err := Datasets(config.AccessToken)
+	if datasets {
+		err := Datasets(url, config.AccessToken)
 		if err != nil {
 			return err
 		}
@@ -91,9 +82,8 @@ func List(args []string, configPath, version string) error {
 		return nil
 	}
 
-	// case dataset
-	if *dataset != "" {
-		err := DatasetFiles(config.AccessToken)
+	if dataset != "" {
+		err := datasetFiles(config.AccessToken, url, dataset, bytesFormat)
 		if err != nil {
 			return err
 		}
@@ -114,56 +104,53 @@ func List(args []string, configPath, version string) error {
 	return nil
 }
 
-func DatasetFiles(token string) error {
-	files, err := download.GetFilesInfo(*URL, *dataset, "", token, appVersion)
+func datasetFiles(token string, url string, dataset string, bytesFormat bool) error {
+	files, err := download.GetFilesInfo(url, dataset, "", token, rootcmd.Version)
 	if err != nil {
 		return err
 	}
-	// Set rather long minimum column widths, so that header matches the rest of the table
-	fileIDWidth, sizeWidth := 20, 10
+
+	fileIDWidth, sizeWidth := 20, 10 // Set minimum column widths, so that header matches the rest of the table
 	fmt.Printf("%-*s \t %-*s \t %s\n", fileIDWidth, "FileID", sizeWidth, "Size", "Path")
 	datasetSize := 0
-	// Loop through the files and list them
+
 	for _, file := range files {
 		datasetSize += file.DecryptedFileSize
-		fmt.Printf("%s \t %s \t %s\n", file.FileID, formatedBytes(file.DecryptedFileSize), file.FilePath)
+		fmt.Printf("%s \t %s \t %s\n", file.FileID, formatFileSizeOutput(file.DecryptedFileSize, bytesFormat), file.FilePath)
 	}
-	fmt.Printf("Dataset size: %s\n", formatedBytes(datasetSize))
+	fmt.Printf("Dataset size: %s\n", formatFileSizeOutput(datasetSize, bytesFormat))
 
 	return nil
 }
 
-func formatedBytes(size int) string {
-	if !*bytesFormat {
+func formatFileSizeOutput(size int, bytesFormat bool) string {
+	if !bytesFormat {
 		return humanize.Bytes(uint64(size))
 	}
 
 	return strconv.Itoa(size)
 }
 
-func Datasets(token string) error {
-	datasets, err := download.GetDatasets(*URL, token, appVersion)
+func Datasets(url string, token string) error {
+	datasets, err := download.GetDatasets(url, token, rootcmd.Version)
 	if err != nil {
 		return err
 	}
 
-	// Loop through the datasets and list them
 	for _, dataset := range datasets {
-		files, err := download.GetFilesInfo(*URL, dataset, "", token, appVersion)
+		files, err := download.GetFilesInfo(url, dataset, "", token, rootcmd.Version)
 		if err != nil {
 			return err
 		}
-		// Set rather long minimum column widths, so that header matches the rest of the table
-		fileIDWidth := 40
+		fileIDWidth := 40 // fileIdwith=40 ensures header matches rest of the table
 		fmt.Printf("%-*s \t %s \t %s\n", fileIDWidth, "DatasetID", "Files", "Size")
 		datasetSize := 0
 		noOfFiles := 0
-		// Loop through the files and get their sizes
 		for _, file := range files {
 			datasetSize += file.DecryptedFileSize
 			noOfFiles++
 		}
-		fmt.Printf("%s \t %d \t %s\n", dataset, noOfFiles, formatedBytes(datasetSize))
+		fmt.Printf("%s \t %d \t %s\n", dataset, noOfFiles, formatFileSizeOutput(datasetSize, bytesFormat))
 	}
 
 	return nil

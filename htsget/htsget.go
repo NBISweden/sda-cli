@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"flag"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,72 +12,70 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/NBISweden/sda-cli/cmd"
 	"github.com/NBISweden/sda-cli/helpers"
+	"github.com/spf13/cobra"
 )
 
-// Help text and command line flags.
+var datasetID string
+var fileName string
+var referenceName string
+var htsgetHost string
+var publicKeyFile string
+var output string
+var forceOverwrite bool
 
-// Usage text that will be displayed as command line help text when using the
-// `help htsget` command
-var Usage = `
-Usage: %s [-config <config-file>] htsget [OPTIONS]
+var htsgetCmd = &cobra.Command{
+	Use:   "htsget [flags]",
+	Short: "Download files from SDA",
+	Long:  "Download files from the Sensitive Data Archive (SDA) using the htsget server",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		configPath := cmd.Root().Flag("config").Value.String()
+		err := Htsget(args, configPath)
+		if err != nil {
+			return err
+		}
 
-Download files from the Sensitive Data Archive (SDA) using the htsget server.
-
-Global options:
-  -config <config-file>       Path to the configuration file. 
-
-Required options:
-  -dataset <datasetID>        Dataset ID for the file to download.
-  -filename <filename>        Name of the file to download.
-  -host <hostname>            Hostname of the htsget server to use.
-  -pubkey <public-key-file>   Encrypt downloaded files server-side using the specified public key.
-
-Optional options:
-  -reference <referenceName>  Specify a reference name to download a partial file. 
-  -output <file>              Output name for the downloaded file. 
-                              If not specified, the file will be downloaded to the current directory
-                              as the original filename.
-  -force-overwrite            Overwrite existing files without prompting.`
-
-// Args is a flagset that needs to be exported so that it can be written to the
-// main program help
-var Args = flag.NewFlagSet("htsget", flag.ContinueOnError)
-var datasetID = Args.String("dataset", "", "Dataset ID for the file to download")
-var fileName = Args.String("filename", "", "The name of the file to download")
-var referenceName = Args.String("reference", "", "The reference number of the file to download")
-var htsgetHost = Args.String("host", "", "The host to download from")
-var publicKeyFile = Args.String("pubkey", "", "Public key file")
-var outPut = Args.String("output", "", "Name for the downloaded file.")
-var forceOverwrite = Args.Bool("force-overwrite", false, "Force overwrite existing files.")
-
-type htsgetResponse struct {
-	Htsget struct {
-		Format string `json:"format"`
-		Urls   []struct {
-			URL     string `json:"url"`
-			Headers struct {
-				Range          string `json:"Range"`
-				UserAgent      string `json:"user-agent"`
-				Host           string `json:"host"`
-				AcceptEncoding string `json:"accept-encoding"`
-				Authorization  string `json:"authorization"`
-			} `json:"headers,omitempty"`
-		} `json:"urls"`
-	} `json:"htsget"`
+		return nil
+	},
 }
 
-// Htsget function downloads the files included in the urls_list.txt file.
-// The argument can be a local file or a url to an S3 folder
-func Htsget(args []string, configPath string) error {
-	// Call ParseArgs to take care of all the flag parsing
-	err := helpers.ParseArgs(args, Args)
-	if err != nil {
-		return fmt.Errorf("failed parsing arguments, reason: %v", err)
-	}
+func init() {
+	cmd.AddCommand(htsgetCmd)
+	htsgetCmd.Flags().StringVar(&datasetID, "dataset", "", "The dataset id of the file to download")
+	htsgetCmd.Flags().StringVar(&fileName, "filename", "", "The name of the file to download")
+	htsgetCmd.Flags().StringVar(&referenceName, "reference", "", "The reference number of the file to download")
+	htsgetCmd.Flags().StringVar(&htsgetHost, "host", "", "The htsget host to download from")
+	htsgetCmd.Flags().StringVar(&publicKeyFile, "pubkey", "", "Path to the public key file to use for download")
+	htsgetCmd.Flags().StringVar(&output, "output", "", "Name to output the file as after download")
+	htsgetCmd.Flags().BoolVar(&forceOverwrite, "force-overwrite", false, "Force overwriting existing files")
+}
 
-	if *datasetID == "" || *fileName == "" || *htsgetHost == "" || *publicKeyFile == "" {
-		return fmt.Errorf("missing required arguments, dataset, filename, host and key are required")
+type HtsgetHeaders struct {
+	Range          string `json:"Range"`
+	UserAgent      string `json:"user-agent"`
+	Host           string `json:"host"`
+	AcceptEncoding string `json:"accept-encoding"`
+	Authorization  string `json:"authorization"`
+}
+
+type HtsgetURL struct {
+	URL     string        `json:"url"`
+	Headers HtsgetHeaders `json:"headers"`
+}
+
+type HtsgetInfo struct {
+	Format string      `json:"format"`
+	Urls   []HtsgetURL `json:"urls"`
+}
+
+type HtsgetResponse struct {
+	Htsget HtsgetInfo `json:"htsget"`
+}
+
+func Htsget(args []string, configPath string) error {
+	if datasetID == "" || fileName == "" || htsgetHost == "" || publicKeyFile == "" {
+		return errors.New("missing required arguments, dataset, filename, host and key are required")
 	}
 
 	config, err := helpers.GetAuth(configPath)
@@ -85,8 +83,7 @@ func Htsget(args []string, configPath string) error {
 		return err
 	}
 
-	// read public key from file
-	publickey, err := os.ReadFile(*publicKeyFile)
+	publickey, err := os.ReadFile(publicKeyFile)
 	if err != nil {
 		return fmt.Errorf("failed to read public key, reason: %v", err)
 	}
@@ -94,9 +91,9 @@ func Htsget(args []string, configPath string) error {
 
 	// TODO: Add cases for different type of files
 	// i.e. bam files require the /reads/, replace for vcf
-	url := *htsgetHost + "/reads/" + *datasetID + "/" + *fileName
-	if *referenceName != "" {
-		url = url + "?referenceName=" + *referenceName
+	url := htsgetHost + "/reads/" + datasetID + "/" + fileName
+	if referenceName != "" {
+		url = url + "?referenceName=" + referenceName
 	}
 	method := "GET"
 	client := &http.Client{}
@@ -123,7 +120,7 @@ func Htsget(args []string, configPath string) error {
 		return fmt.Errorf("failed to read response, reason: %v", err)
 	}
 
-	htsgetURLs := htsgetResponse{}
+	htsgetURLs := HtsgetResponse{}
 	err = json.Unmarshal(body, &htsgetURLs)
 	if err != nil {
 		return fmt.Errorf("error unmarshaling response, reason: %v", err)
@@ -137,36 +134,36 @@ func Htsget(args []string, configPath string) error {
 	return nil
 }
 
-func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error) {
+func downloadFiles(htsgeURLs HtsgetResponse, config *helpers.Config) (err error) {
 	// Create the directory for the file
 	var filePath string
 	if err != nil {
 		return fmt.Errorf("failed to get current path, reason: %v", err)
 	}
-	if strings.Contains(*fileName, string(os.PathSeparator)) {
-		filePath = filepath.Dir(*fileName)
-		err = os.MkdirAll(filePath, os.ModePerm)
+	if strings.Contains(fileName, string(os.PathSeparator)) {
+		filePath = filepath.Dir(fileName)
+		err = os.MkdirAll(filePath, 0750)
 		if err != nil {
 			return fmt.Errorf("failed to create file path, reason: %v", err)
 		}
 	}
-	filenameToUse := *fileName
+	filenameToUse := fileName
 	// If output is specified, use it directly without checking for encrypted data
-	if *outPut != "" {
-		filenameToUse = *outPut
+	if output != "" {
+		filenameToUse = output
 	} else {
 		// Check if we have encrypted data to use the right file extension
 		for index := range htsgeURLs.Htsget.Urls {
 			if strings.Contains(htsgeURLs.Htsget.Urls[index].URL, "base64") {
-				filenameToUse = *fileName + ".c4gh"
+				filenameToUse = fileName + ".c4gh"
 
 				break
 			}
 		}
 	}
 
-	if helpers.FileExists(filenameToUse) && !*forceOverwrite {
-		return fmt.Errorf("local file already exists, use -force-overwrite to overwrite")
+	if helpers.FileExists(filenameToUse) && !forceOverwrite {
+		return errors.New("local file already exists, use -force-overwrite to overwrite")
 	}
 	out, err := os.OpenFile(filenameToUse, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -175,7 +172,7 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 	defer out.Close() //nolint:errcheck
 
 	// read public key from file
-	publickey, err := os.ReadFile(*publicKeyFile)
+	publickey, err := os.ReadFile(publicKeyFile)
 	if err != nil {
 		deleteFile(out)
 
@@ -230,7 +227,7 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 
 			return fmt.Errorf("failed to get the file, status code: %v", res)
 		}
-		defer res.Body.Close() //nolint:errcheck
+		defer res.Body.Close() //revive:disable:defer
 
 		// Write the body to file
 		_, err = io.Copy(out, res.Body)
@@ -239,7 +236,6 @@ func downloadFiles(htsgeURLs htsgetResponse, config *helpers.Config) (err error)
 
 			return fmt.Errorf("error writing the file, %v", err)
 		}
-
 	}
 	fmt.Println("File " + out.Name() + " downloaded successfully")
 

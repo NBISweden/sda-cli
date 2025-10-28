@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"net/mail"
@@ -19,20 +18,15 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsConfig "github.com/aws/aws-sdk-go-v2/config"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/golang-jwt/jwt"
 	"github.com/manifoldco/promptui"
 	"github.com/neicnordic/crypt4gh/keys"
-	"golang.org/x/exp/slices"
 	"gopkg.in/ini.v1"
 )
-
-//
-// Helper functions used by more than one module
-//
 
 // FileExists checks if a file exists in the file system. Note that this
 // function will not check if the file is readable, or if the file is a
@@ -66,29 +60,6 @@ func FileIsReadable(filename string) bool {
 	return err == nil
 }
 
-// FormatSubcommandUsage moves the lines in the standard usage strings around so
-// that the usage string is indented under the help text instead of above it.
-func FormatSubcommandUsage(usageString string) string {
-	// check that there's a formatting thing for os.Args[0]
-	if !strings.Contains(usageString, "%s") && !strings.Contains(usageString, "%v") {
-		return usageString
-	}
-
-	// format usage string with command name
-	usageString = fmt.Sprintf(usageString, os.Args[0])
-
-	// break string into lines
-	lines := strings.Split(strings.TrimSpace(usageString), "\n")
-	if len(lines) < 2 || !strings.HasPrefix(lines[0], "USAGE:") {
-		// if we don't have enough data, just return the usage string as is
-		return usageString
-	}
-	// reformat lines
-	usage := lines[0]
-
-	return fmt.Sprintf("\n%s\n\n    %s\n\n", strings.Join(lines[2:], "\n"), usage)
-}
-
 // PromptPassword creates a user prompt for inputting passwords, where all
 // characters are masked with "*"
 func PromptPassword(message string) (password string, err error) {
@@ -109,7 +80,7 @@ func ParseS3ErrorResponse(respBody io.Reader) (string, error) {
 	}
 
 	if !strings.Contains(string(respMsg), `xml version`) {
-		return "", fmt.Errorf("cannot parse response body, reason: not xml")
+		return "", errors.New("cannot parse response body, reason: not xml")
 	}
 
 	xmlErrorResponse := XMLerrorResponse{}
@@ -120,65 +91,6 @@ func ParseS3ErrorResponse(respBody io.Reader) (string, error) {
 
 	return fmt.Sprintf("%+v", xmlErrorResponse), nil
 }
-
-// Removes all positional arguments from args, and returns them.
-// This function assumes that all flags have exactly one value.
-func getPositional(args []string) ([]string, []string) {
-	argList := []string{
-		"-r",
-		"--r",
-		"--force-overwrite",
-		"-force-overwrite",
-		"--force-unencrypted",
-		"-force-unencrypted",
-		"--dataset",
-		"--datasets",
-		"--recursive",
-		"--from-file",
-		"--clean",
-		"-clean",
-		"--continue",
-		"-continue",
-	}
-	i := 1
-	var positional []string
-	for i < len(args) {
-		switch {
-		case slices.Contains(argList, args[i]):
-			// if the current args is a boolean flag, skip it
-			i++
-		case args[i][0] == '-':
-			// if the current arg is a flag, skip the flag and its value
-			i += 2
-		default:
-			// if the current arg is positional, remove it and add it to
-			// `positional`
-			positional = append(positional, args[i])
-			args = append(args[:i], args[i+1:]...)
-		}
-	}
-
-	return positional, args
-}
-
-func ParseArgs(args []string, argFlags *flag.FlagSet) error {
-	var pos []string
-	pos, args = getPositional(args)
-	// append positional args back at the end of args
-	args = append(args, pos...)
-	for _, item := range args {
-		if item == "-config" || item == "--config" {
-			return fmt.Errorf("the config flag should come before the subcommand. Eg 'sda-cli -config s3cfg %s'", argFlags.Name())
-		}
-	}
-	err := argFlags.Parse(args[1:])
-
-	return err
-}
-
-//
-// shared structs
-//
 
 // struct type to keep track of infiles and outfiles for encryption and
 // decryption
@@ -261,7 +173,7 @@ func LoadConfigFile(path string) (*Config, error) {
 
 	// Parse URL again to validate that a host can be parsed after scheme has been enforced
 	if u, err = url.Parse(config.HostBase); err != nil || u.Host == "" {
-		return nil, fmt.Errorf("failed to parse host base from configuration file, reason: a valid host can not be parsed")
+		return nil, errors.New("failed to parse host base from configuration file, reason: a valid host can not be parsed")
 	}
 
 	if config.Encoding == "" {
@@ -362,7 +274,7 @@ func CheckTokenExpiration(accessToken string) error {
 
 	// Check if the token has exp claim
 	if claims["exp"] == nil {
-		return fmt.Errorf("could not parse token, reason: no expiration date")
+		return errors.New("could not parse token, reason: no expiration date")
 	}
 
 	// Parse the expiration date from token, handle cases where
@@ -381,7 +293,7 @@ func CheckTokenExpiration(accessToken string) error {
 		}
 		expiration = time.Unix(int64(i), 0)
 	default:
-		return fmt.Errorf("could not parse token, reason: unknown expiration date format")
+		return errors.New("could not parse token, reason: unknown expiration date format")
 	}
 
 	switch untilExp := time.Until(expiration); {
@@ -412,7 +324,7 @@ func CheckTokenExpiration(accessToken string) error {
 			"The provided access token expires on %s.\n", expiration.Format(time.RFC1123),
 		)
 	default:
-		return fmt.Errorf("the provided access token has expired, please renew it")
+		return errors.New("the provided access token has expired, please renew it")
 	}
 
 	return nil
@@ -420,20 +332,20 @@ func CheckTokenExpiration(accessToken string) error {
 
 // ListFiles returns a list for s3 objects that correspond to files with the specified prefix.
 func ListFiles(config Config, prefix string) ([]types.Object, error) {
-	awsConfig, err := awsConfig.LoadDefaultConfig(context.Background(),
-		awsConfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+	awsconf, err := awsconfig.LoadDefaultConfig(context.Background(),
+		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
 			config.AccessKey,
 			config.SecretKey,
 			config.AccessToken,
 		)),
-		awsConfig.WithRegion("us-west-2"),
-		awsConfig.WithBaseEndpoint(config.HostBase),
+		awsconfig.WithRegion("us-west-2"),
+		awsconfig.WithBaseEndpoint(config.HostBase),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load aws config, reason %v", err)
 	}
 
-	s3Client := s3.NewFromConfig(awsConfig, func(o *s3.Options) {
+	s3Client := s3.NewFromConfig(awsconf, func(o *s3.Options) {
 		o.UsePathStyle = true
 		o.EndpointOptions.DisableHTTPS = !config.UseHTTPS
 	})
@@ -534,7 +446,7 @@ func paginateList(svc *s3.Client, params *s3.ListObjectsInput) ([]types.Object, 
 
 		if result.NextMarker == nil && *result.IsTruncated {
 			// Catch the false positive case where the server does not support V1 pagination
-			return nil, fmt.Errorf("file markers not supported by backend")
+			return nil, errors.New("file markers not supported by backend")
 		}
 
 		fullResult = append(fullResult, result.Contents...)
@@ -567,7 +479,7 @@ func paginateListV2(svc *s3.Client, params *s3.ListObjectsV2Input) ([]types.Obje
 
 		if result.NextContinuationToken == nil && *result.IsTruncated {
 			// Catch the false positive case where the server does not support V2 pagination
-			return nil, fmt.Errorf("continuation tokens not supported by backend")
+			return nil, errors.New("continuation tokens not supported by backend")
 		}
 
 		fullResult = append(fullResult, result.Contents...)

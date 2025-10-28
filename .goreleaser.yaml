@@ -16,7 +16,8 @@ builds:
       - goarch: 386
       - goarch: arm
     ldflags:
-      - -s -w -X main.Version={{ .Tag }}
+      - -s -w
+      - -X github.com/NBISweden/sda-cli/cmd.Version={{ .Tag }}
 archives:
   - name_template: >-
       {{ .ProjectName }}_
