@@ -18,6 +18,6 @@ import (
 func main() {
 	err := cmd.Execute()
 	if err != nil {
-		os.Exit(0)
+		os.Exit(1)
 	}
 }
