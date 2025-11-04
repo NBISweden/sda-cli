@@ -238,7 +238,6 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		if err != nil {
 			return err
 		}
-		fmt.Printf("file uploaded to %s\n", aws.ToString(&result.Location))
 
 		if encryptWithKey != "" { //nolint:nestif
 			checksumFileUnencMd5, err := os.OpenFile("checksum_unencrypted.md5", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
@@ -279,6 +278,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		}
 
 		p.Shutdown()
+		fmt.Printf("file uploaded to %s\n", aws.ToString(&result.Location))
 	}
 
 	return nil
