@@ -91,9 +91,9 @@ func Htsget(args []string, configPath string) error {
 
 	// TODO: Add cases for different type of files
 	// i.e. bam files require the /reads/, replace for vcf
-	url := htsgetHost + "/reads/" + datasetID + "/" + fileName
+	url := htsgetHost + "/reads/" + datasetID + "/" + fileName + "?encryptionScheme=C4GH"
 	if referenceName != "" {
-		url = url + "?referenceName=" + referenceName
+		url = url + "&referenceName=" + referenceName
 	}
 	method := "GET"
 	client := &http.Client{}
@@ -103,7 +103,7 @@ func Htsget(args []string, configPath string) error {
 	}
 
 	req.Header.Add("Authorization", "Bearer "+config.AccessToken)
-	req.Header.Add("client-public-key", base64publickey)
+	req.Header.Add("Client-Public-Key", base64publickey)
 
 	res, err := client.Do(req)
 
