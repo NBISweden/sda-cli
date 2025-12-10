@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -36,7 +37,7 @@ func TestHtsgetTestSuite(t *testing.T) {
 
 func (s *HtsgetTestSuite) SetupSuite() {
 	s.httpTestServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		switch req.RequestURI {
+		switch strings.Split(req.RequestURI, "?")[0] {
 		case "/reads/DATASET0001/htsnexus_test_NA12878_file_not_found", "/s3/DATASET0001/htsnexus_test_NA12878_file_range_not_found.bam.c4gh":
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = fmt.Fprint(w, "File not found")
