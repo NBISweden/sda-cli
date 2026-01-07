@@ -440,7 +440,7 @@ func (s *DownloadTestSuite) TestSetupCookiejar() {
 		{
 			cachePath:    s.tempDir,
 			cookiePath:   testCookie,
-			cookieString: "[{\"Name\":\"test-cookie\", \"Value\":\"not_expired_cookie\",\"Expires\":\"2026-01-01T00:00:00Z\",\"MaxAge\":0}]",
+			cookieString: fmt.Sprintf("[{\"Name\":\"test-cookie\", \"Value\":\"not_expired_cookie\",\"Expires\":\"%s\",\"MaxAge\":0}]", time.Now().AddDate(1, 0, 0).Format(time.RFC3339)),
 			createCookie: true,
 			testName:     "not_expired_cookie",
 		},
