@@ -248,6 +248,8 @@ services:
       - GRPC_PORT=50051
       - GRPC_HOST=reencrypt
       - APP_SERVEUNENCRYPTEDDATA=true
+      - APP_MIDDLEWARE=token-clientversion
+      - APP_MINIMALCLIVERSION=0.2.0
     image: "ghcr.io/neicnordic/sensitive-data-archive:${TAG}-download"
     volumes:
       - ./archive_data/4293c9a7-dc50-46db-b79a-27ddc0dad1c6:/tmp/4293c9a7-dc50-46db-b79a-27ddc0dad1c6

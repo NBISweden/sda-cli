@@ -19,7 +19,15 @@ jobs:
           python-version: '3.9'
 
       - name: Build go code
-        run: go build
+        run: |
+          # Get the module name from go.mod automatically
+          MOD_NAME=$(go list -m)
+
+          # Build a version that is new enough for the success test
+          go build -ldflags "-X ${MOD_NAME}/cmd.Version=v0.3.0" -o sda-cli
+
+          # Build an outdated version for the failure test (the minimal required version is 0.2.0)
+          go build -ldflags "-X ${MOD_NAME}/cmd.Version=v0.1.0" -o sda-cli-v0.1.0
 
       - name: Setup environment
         run: bash -x .github/integration/setup/setup.sh

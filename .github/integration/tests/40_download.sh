@@ -154,8 +154,31 @@ else
     echo "Error expected, continue."
 fi
 
-rm -r download-from-file
-rm -r test-download
+rm -rf download-from-file
+rm -rf test-download
+
+echo "Testing outdated client version enforcement (v0.1.0)"
+
+# We expect this to fail because the server requires v0.2.0 or higher
+error_output=$(./sda-cli-v0.1.0 --config testing/s3cmd-download.conf download \
+    --pubkey user_key.pub.pem \
+    --dataset-id https://doi.example/ty009.sfrrss/600.45asasga \
+    --url http://localhost:8080 \
+    --outdir test-version-fail main/subfolder/dummy_data.c4gh 2>&1 || true)
+
+echo "Captured Output: $error_output"
+
+# Check if the error message contains the specific string returned by the server (412 logic)
+expected_msg="Your sda-cli client version is outdated, please update to at least version"
+
+if [[ "$error_output" != *"$expected_msg"* ]]; then
+    echo "sda-cli does not show correct version error message."
+    echo "Expected string: $expected_msg"
+    exit 1
+fi
+
+# Clean up
+rm -rf test-version-fail
 
 
 echo "Integration tests for sda-cli download finished successfully"
