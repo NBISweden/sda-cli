@@ -389,9 +389,14 @@ func (s *DownloadTestSuite) TestGetBodyWithPublicKey() {
 	}
 }
 func (s *DownloadTestSuite) TestSetupCookiejar() {
-	testCookie := filepath.Join(s.tempDir, ".cache/sda-cli/sda_cookie")
-	if runtime.GOOS == "windows" {
-		testCookie = filepath.Join(s.tempDir, "sda-cli/sda_cookie")
+	var testCookie string
+	switch runtime.GOOS {
+	case "windows":
+		testCookie = filepath.Join(s.tempDir, "sda-cli", "sda_cookie")
+	case "darwin": // macOS
+		testCookie = filepath.Join(s.tempDir, "Library", "Caches", "sda-cli", "sda_cookie")
+	default: // Linux and others
+		testCookie = filepath.Join(s.tempDir, ".cache", "sda-cli", "sda_cookie")
 	}
 	pwdCookie, _ := filepath.Abs(".sda_cookie")
 	for _, test := range []struct {
