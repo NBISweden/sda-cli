@@ -89,6 +89,8 @@ type File struct {
 // Download function downloads files from the SDA by using the
 // download's service APIs
 func Download(args []string, configPath, version string) error {
+	appVersion = version
+
 	if datasetID == "" || URL == "" || configPath == "" {
 		return errors.New("missing required arguments, dataset-id, config and url are required")
 	}
