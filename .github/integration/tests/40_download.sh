@@ -166,13 +166,12 @@ error_output=$(./sda-cli-v0.1.0 --config testing/s3cmd-download.conf download \
     --url http://localhost:8080 \
     --outdir test-version-fail main/subfolder/dummy_data.c4gh 2>&1 || true)
 
-echo "Captured Output: $error_output"
-
 # Check if the error message contains the specific string returned by the server (412 logic)
 expected_msg="Your sda-cli client version is outdated, please update to at least version"
 
 if [[ "$error_output" != *"$expected_msg"* ]]; then
     echo "sda-cli does not show correct version error message."
+    echo "Captured Output: $error_output"
     echo "Expected string: $expected_msg"
     exit 1
 fi
