@@ -126,6 +126,9 @@ encrypt = False
 	if err != nil {
 		s.FailNow("failed to write to config file", err)
 	}
+
+	u, _ := url.Parse("http://localhost")
+	setupCookieJar(u)
 }
 
 func TestConfigDownloadTestSuite(t *testing.T) {
@@ -388,10 +391,33 @@ func (s *DownloadTestSuite) TestGetBodyWithPublicKey() {
 		s.T().Errorf("getBody returned incorrect response body, got: %s, want: %s", string(body), expectedBody)
 	}
 }
+
+func (s *DownloadTestSuite) TestGetBodyPreconditionFailed() {
+	// Test the specific 412 logic where the body becomes the error message
+	errorMessage := "error message with precondition failed"
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(http.StatusPreconditionFailed)
+		fmt.Fprint(w, errorMessage)
+	}))
+	defer errorServer.Close()
+
+	body, err := getBody(errorServer.URL, s.accessToken, "")
+
+	assert.Nil(s.T(), body)
+	assert.Error(s.T(), err)
+	// The error string should exactly match the response body per your strings.TrimSpace logic
+	assert.Equal(s.T(), errorMessage, err.Error())
+}
+
 func (s *DownloadTestSuite) TestSetupCookiejar() {
-	testCookie := filepath.Join(s.tempDir, ".cache/sda-cli/sda_cookie")
-	if runtime.GOOS == "windows" {
-		testCookie = filepath.Join(s.tempDir, "sda-cli/sda_cookie")
+	var testCookie string
+	switch runtime.GOOS {
+	case "windows":
+		testCookie = filepath.Join(s.tempDir, "sda-cli", "sda_cookie")
+	case "darwin": // macOS
+		testCookie = filepath.Join(s.tempDir, "Library", "Caches", "sda-cli", "sda_cookie")
+	default: // Linux and others
+		testCookie = filepath.Join(s.tempDir, ".cache", "sda-cli", "sda_cookie")
 	}
 	pwdCookie, _ := filepath.Abs(".sda_cookie")
 	for _, test := range []struct {

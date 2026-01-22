@@ -1,13 +1,23 @@
 # personal files
 .vscode/
 personal/
+tmp/
+bak/
 
 # compiled binary
 sda-cli
 sda-cli.exe
+sda-cli-*
 
 dist/
 
 # key files
 *.pub.pem
 *.sec.pem
+crypt4gh*.pub
+
+# s3 config files
+s3cmd-*.conf
+
+# Mac specific
+.DS_Store

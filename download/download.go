@@ -89,6 +89,8 @@ type File struct {
 // Download function downloads files from the SDA by using the
 // download's service APIs
 func Download(args []string, configPath, version string) error {
+	appVersion = version
+
 	if datasetID == "" || URL == "" || configPath == "" {
 		return errors.New("missing required arguments, dataset-id, config and url are required")
 	}
@@ -421,19 +423,21 @@ func getBody(requestURL, token, pubKeyBase64 string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get response, reason: %v", err)
 	}
-
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("server returned status %d", res.StatusCode)
-	}
+	defer res.Body.Close() //nolint:errcheck
 
 	resBody, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body, reason: %v", err)
 	}
 
-	defer res.Body.Close() //nolint:errcheck
-
-	return resBody, nil
+	switch res.StatusCode {
+	case http.StatusOK:
+		return resBody, nil
+	case http.StatusPreconditionFailed: // Return the original message from the server in case of 412
+		return nil, errors.New(strings.TrimSpace(string(resBody)))
+	default:
+		return nil, fmt.Errorf("server returned status %d", res.StatusCode)
+	}
 }
 
 func GetURLsFile(urlsFilePath string) (urlsList []string, err error) {
