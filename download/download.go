@@ -250,6 +250,26 @@ func fileCase(args []string, token string, fileList bool) error {
 	}
 
 	for _, filePath := range files {
+		outputPath := filePath
+		if outDir != "" {
+			outputPath = outDir + "/" + filePath
+		}
+
+		outputPath = strings.TrimSuffix(outputPath, ".c4gh")
+		if pubKeyBase64 != "" {
+			outputPath += ".c4gh"
+		}
+
+		if continueDownload {
+			if _, err := os.Stat(outputPath); err == nil {
+				fmt.Printf("Skipping download to %s, file already exists\n", outputPath)
+
+				continue
+			} else if !errors.Is(err, os.ErrNotExist) {
+				return err
+			}
+		}
+
 		fileIDURL, apiFilePath, err := getFileIDURL(URL, token, pubKeyBase64, datasetID, filePath)
 		if err != nil {
 			return err
@@ -273,18 +293,6 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	}
 
 	filePath = strings.TrimSuffix(outFilename, ".c4gh")
-
-	body, err := getBody(uri, token, pubKeyBase64)
-	if err != nil {
-		return fmt.Errorf("failed to get file for download, reason: %v", err)
-	}
-
-	fileDir := filepath.Dir(filePath)
-	err = os.MkdirAll(fileDir, 0750)
-	if err != nil {
-		return fmt.Errorf("failed to create directory, reason: %v", err)
-	}
-
 	if pubKeyBase64 != "" {
 		filePath += ".c4gh"
 	}
@@ -295,6 +303,17 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 
 			return nil
 		}
+	}
+
+	body, err := getBody(uri, token, pubKeyBase64)
+	if err != nil {
+		return fmt.Errorf("failed to get file for download, reason: %v", err)
+	}
+
+	fileDir := filepath.Dir(filePath)
+	err = os.MkdirAll(fileDir, 0750)
+	if err != nil {
+		return fmt.Errorf("failed to create directory, reason: %v", err)
 	}
 
 	outfile, err := os.Create(filePath)
