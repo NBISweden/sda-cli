@@ -250,15 +250,7 @@ func fileCase(args []string, token string, fileList bool) error {
 	}
 
 	for _, filePath := range files {
-		outputPath := filePath
-		if outDir != "" {
-			outputPath = outDir + "/" + filePath
-		}
-
-		outputPath = strings.TrimSuffix(outputPath, ".c4gh")
-		if pubKeyBase64 != "" {
-			outputPath += ".c4gh"
-		}
+		outputPath := filepath.Join(outDir, filePath)
 
 		if continueDownload {
 			if _, err := os.Stat(outputPath); err == nil {
