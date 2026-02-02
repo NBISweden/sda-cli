@@ -278,16 +278,7 @@ func fileCase(args []string, token string, fileList bool) error {
 
 func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	filePath = helpers.AnonymizeFilepath(filePath)
-
-	outFilename := filePath
-	if outDir != "" {
-		outFilename = outDir + "/" + filePath
-	}
-
-	filePath = strings.TrimSuffix(outFilename, ".c4gh")
-	if pubKeyBase64 != "" {
-		filePath += ".c4gh"
-	}
+	filePath = filepath.Join(outDir, filePath)
 
 	if continueDownload {
 		if _, err := os.Stat(filePath); !errors.Is(err, os.ErrNotExist) {
