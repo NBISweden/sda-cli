@@ -316,9 +316,31 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	}()
 
 	p := mpb.New()
-	bar := p.AddBar(totalSize,
-		mpb.PrependDecorators(decor.CountersKibiByte("% .2f / % .2f")),
-	)
+	var bar *mpb.Bar
+
+	if totalSize > 0 {
+		bar = p.AddBar(totalSize,
+			mpb.PrependDecorators(
+				decor.CountersKibiByte("% .2f / % .2f"),
+			),
+			mpb.AppendDecorators(
+				// Pass the type constant UnitKiB as the first argument
+				decor.AverageSpeed(decor.SizeB1024(0), "% .2f", decor.WCSyncSpace),
+				decor.Percentage(decor.WCSyncSpace),
+			),
+		)
+	} else {
+		bar = p.AddBar(0,
+			mpb.PrependDecorators(
+				decor.CurrentKibiByte("% .2f / ???"),
+			),
+			mpb.AppendDecorators(
+				decor.AverageSpeed(decor.SizeB1024(0), "% .2f", decor.WCSyncSpace),
+				decor.Name(" [Streaming]"),
+			),
+		)
+	}
+
 	proxyReader := bar.ProxyReader(bodyStream)
 
 	fmt.Printf("Downloading file to %s\n", filePath)
