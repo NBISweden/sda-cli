@@ -312,16 +312,15 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 		}
 	}()
 
-	// 1 MB buffer
 	buf := make([]byte, 1024*1024)
 	bufReader := bufio.NewReaderSize(bodyStream, 1024*1024)
 
-	// Progress container
 	p := mpb.New(
 		mpb.WithRefreshRate(150 * time.Millisecond),
 	)
 
-	// Decide which helper to call based on totalSize
+	fmt.Printf("Downloading file to %s\n", filePath)
+
 	if totalSize > 0 {
 		if err := downloadWithBar(p, outFile, bufReader, totalSize, buf); err != nil {
 			return err
