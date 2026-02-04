@@ -279,6 +279,7 @@ func fileCase(args []string, token string, fileList bool) error {
 func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	filePath = helpers.AnonymizeFilepath(filePath)
 	filePath = filepath.Join(outDir, filePath)
+	partFilePath := filePath + ".part"
 
 	if continueDownload {
 		if _, err := os.Stat(filePath); !errors.Is(err, os.ErrNotExist) {
@@ -299,11 +300,19 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 		return fmt.Errorf("failed to create directory, reason: %v", err)
 	}
 
-	outfile, err := os.Create(filePath)
+	outfile, err := os.Create(partFilePath)
 	if err != nil {
-		return fmt.Errorf("failed to create file, reason: %v", err)
+		return fmt.Errorf("failed to create partial file, reason: %v", err)
 	}
-	defer outfile.Close() //nolint:errcheck
+
+	downloadSuccessful := false
+	defer func() {
+		_ = outfile.Close()
+		// Cleanup: If we exit with an error, remove the incomplete .part file
+		if !downloadSuccessful {
+			os.Remove(partFilePath)
+		}
+	}()
 
 	p := mpb.New()
 	bar := p.AddBar(int64(len(body)),
@@ -314,12 +323,22 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 
 	reader := strings.NewReader(string(body))
 	proxyReader := bar.ProxyReader(reader)
+
 	fmt.Printf("Downloading file to %s\n", filePath)
 	_, err = io.Copy(outfile, proxyReader)
 	if err != nil {
 		return fmt.Errorf("failed to write file, reason: %v", err)
 	}
 	p.Wait()
+
+	_ = outfile.Close()
+
+	err = os.Rename(partFilePath, filePath)
+	if err != nil {
+		return fmt.Errorf("failed to rename partial file to destination: %v", err)
+	}
+
+	downloadSuccessful = true
 
 	return nil
 }
