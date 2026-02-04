@@ -28,6 +28,7 @@ type DownloadTestSuite struct {
 	tempDir        string
 	configFilePath string
 	accessToken    string
+	testKeyFile    string
 
 	httpTestServer *httptest.Server
 }
@@ -129,6 +130,10 @@ encrypt = False
 
 	u, _ := url.Parse("http://localhost")
 	setupCookieJar(u)
+
+	s.testKeyFile = filepath.Join(s.tempDir, "testkey")
+	err = createkey.GenerateKeyPair(s.testKeyFile, "test")
+	assert.NoError(s.T(), err)
 }
 
 func TestConfigDownloadTestSuite(t *testing.T) {
@@ -148,16 +153,12 @@ func (s *DownloadTestSuite) TestInvalidUrl() {
 }
 
 func (s *DownloadTestSuite) TestDownloadOneFileWithPublicKey() {
-	testKeyFile := filepath.Join(s.tempDir, "testkey")
-	err := createkey.GenerateKeyPair(testKeyFile, "test")
-	assert.NoError(s.T(), err)
-
-	os.Args = []string{"", "download", "files/dummy-file.txt"}
-	downloadCmd.Flag("pubkey").Value.Set(fmt.Sprintf("%s.pub.pem", testKeyFile))
+	os.Args = []string{"", "download", "files/dummy-file.txt.c4gh"}
+	downloadCmd.Flag("pubkey").Value.Set(fmt.Sprintf("%s.pub.pem", s.testKeyFile))
 	downloadCmd.Flag("url").Value.Set(s.httpTestServer.URL)
 	downloadCmd.Flag("outdir").Value.Set(s.tempDir)
 	downloadCmd.Flag("dataset-id").Value.Set("TES01")
-	err = downloadCmd.Execute()
+	err := downloadCmd.Execute()
 	if err != nil {
 		s.FailNow("unexpected error from Download", err)
 	}
@@ -172,12 +173,13 @@ func (s *DownloadTestSuite) TestDownloadFileAlreadyExistsWithContinue() {
 		s.FailNow("failed to create temporary directory", err)
 	}
 
-	tempFile := filepath.Join(s.tempDir, "files", "dummy-file.txt")
+	tempFile := filepath.Join(s.tempDir, "files", "dummy-file.txt.c4gh")
 	if err := os.WriteFile(tempFile, []byte("NOT TO BE OVERWRITTEN"), 0600); err != nil {
 		s.FailNow("failed to write temp file", err)
 	}
 
-	os.Args = []string{"", "download", "files/dummy-file.txt"}
+	os.Args = []string{"", "download", "files/dummy-file.txt.c4gh"}
+	downloadCmd.Flag("pubkey").Value.Set(fmt.Sprintf("%s.pub.pem", s.testKeyFile))
 	downloadCmd.Flag("continue").Value.Set("true")
 	downloadCmd.Flag("url").Value.Set(s.httpTestServer.URL)
 	downloadCmd.Flag("outdir").Value.Set(s.tempDir)
@@ -193,6 +195,7 @@ func (s *DownloadTestSuite) TestDownloadFileAlreadyExistsWithContinue() {
 }
 
 func (s *DownloadTestSuite) TestDownloadDataset() {
+	downloadCmd.Flag("pubkey").Value.Set(fmt.Sprintf("%s.pub.pem", s.testKeyFile))
 	downloadCmd.Flag("dataset").Value.Set("true")
 	downloadCmd.Flag("url").Value.Set(s.httpTestServer.URL)
 	downloadCmd.Flag("outdir").Value.Set(s.tempDir)
@@ -202,21 +205,22 @@ func (s *DownloadTestSuite) TestDownloadDataset() {
 		s.FailNow("unexpected error from Download", err)
 	}
 
-	downloadedContent, err := os.ReadFile(fmt.Sprintf("%s/files/dummy-file.txt", s.tempDir))
+	downloadedContent, err := os.ReadFile(fmt.Sprintf("%s/files/dummy-file.txt.c4gh", s.tempDir))
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "test content dummy file", string(downloadedContent))
 
-	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file1", s.tempDir))
+	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file1.c4gh", s.tempDir))
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "test content file 1", string(downloadedContent))
 
-	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file2", s.tempDir))
+	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file2.c4gh", s.tempDir))
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "test content file 2", string(downloadedContent))
 }
 
 func (s *DownloadTestSuite) TestDownloadRecursive() {
 	os.Args = []string{"", "download", "files/"}
+	downloadCmd.Flag("pubkey").Value.Set(fmt.Sprintf("%s.pub.pem", s.testKeyFile))
 	downloadCmd.Flag("recursive").Value.Set("true")
 	downloadCmd.Flag("url").Value.Set(s.httpTestServer.URL)
 	downloadCmd.Flag("outdir").Value.Set(s.tempDir)
@@ -226,15 +230,15 @@ func (s *DownloadTestSuite) TestDownloadRecursive() {
 		s.FailNow("unexpected error from Download", err)
 	}
 
-	downloadedContent, err := os.ReadFile(fmt.Sprintf("%s/files/dummy-file.txt", s.tempDir))
+	downloadedContent, err := os.ReadFile(fmt.Sprintf("%s/files/dummy-file.txt.c4gh", s.tempDir))
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "test content dummy file", string(downloadedContent))
 
-	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file1", s.tempDir))
+	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file1.c4gh", s.tempDir))
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "test content file 1", string(downloadedContent))
 
-	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file2", s.tempDir))
+	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file2.c4gh", s.tempDir))
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "test content file 2", string(downloadedContent))
 }
