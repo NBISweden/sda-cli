@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	rootcmd "github.com/NBISweden/sda-cli/cmd"
 	"github.com/NBISweden/sda-cli/helpers"
@@ -293,11 +294,9 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	if err != nil {
 		return err
 	}
-	defer bodyStream.Close() // Ensure network connection closes
+	defer bodyStream.Close()
 
-	fileDir := filepath.Dir(filePath)
-	err = os.MkdirAll(fileDir, 0750)
-	if err != nil {
+	if err := os.MkdirAll(filepath.Dir(filePath), 0750); err != nil {
 		return fmt.Errorf("failed to create directory, reason: %v", err)
 	}
 
@@ -309,14 +308,20 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	var downloadSuccessful bool
 	defer func() {
 		_ = outFile.Close()
-		// Cleanup: If we exit with an error, remove the incomplete .part file
 		if !downloadSuccessful {
-			os.Remove(partFilePath)
+			_ = os.Remove(partFilePath)
 		}
 	}()
 
-	p := mpb.New()
 	var bar *mpb.Bar
+	p := mpb.New(
+		mpb.WithRefreshRate(150 * time.Millisecond),
+	)
+
+	fmt.Printf("Downloading file to %s\n", filePath)
+
+	buf := make([]byte, 1024*1024) // 1 MB buffer
+	bufReader := bufio.NewReaderSize(bodyStream, 1024*1024)
 
 	if totalSize > 0 {
 		bar = p.AddBar(totalSize,
@@ -324,29 +329,43 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 				decor.CountersKibiByte("% .2f / % .2f"),
 			),
 			mpb.AppendDecorators(
-				// Pass the type constant UnitKiB as the first argument
-				decor.AverageSpeed(decor.SizeB1024(0), "% .2f", decor.WCSyncSpace),
-				decor.Percentage(decor.WCSyncSpace),
+				decor.Percentage(),
 			),
 		)
+
+		proxyReader := bar.ProxyReader(bufReader)
+		if _, err := io.CopyBuffer(outFile, proxyReader, buf); err != nil {
+			return fmt.Errorf("failed to write file, reason: %v", err)
+		}
 	} else {
-		bar = p.AddBar(0,
+		// Streaming download with spinner + manual updates when total size is unknown
+		bar = p.New(
+			0,
+			mpb.SpinnerStyle("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"),
 			mpb.PrependDecorators(
-				decor.CurrentKibiByte("% .2f / ???"),
+				decor.CurrentKibiByte("% .2f"),
 			),
 			mpb.AppendDecorators(
-				decor.AverageSpeed(decor.SizeB1024(0), "% .2f", decor.WCSyncSpace),
-				decor.Name(" [Streaming]"),
+				decor.Name(" downloading..."),
 			),
 		)
-	}
 
-	proxyReader := bar.ProxyReader(bodyStream)
-
-	fmt.Printf("Downloading file to %s\n", filePath)
-	_, err = io.Copy(outFile, proxyReader)
-	if err != nil {
-		return fmt.Errorf("failed to write file, reason: %v", err)
+		for {
+			n, err := bufReader.Read(buf)
+			if n > 0 {
+				if _, werr := outFile.Write(buf[:n]); werr != nil {
+					return werr
+				}
+				bar.IncrBy(n)
+			}
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return err
+			}
+		}
+		bar.Abort(true)
 	}
 	p.Wait()
 
