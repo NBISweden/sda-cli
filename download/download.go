@@ -297,12 +297,12 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	defer bodyStream.Close()
 
 	if err := os.MkdirAll(filepath.Dir(filePath), 0750); err != nil {
-		return fmt.Errorf("failed to create directory, reason: %v", err)
+		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	outFile, err := os.Create(partFilePath)
 	if err != nil {
-		return fmt.Errorf("failed to create partial file, reason: %v", err)
+		return fmt.Errorf("failed to create partial file: %w", err)
 	}
 
 	var downloadSuccessful bool
@@ -313,66 +313,30 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 		}
 	}()
 
-	var bar *mpb.Bar
+	// 1 MB buffer
+	buf := make([]byte, 1024*1024)
+	bufReader := bufio.NewReaderSize(bodyStream, 1024*1024)
+
+	// Progress container
 	p := mpb.New(
 		mpb.WithRefreshRate(150 * time.Millisecond),
 	)
 
-	fmt.Printf("Downloading file to %s\n", filePath)
-
-	buf := make([]byte, 1024*1024) // 1 MB buffer
-	bufReader := bufio.NewReaderSize(bodyStream, 1024*1024)
-
+	// Decide which helper to call based on totalSize
 	if totalSize > 0 {
-		bar = p.AddBar(totalSize,
-			mpb.PrependDecorators(
-				decor.CountersKibiByte("% .2f / % .2f"),
-			),
-			mpb.AppendDecorators(
-				decor.Percentage(),
-			),
-		)
-
-		proxyReader := bar.ProxyReader(bufReader)
-		if _, err := io.CopyBuffer(outFile, proxyReader, buf); err != nil {
-			return fmt.Errorf("failed to write file, reason: %v", err)
+		if err := downloadWithBar(p, outFile, bufReader, totalSize, buf); err != nil {
+			return err
 		}
 	} else {
-		// Streaming download with spinner + manual updates when total size is unknown
-		bar = p.New(
-			0,
-			mpb.SpinnerStyle("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"),
-			mpb.PrependDecorators(
-				decor.CurrentKibiByte("% .2f"),
-			),
-			mpb.AppendDecorators(
-				decor.Name(" downloading..."),
-			),
-		)
-
-		for {
-			n, err := bufReader.Read(buf)
-			if n > 0 {
-				if _, werr := outFile.Write(buf[:n]); werr != nil {
-					return werr
-				}
-				bar.IncrBy(n)
-			}
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return err
-			}
+		if err := downloadStreaming(p, outFile, bufReader, buf); err != nil {
+			return err
 		}
-		bar.Abort(true)
 	}
+
 	p.Wait()
 
-	_ = outFile.Close()
-
-	if err = os.Rename(partFilePath, filePath); err != nil {
-		return fmt.Errorf("failed to rename partial file to destination: %v", err)
+	if err := os.Rename(partFilePath, filePath); err != nil {
+		return fmt.Errorf("failed to rename partial file: %w", err)
 	}
 
 	downloadSuccessful = true
@@ -544,4 +508,56 @@ func setupCookieJar(u *url.URL) {
 			cookieJar.SetCookies(u, parsedCookies)
 		}
 	}
+}
+
+func downloadWithBar(p *mpb.Progress, outFile *os.File, reader io.Reader, totalSize int64, buf []byte) error {
+	bar := p.AddBar(totalSize,
+		mpb.PrependDecorators(
+			decor.CountersKibiByte("% .2f / % .2f"),
+		),
+		mpb.AppendDecorators(
+			decor.Percentage(),
+		),
+	)
+
+	proxyReader := bar.ProxyReader(reader)
+	if _, err := io.CopyBuffer(outFile, proxyReader, buf); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return nil
+}
+
+func downloadStreaming(p *mpb.Progress, outFile *os.File, reader *bufio.Reader, buf []byte) error {
+	bar := p.New(
+		0,
+		mpb.SpinnerStyle("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"),
+		mpb.PrependDecorators(
+			decor.CurrentKibiByte("% .2f"),
+		),
+		mpb.AppendDecorators(
+			decor.Name(" downloading..."),
+		),
+	)
+	defer bar.Abort(true)
+
+	for {
+		n, err := reader.Read(buf)
+		if n > 0 {
+			if _, werr := outFile.Write(buf[:n]); werr != nil {
+				return werr
+			}
+			bar.IncrBy(n)
+		}
+
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+
+			return err
+		}
+	}
+
+	return nil
 }
