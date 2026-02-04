@@ -289,10 +289,11 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 		}
 	}
 
-	body, err := getBody(uri, token, pubKeyBase64)
+	bodyStream, totalSize, err := getBody(uri, token, pubKeyBase64)
 	if err != nil {
-		return fmt.Errorf("failed to get file for download, reason: %v", err)
+		return err
 	}
+	defer bodyStream.Close() // Ensure network connection closes
 
 	fileDir := filepath.Dir(filePath)
 	err = os.MkdirAll(fileDir, 0750)
@@ -315,14 +316,10 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	}()
 
 	p := mpb.New()
-	bar := p.AddBar(int64(len(body)),
-		mpb.PrependDecorators(
-			decor.CountersKibiByte("% .2f / % .2f"),
-		),
+	bar := p.AddBar(totalSize,
+		mpb.PrependDecorators(decor.CountersKibiByte("% .2f / % .2f")),
 	)
-
-	reader := strings.NewReader(string(body))
-	proxyReader := bar.ProxyReader(reader)
+	proxyReader := bar.ProxyReader(bodyStream)
 
 	fmt.Printf("Downloading file to %s\n", filePath)
 	_, err = io.Copy(outfile, proxyReader)
@@ -386,13 +383,15 @@ func GetDatasets(baseURL, token, version string) ([]string, error) {
 	setupCookieJar(u)
 
 	datasetsURL := baseURL + "/metadata/datasets"
-	allDatasets, err := getBody(datasetsURL, token, "")
+
+	bodyStream, _, err := getBody(datasetsURL, token, "")
 	if err != nil {
 		return []string{}, fmt.Errorf("failed to get datasets, reason: %v", err)
 	}
+	defer bodyStream.Close()
 
 	var datasets []string
-	err = json.Unmarshal(allDatasets, &datasets)
+	err = json.NewDecoder(bodyStream).Decode(&datasets)
 	if err != nil {
 		return []string{}, fmt.Errorf("failed to parse dataset list JSON, reason: %v", err)
 	}
@@ -411,13 +410,14 @@ func GetFilesInfo(baseURL, dataset, pubKeyBase64, token, version string) ([]File
 	setupCookieJar(u)
 
 	filesURL := baseURL + "/metadata/datasets/" + dataset + "/files"
-	allFiles, err := getBody(filesURL, token, pubKeyBase64)
+	bodyStream, _, err := getBody(filesURL, token, pubKeyBase64)
 	if err != nil {
 		return []File{}, fmt.Errorf("failed to get files, reason: %v", err)
 	}
+	defer bodyStream.Close()
 
 	var files []File
-	err = json.Unmarshal(allFiles, &files)
+	err = json.NewDecoder(bodyStream).Decode(&files)
 	if err != nil {
 		return []File{}, fmt.Errorf("failed to parse file list JSON, reason: %v", err)
 	}
@@ -425,11 +425,11 @@ func GetFilesInfo(baseURL, dataset, pubKeyBase64, token, version string) ([]File
 	return files, nil
 }
 
-// getBody gets the body of the response from the URL
-func getBody(requestURL, token, pubKeyBase64 string) ([]byte, error) {
+// getBody returns a stream of the response body and its size
+func getBody(requestURL, token, pubKeyBase64 string) (io.ReadCloser, int64, error) {
 	req, err := http.NewRequest("GET", requestURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request, reason: %v", err)
+		return nil, 0, fmt.Errorf("failed to create request, reason: %v", err)
 	}
 
 	req.Header.Add("SDA-Client-Version", appVersion)
@@ -442,23 +442,20 @@ func getBody(requestURL, token, pubKeyBase64 string) ([]byte, error) {
 	client := &http.Client{Jar: cookieJar}
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get response, reason: %v", err)
-	}
-	defer res.Body.Close() //nolint:errcheck
-
-	resBody, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body, reason: %v", err)
+		return nil, 0, fmt.Errorf("failed to get response, reason: %v", err)
 	}
 
-	switch res.StatusCode {
-	case http.StatusOK:
-		return resBody, nil
-	case http.StatusPreconditionFailed: // Return the original message from the server in case of 412
-		return nil, errors.New(strings.TrimSpace(string(resBody)))
-	default:
-		return nil, fmt.Errorf("server returned status %d", res.StatusCode)
+	if res.StatusCode != http.StatusOK {
+		defer res.Body.Close()
+		resBody, _ := io.ReadAll(res.Body)
+		if res.StatusCode == http.StatusPreconditionFailed {
+			return nil, 0, errors.New(strings.TrimSpace(string(resBody)))
+		}
+
+		return nil, 0, fmt.Errorf("server returned status %d", res.StatusCode)
 	}
+
+	return res.Body, res.ContentLength, nil
 }
 
 func GetURLsFile(urlsFilePath string) (urlsList []string, err error) {

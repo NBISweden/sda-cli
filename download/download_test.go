@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -336,20 +337,42 @@ func (s *DownloadTestSuite) TestGetDatasets() {
 }
 
 func (s *DownloadTestSuite) TestGetBodyNoPublicKey() {
-	body, err := getBody(s.httpTestServer.URL, "test-token", "")
+	bodyStream, size, err := getBody(s.httpTestServer.URL, "test-token", "")
 	if err != nil {
 		s.T().Errorf("getBody returned an error: %v", err)
+
+		return // Exit early if there's an error to avoid nil pointer panics below
+	}
+
+	defer bodyStream.Close()
+
+	body, err := io.ReadAll(bodyStream)
+	if err != nil {
+		s.T().Errorf("failed to read from bodyStream: %v", err)
 	}
 
 	expectedBody := "test response"
 	if string(body) != expectedBody {
 		s.T().Errorf("getBody returned incorrect response body, got: %s, want: %s", string(body), expectedBody)
 	}
+
+	if size != int64(len(expectedBody)) && size != -1 {
+		s.T().Logf("Note: size returned (%d) does not match expected length (%d)", size, len(expectedBody))
+	}
 }
+
 func (s *DownloadTestSuite) TestGetBodyWithPublicKey() {
-	body, err := getBody(s.httpTestServer.URL, "test-token", "test-public-key")
+	bodyStream, _, err := getBody(s.httpTestServer.URL, "test-token", "test-public-key")
+
 	if err != nil {
-		s.T().Errorf("getBody returned an error: %v", err)
+		s.T().Fatalf("getBody returned an error: %v", err)
+	}
+
+	defer bodyStream.Close()
+
+	body, err := io.ReadAll(bodyStream)
+	if err != nil {
+		s.T().Fatalf("failed to read from bodyStream: %v", err)
 	}
 
 	expectedBody := "test response"
@@ -361,17 +384,17 @@ func (s *DownloadTestSuite) TestGetBodyWithPublicKey() {
 func (s *DownloadTestSuite) TestGetBodyPreconditionFailed() {
 	// Test the specific 412 logic where the body becomes the error message
 	errorMessage := "error message with precondition failed"
-	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusPreconditionFailed)
 		fmt.Fprint(w, errorMessage)
 	}))
 	defer errorServer.Close()
 
-	body, err := getBody(errorServer.URL, s.accessToken, "")
+	bodyStream, size, err := getBody(errorServer.URL, "test-token", "")
 
-	assert.Nil(s.T(), body)
+	assert.Nil(s.T(), bodyStream) // On error, the stream should be nil
+	assert.Equal(s.T(), int64(0), size)
 	assert.Error(s.T(), err)
-	// The error string should exactly match the response body per your strings.TrimSpace logic
 	assert.Equal(s.T(), errorMessage, err.Error())
 }
 
