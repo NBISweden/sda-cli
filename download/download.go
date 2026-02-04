@@ -280,7 +280,6 @@ func fileCase(args []string, token string, fileList bool) error {
 func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	filePath = helpers.AnonymizeFilepath(filePath)
 	filePath = filepath.Join(outDir, filePath)
-	partFilePath := filePath + ".part"
 
 	if continueDownload {
 		if _, err := os.Stat(filePath); !errors.Is(err, os.ErrNotExist) {
@@ -300,7 +299,7 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	outFile, err := os.Create(partFilePath)
+	outFile, err := os.Create(filePath + ".part")
 	if err != nil {
 		return fmt.Errorf("failed to create partial file: %w", err)
 	}
@@ -309,7 +308,7 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	defer func() {
 		_ = outFile.Close()
 		if !downloadSuccessful {
-			_ = os.Remove(partFilePath)
+			_ = os.Remove(outFile.Name())
 		}
 	}()
 
@@ -335,8 +334,19 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 
 	p.Wait()
 
-	if err := os.Rename(partFilePath, filePath); err != nil {
-		return fmt.Errorf("failed to rename partial file: %w", err)
+	// This is critical for Windows compatibility
+	if err := outFile.Close(); err != nil {
+		return fmt.Errorf("failed to close partial file %s: %v", outFile.Name(), err)
+	}
+
+	if _, err := os.Stat(filePath); err == nil {
+		if err := os.Remove(filePath); err != nil {
+			return fmt.Errorf("failed to remove existing file %s: %v", filePath, err)
+		}
+	}
+
+	if err := os.Rename(outFile.Name(), filePath); err != nil {
+		return fmt.Errorf("failed to rename partial file %s: %v", outFile.Name(), err)
 	}
 
 	downloadSuccessful = true
