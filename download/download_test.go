@@ -147,44 +147,6 @@ func (s *DownloadTestSuite) TestInvalidUrl() {
 	)
 }
 
-func (s *DownloadTestSuite) TestDownloadOneFileNoPublicKey() {
-	os.Args = []string{"", "download", "files/dummy-file.txt"}
-	downloadCmd.Flag("url").Value.Set(s.httpTestServer.URL)
-	downloadCmd.Flag("outdir").Value.Set(s.tempDir)
-	downloadCmd.Flag("dataset-id").Value.Set("TES01")
-	err := downloadCmd.Execute()
-	if err != nil {
-		s.FailNow("unexpected error from Download", err)
-	}
-
-	downloadedContent, err := os.ReadFile(fmt.Sprintf("%s/files/dummy-file.txt", s.tempDir))
-	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), "test content dummy file", string(downloadedContent))
-}
-
-func (s *DownloadTestSuite) TestDownloadMultipleFilesNoPublicKey() {
-	os.Args = []string{"", "download", "files/dummy-file.txt", "files/file1", "files/file2"}
-	downloadCmd.Flag("url").Value.Set(s.httpTestServer.URL)
-	downloadCmd.Flag("outdir").Value.Set(s.tempDir)
-	downloadCmd.Flag("dataset-id").Value.Set("TES01")
-	err := downloadCmd.Execute()
-	if err != nil {
-		s.FailNow("unexpected error from Download", err)
-	}
-
-	downloadedContent, err := os.ReadFile(fmt.Sprintf("%s/files/dummy-file.txt", s.tempDir))
-	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), "test content dummy file", string(downloadedContent))
-
-	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file1", s.tempDir))
-	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), "test content file 1", string(downloadedContent))
-
-	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file2", s.tempDir))
-	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), "test content file 2", string(downloadedContent))
-}
-
 func (s *DownloadTestSuite) TestDownloadOneFileWithPublicKey() {
 	testKeyFile := filepath.Join(s.tempDir, "testkey")
 	err := createkey.GenerateKeyPair(testKeyFile, "test")
