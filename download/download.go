@@ -301,14 +301,14 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 		return fmt.Errorf("failed to create directory, reason: %v", err)
 	}
 
-	outfile, err := os.Create(partFilePath)
+	outFile, err := os.Create(partFilePath)
 	if err != nil {
 		return fmt.Errorf("failed to create partial file, reason: %v", err)
 	}
 
-	downloadSuccessful := false
+	var downloadSuccessful bool
 	defer func() {
-		_ = outfile.Close()
+		_ = outFile.Close()
 		// Cleanup: If we exit with an error, remove the incomplete .part file
 		if !downloadSuccessful {
 			os.Remove(partFilePath)
@@ -344,16 +344,15 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	proxyReader := bar.ProxyReader(bodyStream)
 
 	fmt.Printf("Downloading file to %s\n", filePath)
-	_, err = io.Copy(outfile, proxyReader)
+	_, err = io.Copy(outFile, proxyReader)
 	if err != nil {
 		return fmt.Errorf("failed to write file, reason: %v", err)
 	}
 	p.Wait()
 
-	_ = outfile.Close()
+	_ = outFile.Close()
 
-	err = os.Rename(partFilePath, filePath)
-	if err != nil {
+	if err = os.Rename(partFilePath, filePath); err != nil {
 		return fmt.Errorf("failed to rename partial file to destination: %v", err)
 	}
 
