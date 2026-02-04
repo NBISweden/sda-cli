@@ -73,7 +73,7 @@ type HtsgetResponse struct {
 	Htsget HtsgetInfo `json:"htsget"`
 }
 
-func Htsget(args []string, configPath string) error {
+func Htsget(_ []string, configPath string) error {
 	if datasetID == "" || fileName == "" || htsgetHost == "" || publicKeyFile == "" {
 		return errors.New("missing required arguments, dataset, filename, host and key are required")
 	}
@@ -93,7 +93,7 @@ func Htsget(args []string, configPath string) error {
 	// i.e. bam files require the /reads/, replace for vcf
 	url := htsgetHost + "/reads/" + datasetID + "/" + fileName + "?encryptionScheme=C4GH"
 	if referenceName != "" {
-		url = url + "&referenceName=" + referenceName
+		url += "&referenceName=" + referenceName
 	}
 	method := "GET"
 	client := &http.Client{}
@@ -103,7 +103,7 @@ func Htsget(args []string, configPath string) error {
 	}
 
 	req.Header.Add("Authorization", "Bearer "+config.AccessToken)
-	req.Header.Add("Client-Public-Key", base64publickey)
+	req.Header.Add("Htsget-Context-Public-Key", base64publickey)
 
 	res, err := client.Do(req)
 
@@ -137,9 +137,6 @@ func Htsget(args []string, configPath string) error {
 func downloadFiles(htsgeURLs HtsgetResponse, config *helpers.Config) (err error) {
 	// Create the directory for the file
 	var filePath string
-	if err != nil {
-		return fmt.Errorf("failed to get current path, reason: %v", err)
-	}
 	if strings.Contains(fileName, string(os.PathSeparator)) {
 		filePath = filepath.Dir(fileName)
 		err = os.MkdirAll(filePath, 0750)
@@ -211,7 +208,7 @@ func downloadFiles(htsgeURLs HtsgetResponse, config *helpers.Config) (err error)
 		}
 
 		req.Header.Add("Authorization", "Bearer "+config.AccessToken)
-		req.Header.Add("client-public-key", base64publickey)
+		req.Header.Add("Client-Public-Key", base64publickey)
 		if htsgeURLs.Htsget.Urls[index].Headers.Range != "" {
 			req.Header.Add("Range", htsgeURLs.Htsget.Urls[index].Headers.Range)
 		}
