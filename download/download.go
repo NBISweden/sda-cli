@@ -281,11 +281,15 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	filePath = helpers.AnonymizeFilepath(filePath)
 	filePath = filepath.Join(outDir, filePath)
 
-	if continueDownload {
-		if _, err := os.Stat(filePath); !errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(filePath); !errors.Is(err, os.ErrNotExist) {
+		if continueDownload {
 			fmt.Printf("Skipping download to %s, file already exists\n", filePath)
 
 			return nil
+		}
+
+		if err := os.Remove(filePath); err != nil {
+			return fmt.Errorf("failed to remove existing file: %w", err)
 		}
 	}
 
@@ -336,12 +340,6 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	// This is critical for Windows compatibility
 	if err := outFile.Close(); err != nil {
 		return fmt.Errorf("failed to close partial file %s: %v", outFile.Name(), err)
-	}
-
-	if _, err := os.Stat(filePath); err == nil {
-		if err := os.Remove(filePath); err != nil {
-			return fmt.Errorf("failed to remove existing file %s: %v", filePath, err)
-		}
 	}
 
 	if err := os.Rename(outFile.Name(), filePath); err != nil {
