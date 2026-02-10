@@ -496,3 +496,28 @@ func (s *DownloadTestSuite) TestSetupCookiejar() {
 		})
 	}
 }
+
+func (s *DownloadTestSuite) TestDownloadCleanupOnFailure() {
+	failServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, "server error")
+	}))
+	defer failServer.Close()
+
+	targetFile := "cleanup-test.c4gh"
+	fullPath := filepath.Join(s.tempDir, targetFile)
+
+	downloadCmd.Flag("continue").Value.Set("false")
+	outDir = s.tempDir
+
+	err := downloadFile(failServer.URL, s.accessToken, "", targetFile)
+	assert.Error(s.T(), err, "Expected downloadFile to return an error on 500 response")
+
+	// Check that the .part file was cleaned up
+	_, err = os.Stat(fullPath + ".part")
+	assert.True(s.T(), os.IsNotExist(err), "The .part file should have been removed by the defer cleanup block")
+
+	// Check that the final target file was not created
+	_, err = os.Stat(fullPath)
+	assert.True(s.T(), os.IsNotExist(err), "The final target file should not exist after a failed download")
+}
