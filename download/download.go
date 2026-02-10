@@ -177,9 +177,7 @@ func datasetCase(token string) error {
 	for _, file := range files {
 		fileName := helpers.AnonymizeFilepath(file.FilePath)
 		fileURL := URL + "/s3/" + file.DatasetID + "/" + fileName
-		if err != nil {
-			return err
-		}
+
 		err = downloadFile(fileURL, token, pubKeyBase64, file.FilePath)
 		if err != nil {
 			return err
