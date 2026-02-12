@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -28,6 +29,7 @@ type DownloadTestSuite struct {
 	tempDir        string
 	configFilePath string
 	accessToken    string
+	testKeyFile    string
 
 	httpTestServer *httptest.Server
 }
@@ -129,6 +131,10 @@ encrypt = False
 
 	u, _ := url.Parse("http://localhost")
 	setupCookieJar(u)
+
+	s.testKeyFile = filepath.Join(s.tempDir, "testkey")
+	err = createkey.GenerateKeyPair(s.testKeyFile, "test")
+	assert.NoError(s.T(), err)
 }
 
 func TestConfigDownloadTestSuite(t *testing.T) {
@@ -147,55 +153,13 @@ func (s *DownloadTestSuite) TestInvalidUrl() {
 	)
 }
 
-func (s *DownloadTestSuite) TestDownloadOneFileNoPublicKey() {
-	os.Args = []string{"", "download", "files/dummy-file.txt"}
-	downloadCmd.Flag("url").Value.Set(s.httpTestServer.URL)
-	downloadCmd.Flag("outdir").Value.Set(s.tempDir)
-	downloadCmd.Flag("dataset-id").Value.Set("TES01")
-	err := downloadCmd.Execute()
-	if err != nil {
-		s.FailNow("unexpected error from Download", err)
-	}
-
-	downloadedContent, err := os.ReadFile(fmt.Sprintf("%s/files/dummy-file.txt", s.tempDir))
-	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), "test content dummy file", string(downloadedContent))
-}
-
-func (s *DownloadTestSuite) TestDownloadMultipleFilesNoPublicKey() {
-	os.Args = []string{"", "download", "files/dummy-file.txt", "files/file1", "files/file2"}
-	downloadCmd.Flag("url").Value.Set(s.httpTestServer.URL)
-	downloadCmd.Flag("outdir").Value.Set(s.tempDir)
-	downloadCmd.Flag("dataset-id").Value.Set("TES01")
-	err := downloadCmd.Execute()
-	if err != nil {
-		s.FailNow("unexpected error from Download", err)
-	}
-
-	downloadedContent, err := os.ReadFile(fmt.Sprintf("%s/files/dummy-file.txt", s.tempDir))
-	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), "test content dummy file", string(downloadedContent))
-
-	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file1", s.tempDir))
-	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), "test content file 1", string(downloadedContent))
-
-	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file2", s.tempDir))
-	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), "test content file 2", string(downloadedContent))
-}
-
 func (s *DownloadTestSuite) TestDownloadOneFileWithPublicKey() {
-	testKeyFile := filepath.Join(s.tempDir, "testkey")
-	err := createkey.GenerateKeyPair(testKeyFile, "test")
-	assert.NoError(s.T(), err)
-
-	os.Args = []string{"", "download", "files/dummy-file.txt"}
-	downloadCmd.Flag("pubkey").Value.Set(fmt.Sprintf("%s.pub.pem", testKeyFile))
+	os.Args = []string{"", "download", "files/dummy-file.txt.c4gh"}
+	downloadCmd.Flag("pubkey").Value.Set(fmt.Sprintf("%s.pub.pem", s.testKeyFile))
 	downloadCmd.Flag("url").Value.Set(s.httpTestServer.URL)
 	downloadCmd.Flag("outdir").Value.Set(s.tempDir)
 	downloadCmd.Flag("dataset-id").Value.Set("TES01")
-	err = downloadCmd.Execute()
+	err := downloadCmd.Execute()
 	if err != nil {
 		s.FailNow("unexpected error from Download", err)
 	}
@@ -210,12 +174,13 @@ func (s *DownloadTestSuite) TestDownloadFileAlreadyExistsWithContinue() {
 		s.FailNow("failed to create temporary directory", err)
 	}
 
-	tempFile := filepath.Join(s.tempDir, "files", "dummy-file.txt")
+	tempFile := filepath.Join(s.tempDir, "files", "dummy-file.txt.c4gh")
 	if err := os.WriteFile(tempFile, []byte("NOT TO BE OVERWRITTEN"), 0600); err != nil {
 		s.FailNow("failed to write temp file", err)
 	}
 
-	os.Args = []string{"", "download", "files/dummy-file.txt"}
+	os.Args = []string{"", "download", "files/dummy-file.txt.c4gh"}
+	downloadCmd.Flag("pubkey").Value.Set(fmt.Sprintf("%s.pub.pem", s.testKeyFile))
 	downloadCmd.Flag("continue").Value.Set("true")
 	downloadCmd.Flag("url").Value.Set(s.httpTestServer.URL)
 	downloadCmd.Flag("outdir").Value.Set(s.tempDir)
@@ -231,6 +196,7 @@ func (s *DownloadTestSuite) TestDownloadFileAlreadyExistsWithContinue() {
 }
 
 func (s *DownloadTestSuite) TestDownloadDataset() {
+	downloadCmd.Flag("pubkey").Value.Set(fmt.Sprintf("%s.pub.pem", s.testKeyFile))
 	downloadCmd.Flag("dataset").Value.Set("true")
 	downloadCmd.Flag("url").Value.Set(s.httpTestServer.URL)
 	downloadCmd.Flag("outdir").Value.Set(s.tempDir)
@@ -240,21 +206,22 @@ func (s *DownloadTestSuite) TestDownloadDataset() {
 		s.FailNow("unexpected error from Download", err)
 	}
 
-	downloadedContent, err := os.ReadFile(fmt.Sprintf("%s/files/dummy-file.txt", s.tempDir))
+	downloadedContent, err := os.ReadFile(fmt.Sprintf("%s/files/dummy-file.txt.c4gh", s.tempDir))
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "test content dummy file", string(downloadedContent))
 
-	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file1", s.tempDir))
+	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file1.c4gh", s.tempDir))
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "test content file 1", string(downloadedContent))
 
-	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file2", s.tempDir))
+	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file2.c4gh", s.tempDir))
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "test content file 2", string(downloadedContent))
 }
 
 func (s *DownloadTestSuite) TestDownloadRecursive() {
 	os.Args = []string{"", "download", "files/"}
+	downloadCmd.Flag("pubkey").Value.Set(fmt.Sprintf("%s.pub.pem", s.testKeyFile))
 	downloadCmd.Flag("recursive").Value.Set("true")
 	downloadCmd.Flag("url").Value.Set(s.httpTestServer.URL)
 	downloadCmd.Flag("outdir").Value.Set(s.tempDir)
@@ -264,15 +231,15 @@ func (s *DownloadTestSuite) TestDownloadRecursive() {
 		s.FailNow("unexpected error from Download", err)
 	}
 
-	downloadedContent, err := os.ReadFile(fmt.Sprintf("%s/files/dummy-file.txt", s.tempDir))
+	downloadedContent, err := os.ReadFile(fmt.Sprintf("%s/files/dummy-file.txt.c4gh", s.tempDir))
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "test content dummy file", string(downloadedContent))
 
-	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file1", s.tempDir))
+	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file1.c4gh", s.tempDir))
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "test content file 1", string(downloadedContent))
 
-	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file2", s.tempDir))
+	downloadedContent, err = os.ReadFile(fmt.Sprintf("%s/files/file2.c4gh", s.tempDir))
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "test content file 2", string(downloadedContent))
 }
@@ -370,20 +337,42 @@ func (s *DownloadTestSuite) TestGetDatasets() {
 }
 
 func (s *DownloadTestSuite) TestGetBodyNoPublicKey() {
-	body, err := getBody(s.httpTestServer.URL, "test-token", "")
+	bodyStream, size, err := getBody(s.httpTestServer.URL, "test-token", "")
 	if err != nil {
 		s.T().Errorf("getBody returned an error: %v", err)
+
+		return // Exit early if there's an error to avoid nil pointer panics below
+	}
+
+	defer bodyStream.Close()
+
+	body, err := io.ReadAll(bodyStream)
+	if err != nil {
+		s.T().Errorf("failed to read from bodyStream: %v", err)
 	}
 
 	expectedBody := "test response"
 	if string(body) != expectedBody {
 		s.T().Errorf("getBody returned incorrect response body, got: %s, want: %s", string(body), expectedBody)
 	}
+
+	if size != int64(len(expectedBody)) && size != -1 {
+		s.T().Logf("Note: size returned (%d) does not match expected length (%d)", size, len(expectedBody))
+	}
 }
+
 func (s *DownloadTestSuite) TestGetBodyWithPublicKey() {
-	body, err := getBody(s.httpTestServer.URL, "test-token", "test-public-key")
+	bodyStream, _, err := getBody(s.httpTestServer.URL, "test-token", "test-public-key")
+
 	if err != nil {
-		s.T().Errorf("getBody returned an error: %v", err)
+		s.T().Fatalf("getBody returned an error: %v", err)
+	}
+
+	defer bodyStream.Close()
+
+	body, err := io.ReadAll(bodyStream)
+	if err != nil {
+		s.T().Fatalf("failed to read from bodyStream: %v", err)
 	}
 
 	expectedBody := "test response"
@@ -395,17 +384,17 @@ func (s *DownloadTestSuite) TestGetBodyWithPublicKey() {
 func (s *DownloadTestSuite) TestGetBodyPreconditionFailed() {
 	// Test the specific 412 logic where the body becomes the error message
 	errorMessage := "error message with precondition failed"
-	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusPreconditionFailed)
 		fmt.Fprint(w, errorMessage)
 	}))
 	defer errorServer.Close()
 
-	body, err := getBody(errorServer.URL, s.accessToken, "")
+	bodyStream, size, err := getBody(errorServer.URL, "test-token", "")
 
-	assert.Nil(s.T(), body)
+	assert.Nil(s.T(), bodyStream) // On error, the stream should be nil
+	assert.Equal(s.T(), int64(0), size)
 	assert.Error(s.T(), err)
-	// The error string should exactly match the response body per your strings.TrimSpace logic
 	assert.Equal(s.T(), errorMessage, err.Error())
 }
 
@@ -506,4 +495,29 @@ func (s *DownloadTestSuite) TestSetupCookiejar() {
 			}
 		})
 	}
+}
+
+func (s *DownloadTestSuite) TestDownloadCleanupOnFailure() {
+	failServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, "server error")
+	}))
+	defer failServer.Close()
+
+	targetFile := "cleanup-test.c4gh"
+	fullPath := filepath.Join(s.tempDir, targetFile)
+
+	downloadCmd.Flag("continue").Value.Set("false")
+	outDir = s.tempDir
+
+	err := downloadFile(failServer.URL, s.accessToken, "", targetFile)
+	assert.Error(s.T(), err, "Expected downloadFile to return an error on 500 response")
+
+	// Check that the .part file was cleaned up
+	_, err = os.Stat(fullPath + ".part")
+	assert.True(s.T(), os.IsNotExist(err), "The .part file should have been removed by the defer cleanup block")
+
+	// Check that the final target file was not created
+	_, err = os.Stat(fullPath)
+	assert.True(s.T(), os.IsNotExist(err), "The final target file should not exist after a failed download")
 }

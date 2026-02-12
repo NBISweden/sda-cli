@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	rootcmd "github.com/NBISweden/sda-cli/cmd"
 	"github.com/NBISweden/sda-cli/helpers"
@@ -176,9 +177,7 @@ func datasetCase(token string) error {
 	for _, file := range files {
 		fileName := helpers.AnonymizeFilepath(file.FilePath)
 		fileURL := URL + "/s3/" + file.DatasetID + "/" + fileName
-		if err != nil {
-			return err
-		}
+
 		err = downloadFile(fileURL, token, pubKeyBase64, file.FilePath)
 		if err != nil {
 			return err
@@ -250,6 +249,18 @@ func fileCase(args []string, token string, fileList bool) error {
 	}
 
 	for _, filePath := range files {
+		outputPath := filepath.Join(outDir, filePath)
+
+		if continueDownload {
+			if _, err := os.Stat(outputPath); err == nil {
+				fmt.Printf("Skipping download to %s, file already exists\n", outputPath)
+
+				continue
+			} else if !errors.Is(err, os.ErrNotExist) {
+				return err
+			}
+		}
+
 		fileIDURL, apiFilePath, err := getFileIDURL(URL, token, pubKeyBase64, datasetID, filePath)
 		if err != nil {
 			return err
@@ -266,58 +277,74 @@ func fileCase(args []string, token string, fileList bool) error {
 
 func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	filePath = helpers.AnonymizeFilepath(filePath)
+	filePath = filepath.Join(outDir, filePath)
 
-	outFilename := filePath
-	if outDir != "" {
-		outFilename = outDir + "/" + filePath
-	}
-
-	filePath = strings.TrimSuffix(outFilename, ".c4gh")
-
-	body, err := getBody(uri, token, pubKeyBase64)
-	if err != nil {
-		return fmt.Errorf("failed to get file for download, reason: %v", err)
-	}
-
-	fileDir := filepath.Dir(filePath)
-	err = os.MkdirAll(fileDir, 0750)
-	if err != nil {
-		return fmt.Errorf("failed to create directory, reason: %v", err)
-	}
-
-	if pubKeyBase64 != "" {
-		filePath += ".c4gh"
-	}
-
-	if continueDownload {
-		if _, err := os.Stat(filePath); !errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(filePath); !errors.Is(err, os.ErrNotExist) {
+		if continueDownload {
 			fmt.Printf("Skipping download to %s, file already exists\n", filePath)
 
 			return nil
 		}
+
+		if err := os.Remove(filePath); err != nil {
+			return fmt.Errorf("failed to remove existing file: %w", err)
+		}
 	}
 
-	outfile, err := os.Create(filePath)
+	bodyStream, totalSize, err := getBody(uri, token, pubKeyBase64)
 	if err != nil {
-		return fmt.Errorf("failed to create file, reason: %v", err)
+		return err
 	}
-	defer outfile.Close() //nolint:errcheck
+	defer bodyStream.Close()
 
-	p := mpb.New()
-	bar := p.AddBar(int64(len(body)),
-		mpb.PrependDecorators(
-			decor.CountersKibiByte("% .2f / % .2f"),
-		),
+	if err := os.MkdirAll(filepath.Dir(filePath), 0750); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	outFile, err := os.Create(filePath + ".part")
+	if err != nil {
+		return fmt.Errorf("failed to create partial file: %w", err)
+	}
+
+	var downloadSuccessful bool
+	defer func() {
+		_ = outFile.Close()
+		if !downloadSuccessful {
+			_ = os.Remove(outFile.Name())
+		}
+	}()
+
+	buf := make([]byte, 1024*1024)
+	bufReader := bufio.NewReaderSize(bodyStream, 1024*1024)
+
+	p := mpb.New(
+		mpb.WithRefreshRate(150 * time.Millisecond),
 	)
 
-	reader := strings.NewReader(string(body))
-	proxyReader := bar.ProxyReader(reader)
 	fmt.Printf("Downloading file to %s\n", filePath)
-	_, err = io.Copy(outfile, proxyReader)
-	if err != nil {
-		return fmt.Errorf("failed to write file, reason: %v", err)
+
+	if totalSize > 0 {
+		if err := downloadWithBar(p, outFile, bufReader, totalSize, buf); err != nil {
+			return err
+		}
+	} else {
+		if err := downloadStreaming(p, outFile, bufReader, buf); err != nil {
+			return err
+		}
 	}
+
 	p.Wait()
+
+	// This is critical for Windows compatibility
+	if err := outFile.Close(); err != nil {
+		return fmt.Errorf("failed to close partial file %s: %v", outFile.Name(), err)
+	}
+
+	if err := os.Rename(outFile.Name(), filePath); err != nil {
+		return fmt.Errorf("failed to rename partial file %s: %v", outFile.Name(), err)
+	}
+
+	downloadSuccessful = true
 
 	return nil
 }
@@ -365,13 +392,15 @@ func GetDatasets(baseURL, token, version string) ([]string, error) {
 	setupCookieJar(u)
 
 	datasetsURL := baseURL + "/metadata/datasets"
-	allDatasets, err := getBody(datasetsURL, token, "")
+
+	bodyStream, _, err := getBody(datasetsURL, token, "")
 	if err != nil {
 		return []string{}, fmt.Errorf("failed to get datasets, reason: %v", err)
 	}
+	defer bodyStream.Close()
 
 	var datasets []string
-	err = json.Unmarshal(allDatasets, &datasets)
+	err = json.NewDecoder(bodyStream).Decode(&datasets)
 	if err != nil {
 		return []string{}, fmt.Errorf("failed to parse dataset list JSON, reason: %v", err)
 	}
@@ -390,13 +419,14 @@ func GetFilesInfo(baseURL, dataset, pubKeyBase64, token, version string) ([]File
 	setupCookieJar(u)
 
 	filesURL := baseURL + "/metadata/datasets/" + dataset + "/files"
-	allFiles, err := getBody(filesURL, token, pubKeyBase64)
+	bodyStream, _, err := getBody(filesURL, token, pubKeyBase64)
 	if err != nil {
 		return []File{}, fmt.Errorf("failed to get files, reason: %v", err)
 	}
+	defer bodyStream.Close()
 
 	var files []File
-	err = json.Unmarshal(allFiles, &files)
+	err = json.NewDecoder(bodyStream).Decode(&files)
 	if err != nil {
 		return []File{}, fmt.Errorf("failed to parse file list JSON, reason: %v", err)
 	}
@@ -404,11 +434,11 @@ func GetFilesInfo(baseURL, dataset, pubKeyBase64, token, version string) ([]File
 	return files, nil
 }
 
-// getBody gets the body of the response from the URL
-func getBody(requestURL, token, pubKeyBase64 string) ([]byte, error) {
+// getBody returns a stream of the response body and its size
+func getBody(requestURL, token, pubKeyBase64 string) (io.ReadCloser, int64, error) {
 	req, err := http.NewRequest("GET", requestURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request, reason: %v", err)
+		return nil, 0, fmt.Errorf("failed to create request, reason: %v", err)
 	}
 
 	req.Header.Add("SDA-Client-Version", appVersion)
@@ -421,23 +451,20 @@ func getBody(requestURL, token, pubKeyBase64 string) ([]byte, error) {
 	client := &http.Client{Jar: cookieJar}
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get response, reason: %v", err)
-	}
-	defer res.Body.Close() //nolint:errcheck
-
-	resBody, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body, reason: %v", err)
+		return nil, 0, fmt.Errorf("failed to get response, reason: %v", err)
 	}
 
-	switch res.StatusCode {
-	case http.StatusOK:
-		return resBody, nil
-	case http.StatusPreconditionFailed: // Return the original message from the server in case of 412
-		return nil, errors.New(strings.TrimSpace(string(resBody)))
-	default:
-		return nil, fmt.Errorf("server returned status %d", res.StatusCode)
+	if res.StatusCode != http.StatusOK {
+		defer res.Body.Close()
+		resBody, _ := io.ReadAll(res.Body)
+		if res.StatusCode == http.StatusPreconditionFailed {
+			return nil, 0, errors.New(strings.TrimSpace(string(resBody)))
+		}
+
+		return nil, 0, fmt.Errorf("server returned status %d", res.StatusCode)
 	}
+
+	return res.Body, res.ContentLength, nil
 }
 
 func GetURLsFile(urlsFilePath string) (urlsList []string, err error) {
@@ -486,4 +513,56 @@ func setupCookieJar(u *url.URL) {
 			cookieJar.SetCookies(u, parsedCookies)
 		}
 	}
+}
+
+func downloadWithBar(p *mpb.Progress, outFile *os.File, reader io.Reader, totalSize int64, buf []byte) error {
+	bar := p.AddBar(totalSize,
+		mpb.PrependDecorators(
+			decor.CountersKibiByte("% .2f / % .2f"),
+		),
+		mpb.AppendDecorators(
+			decor.Percentage(),
+		),
+	)
+
+	proxyReader := bar.ProxyReader(reader)
+	if _, err := io.CopyBuffer(outFile, proxyReader, buf); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return nil
+}
+
+func downloadStreaming(p *mpb.Progress, outFile *os.File, reader *bufio.Reader, buf []byte) error {
+	bar := p.New(
+		0,
+		mpb.SpinnerStyle("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"),
+		mpb.PrependDecorators(
+			decor.CurrentKibiByte("% .2f"),
+		),
+		mpb.AppendDecorators(
+			decor.Name(" downloading..."),
+		),
+	)
+	defer bar.Abort(true)
+
+	for {
+		n, err := reader.Read(buf)
+		if n > 0 {
+			if _, werr := outFile.Write(buf[:n]); werr != nil {
+				return werr
+			}
+			bar.IncrBy(n)
+		}
+
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+
+			return err
+		}
+	}
+
+	return nil
 }

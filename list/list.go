@@ -1,3 +1,4 @@
+//nolint:revive // package name conflict with stdlib is intentional
 package list
 
 import (
