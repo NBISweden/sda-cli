@@ -1,6 +1,22 @@
 #!/bin/bash
 set -e
 
+# function for checking if the encrypted file starts with crypt4gh
+check_crypt4gh_header() {
+    local filepath="$1"
+    if [ ! -f "$filepath" ]; then
+        echo "Error: File $filepath does not exist for header check."
+        exit 1
+    fi
+    local header_start=$(head -c 8 "$filepath")
+    if [[ "$header_start" != "crypt4gh" ]]; then
+        echo "Error: File '$filepath' does not start with 'crypt4gh' header. Got: '$header_start'"
+        exit 1
+    fi
+    echo "Verification: File '$filepath' has correct 'crypt4gh' header."
+}
+
+
 # Create a user key pair
 if ( yes "" | ./sda-cli createKey user_key ) ; then
     echo "Created a user key pair for downloading encrypted files"
@@ -39,6 +55,7 @@ for filepath in $filepaths; do
         echo "File $filepath does not exist"
         exit 1
     fi
+    check_crypt4gh_header "$filepath.c4gh"
 done
 
 # Try to download files again using the -continue flag
@@ -60,6 +77,7 @@ if  [ "$testContinue" -ne 2 ] || [ ! -f "$testContinueFilePath" ]; then
     echo "Failed to download non-existing file when using the -continue flag"
     exit 1
 fi
+check_crypt4gh_header "$testContinueFilePath"
 
 rm -r download-dataset
 
@@ -71,6 +89,7 @@ if [ ! -f "test-download/main/subfolder/dummy_data.c4gh" ]; then
     echo "Downloaded file not found"
     exit 1
 fi
+check_crypt4gh_header "test-download/main/subfolder/dummy_data.c4gh"
 
 # Decrypt the downloaded file
 C4GH_PASSWORD="" ./sda-cli decrypt --key user_key.sec.pem test-download/main/subfolder/dummy_data.c4gh
@@ -101,6 +120,7 @@ for folderpath in $folderpaths; do
         echo "Content of folder $folderpath is missing"
         exit 1
     fi
+    check_crypt4gh_header "$folderpath.c4gh"
 done
 
 rm -r download-folder
@@ -113,6 +133,7 @@ if [ ! -f "download-fileid/main/subfolder/dummy_data.c4gh" ]; then
     echo "Downloaded file by using the file id not found"
     exit 1
 fi
+check_crypt4gh_header "download-fileid/main/subfolder/dummy_data.c4gh"
 
 C4GH_PASSWORD="" ./sda-cli decrypt --key user_key.sec.pem download-fileid/main/subfolder/dummy_data.c4gh
 # Check the first line of the file
@@ -136,6 +157,7 @@ for content_path in $content_paths; do
         echo "Content of the text file $content_path is missing"
         exit 1
     fi
+    check_crypt4gh_header "$content_path"
 done
 
 C4GH_PASSWORD="" ./sda-cli decrypt --key user_key.sec.pem download-from-file/main/subfolder/dummy_data.c4gh
