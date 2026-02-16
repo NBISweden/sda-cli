@@ -42,24 +42,18 @@ func (s *DownloadTestSuite) SetupSuite() {
 			fmt.Fprint(w, `[
             {
                 "fileId": "file1id",
-				"datasetId": "TES01",
 				"displayFileName": "file1.c4gh",
-                "filePath": "files/file1.c4gh",
-				"fileName": "4293c9a7-re60-46ac-b79a-40ddc0ddd1c6"
+                "filePath": "files/file1.c4gh"
             },
 			{
                 "fileId": "file2id",
-				"datasetId": "TES01",
 				"displayFileName": "file2.c4gh",
-                "filePath": "files/file2.c4gh",
-				"fileName": "4b40bd16-9eba-4992-af39-a7f824e612e2"
+                "filePath": "files/file2.c4gh"
             },
 			{
                 "fileId": "dummyFile",
-				"datasetId": "TES01",
 				"displayFileName": "dummy-file.txt.c4gh",
-                "filePath": "files/dummy-file.txt.c4gh",
-				"fileName": "4b40bd16-9eba-4992-af39-a7f824e612e1"
+                "filePath": "files/dummy-file.txt.c4gh"
             }
         	]`)
 
@@ -272,18 +266,12 @@ func (s *DownloadTestSuite) TestGetFilesInfo() {
 	assert.Equal(s.T(), "file1id", files[0].FileID)
 	assert.Equal(s.T(), "file1.c4gh", files[0].DisplayFileName)
 	assert.Equal(s.T(), "files/file1.c4gh", files[0].FilePath)
-	assert.Equal(s.T(), "4293c9a7-re60-46ac-b79a-40ddc0ddd1c6", files[0].FileName)
-	assert.Equal(s.T(), "TES01", files[0].DatasetID)
 	assert.Equal(s.T(), "file2id", files[1].FileID)
 	assert.Equal(s.T(), "file2.c4gh", files[1].DisplayFileName)
 	assert.Equal(s.T(), "files/file2.c4gh", files[1].FilePath)
-	assert.Equal(s.T(), "4b40bd16-9eba-4992-af39-a7f824e612e2", files[1].FileName)
-	assert.Equal(s.T(), "TES01", files[1].DatasetID)
 	assert.Equal(s.T(), "dummyFile", files[2].FileID)
 	assert.Equal(s.T(), "dummy-file.txt.c4gh", files[2].DisplayFileName)
 	assert.Equal(s.T(), "files/dummy-file.txt.c4gh", files[2].FilePath)
-	assert.Equal(s.T(), "4b40bd16-9eba-4992-af39-a7f824e612e1", files[2].FileName)
-	assert.Equal(s.T(), "TES01", files[2].DatasetID)
 }
 
 func (s *DownloadTestSuite) TestFileIdUrl() {
