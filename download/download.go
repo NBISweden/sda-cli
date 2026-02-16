@@ -74,17 +74,11 @@ var appVersion string
 // File struct represents the file metadata
 type File struct {
 	FileID                    string `json:"fileId"`
-	DatasetID                 string `json:"datasetId"`
 	DisplayFileName           string `json:"displayFileName"`
 	FilePath                  string `json:"filePath"`
-	FileName                  string `json:"fileName"`
-	FileSize                  int    `json:"fileSize"`
 	DecryptedFileSize         int    `json:"decryptedFileSize"`
 	DecryptedFileChecksum     string `json:"decryptedFileChecksum"`
 	DecryptedFileChecksumType string `json:"decryptedFileChecksumType"`
-	FileStatus                string `json:"fileStatus"`
-	CreatedAt                 string `json:"createdAt"`
-	LastModified              string `json:"lastModified"`
 }
 
 // Download function downloads files from the SDA by using the
