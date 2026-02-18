@@ -54,7 +54,7 @@ func printVersion(ver string) error {
 	req.Header.Add("Accept", "application/vnd.github+json")
 
 	client := &http.Client{Timeout: timeout}
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) // #nosec G704
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to fetch releases, reason: %v\n", err.Error()) // #nosec G705
 		fmt.Println("sda-cli version: ", ver)

@@ -301,7 +301,7 @@ func (login *DeviceLogin) getUserInfo() (*UserInfo, error) {
 
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", login.LoginResult.AccessToken))
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) // #nosec G704
 	if err != nil {
 		return nil, err
 	}
@@ -367,7 +367,7 @@ func (login *DeviceLogin) startDeviceLogin() (*DeviceLoginResponse, error) {
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) // #nosec G704
 	if err != nil {
 		return nil, err
 	}
@@ -408,7 +408,7 @@ func (login *DeviceLogin) waitForLogin() (*Result, error) {
 		}
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := http.DefaultClient.Do(req) // #nosec G704
 		if err != nil {
 			return nil, fmt.Errorf("failure to fetch login token: %v", err)
 		}

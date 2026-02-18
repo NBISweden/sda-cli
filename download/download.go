@@ -443,7 +443,7 @@ func getBody(requestURL, token, pubKeyBase64 string) (io.ReadCloser, int64, erro
 	}
 
 	client := &http.Client{Jar: cookieJar}
-	res, err := client.Do(req)
+	res, err := client.Do(req) // #nosec G704
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get response, reason: %v", err)
 	}

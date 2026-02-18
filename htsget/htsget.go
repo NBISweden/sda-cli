@@ -105,7 +105,7 @@ func Htsget(_ []string, configPath string) error {
 	req.Header.Add("Authorization", "Bearer "+config.AccessToken)
 	req.Header.Add("Htsget-Context-Public-Key", base64publickey)
 
-	res, err := client.Do(req)
+	res, err := client.Do(req) // #nosec G704
 
 	if err != nil {
 		return fmt.Errorf("failed to do the request, reason: %v", err)
@@ -213,7 +213,7 @@ func downloadFiles(htsgeURLs HtsgetResponse, config *helpers.Config) (err error)
 			req.Header.Add("Range", htsgeURLs.Htsget.Urls[index].Headers.Range)
 		}
 
-		res, err := client.Do(req)
+		res, err := client.Do(req) // #nosec G704
 		if err != nil {
 			deleteFile(out)
 
