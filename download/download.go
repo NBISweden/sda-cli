@@ -202,7 +202,7 @@ func recursiveCase(args []string, token string) error {
 	for _, dirPath := range dirPaths {
 		pathExists := false
 		for _, file := range files {
-			if strings.Contains(file.FilePath, dirPath) {
+			if strings.HasPrefix(file.FilePath, dirPath) {
 				pathExists = true
 				fileName := helpers.AnonymizeFilepath(file.FilePath)
 				fileURL := URL + "/s3/" + datasetID + "/" + fileName
