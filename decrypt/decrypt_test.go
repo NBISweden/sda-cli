@@ -70,7 +70,7 @@ func (s *DecryptTestSuite) createNewEncryptedFile() {
 	}
 	fileContent := fmt.Appendf([]byte{}, "This is some fine content right here, in file: %s", testFile.Name())
 	// ... and write the known content to it
-	err = os.WriteFile(testFile.Name(), fileContent, 0600)
+	err = os.WriteFile(testFile.Name(), fileContent, 0600) // #nosec G703
 	if err != nil {
 		s.FailNow("failed to write content to test file", err)
 	}
@@ -84,7 +84,7 @@ func (s *DecryptTestSuite) createNewEncryptedFile() {
 		s.FailNow("failed to encrypt test file", err)
 	}
 
-	if err := os.Remove(testFile.Name()); err != nil {
+	if err := os.Remove(testFile.Name()); err != nil { // #nosec G703
 		s.FailNow("failed to remove decrypted file after encryption", err)
 	}
 

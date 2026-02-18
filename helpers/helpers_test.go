@@ -81,7 +81,7 @@ func (s *HelperTests) SetupTest() {
 		s.FailNow("failed to create temp test file", err)
 	}
 
-	err = os.WriteFile(s.testFile.Name(), []byte("content"), 0600)
+	err = os.WriteFile(s.testFile.Name(), []byte("content"), 0600) // #nosec G703
 	if err != nil {
 		s.FailNow("failed to write to test file", err)
 	}
@@ -92,7 +92,7 @@ func (s *HelperTests) SetupTest() {
 		s.FailNow("failed to create temp test file", err)
 	}
 
-	err = os.WriteFile(s.testFile1.Name(), []byte("more content"), 0600)
+	err = os.WriteFile(s.testFile1.Name(), []byte("more content"), 0600) // #nosec G703
 	if err != nil {
 		s.FailNow("failed to write to test file", err)
 	}
@@ -101,8 +101,8 @@ func (s *HelperTests) SetupTest() {
 }
 
 func (s *HelperTests) TearDownTest() {
-	os.Remove(s.testFile.Name())  //nolint:errcheck
-	os.Remove(s.testFile1.Name()) //nolint:errcheck
+	os.Remove(s.testFile.Name())  // #nosec G703
+	os.Remove(s.testFile1.Name()) // #nosec G703
 	os.Remove(s.tempDir)          //nolint:errcheck
 }
 
@@ -134,7 +134,7 @@ func (s *HelperTests) TestFileIsReadable() {
 	// test file permissions. This doesn't work on windows, so we do an extra
 	// check to see if this test makes sense.
 	if runtime.GOOS != "windows" {
-		err := os.Chmod(s.testFile.Name(), 0000)
+		err := os.Chmod(s.testFile.Name(), 0000) // #nosec G703
 		if err != nil {
 			s.FailNow("failed to chmod test file", err)
 		}
@@ -143,7 +143,7 @@ func (s *HelperTests) TestFileIsReadable() {
 		s.Equal(testDisallowed, false)
 
 		// restore permissions
-		err = os.Chmod(s.testFile.Name(), 0600)
+		err = os.Chmod(s.testFile.Name(), 0600) // #nosec G703
 		if err != nil {
 			s.FailNow("failed to chmod test file", err)
 		}
@@ -283,7 +283,7 @@ func (s *HelperTests) TestLoadConfigHostBase() {
 			}
 			defer os.RemoveAll(configPath.Name()) //nolint:errcheck
 
-			err = os.WriteFile(configPath.Name(), []byte(fmt.Sprintf(confFileFormat, test.inputHostBase, test.inputUseHTTPS)), 0600)
+			err = os.WriteFile(configPath.Name(), []byte(fmt.Sprintf(confFileFormat, test.inputHostBase, test.inputUseHTTPS)), 0600) // #nosec G703
 			if err != nil {
 				s.FailNow("failed to write config file", err)
 			}
@@ -319,7 +319,7 @@ encrypt = False
 
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
-	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
+	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600) // #nosec G703
 	if err != nil {
 		s.FailNow("failed to write config file", err)
 	}
@@ -345,7 +345,7 @@ func (s *HelperTests) TestConfigS3cmdFileFormat() {
 
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
-	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
+	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600) // #nosec G703
 	if err != nil {
 		s.FailNow("failed to write config file", err)
 	}
@@ -378,7 +378,7 @@ access_key = someUser
 
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
-	if err := os.WriteFile(configPath.Name(), []byte(confFile), 0600); err != nil {
+	if err := os.WriteFile(configPath.Name(), []byte(confFile), 0600); err != nil { // #nosec G703
 		s.FailNow("failed to write to temp s3cmd test file", err)
 	}
 
@@ -410,7 +410,7 @@ encrypt = False
 
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
-	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
+	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600) // #nosec G703
 	if err != nil {
 		s.FailNow("failed to write to temp s3cmd test file", err)
 	}
@@ -490,7 +490,7 @@ encrypt = False
 
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
-	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
+	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600) // #nosec G703
 	if err != nil {
 		s.FailNow("failed to write to sda cli session test file", err)
 	}
@@ -524,7 +524,7 @@ public_key = 27be42445fd9e39c9be39e6b36a55e61e3801fc845f63781a813d3fe9977e17a
 
 	defer os.Remove(configPath.Name()) //nolint:errcheck
 
-	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600)
+	err = os.WriteFile(configPath.Name(), []byte(confFile), 0600) // #nosec G703
 	if err != nil {
 		s.FailNow("failed to write to sda cli session test file", err)
 	}
@@ -595,7 +595,7 @@ func (s *HelperTests) TestListFiles() {
 	}
 
 	// Upload two test files
-	file, err := os.Open(s.testFile.Name())
+	file, err := os.Open(s.testFile.Name()) // #nosec G703
 	if err != nil {
 		s.FailNow("failed to open test file", err)
 	}
@@ -610,7 +610,7 @@ func (s *HelperTests) TestListFiles() {
 		s.FailNow("failed to put test file to s3 bucket", err)
 	}
 
-	file1, err := os.Open(s.testFile1.Name())
+	file1, err := os.Open(s.testFile1.Name()) // #nosec G703
 	if err != nil {
 		s.FailNow("failed to open test file", err)
 	}

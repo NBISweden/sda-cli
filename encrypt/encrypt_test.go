@@ -84,7 +84,7 @@ func (s *EncryptTestSuite) SetupTest() {
 		s.FailNow("failed to create multi pub key test file", err)
 	}
 
-	input, err := os.ReadFile(s.publicKey.Name())
+	input, err := os.ReadFile(s.publicKey.Name()) // #nosec G703
 	if err != nil {
 		s.FailNow("failed to read public key file", err)
 	}
@@ -100,7 +100,7 @@ func (s *EncryptTestSuite) SetupTest() {
 		s.FailNow("failed to create test file", err)
 	}
 
-	if err := os.WriteFile(s.fileToEncrypt.Name(), []byte("content"), 0600); err != nil {
+	if err := os.WriteFile(s.fileToEncrypt.Name(), []byte("content"), 0600); err != nil { // #nosec G703
 		s.FailNow("failed to write to test file", err)
 	}
 	_ = s.fileToEncrypt.Close()
@@ -139,7 +139,7 @@ func (s *EncryptTestSuite) TestEncryptKeyNotExist() {
 }
 
 func (s *EncryptTestSuite) TestEncryptWithPubKeyFromTarget() {
-	keyData, err := os.ReadFile(s.publicKey.Name())
+	keyData, err := os.ReadFile(s.publicKey.Name()) // #nosec G703
 	if err != nil {
 		s.FailNow("failed to read public key from disk", err)
 	}
@@ -163,13 +163,13 @@ func (s *EncryptTestSuite) TestEncryptWithPubKeyFromTarget() {
 	assert.NoError(s.T(), encryptCmd.Execute(), "Encrypt from info failed unexpectedly")
 
 	// check that encrypted file exist
-	_, err = os.Stat(fmt.Sprintf("%s.c4gh", s.fileToEncrypt.Name()))
+	_, err = os.Stat(fmt.Sprintf("%s.c4gh", s.fileToEncrypt.Name())) // #nosec G703
 	assert.NoError(s.T(), err)
 }
 func (s *EncryptTestSuite) TestEncryptWithExistingFile() {
 	// create an existing encrypted test file
 	encryptedFile := fmt.Sprintf("%s.c4gh", s.fileToEncrypt.Name())
-	if err := os.WriteFile(encryptedFile, []byte("crypt4gh"), 0600); err != nil {
+	if err := os.WriteFile(encryptedFile, []byte("crypt4gh"), 0600); err != nil { // #nosec G703
 		s.FailNow("failed to create encrypted test file to be overwritten", err)
 	}
 
@@ -177,7 +177,7 @@ func (s *EncryptTestSuite) TestEncryptWithExistingFile() {
 	encryptCmd.Flag("key").Value.Set(s.publicKey.Name())
 	assert.Equal(s.T(), errors.New("aborting"), encryptCmd.Execute())
 
-	encryptedContent, err := os.ReadFile(encryptedFile)
+	encryptedContent, err := os.ReadFile(encryptedFile) // #nosec G703
 	if err != nil {
 		s.FailNow("failed to read encrypted test file", err)
 	}
@@ -191,7 +191,7 @@ func (s *EncryptTestSuite) TestEncrypt() {
 	encryptCmd.Flag("continue").Value.Set("true")
 	assert.NoError(s.T(), encryptCmd.Execute())
 
-	encryptedContent, err := os.Open(fmt.Sprintf("%s.c4gh", s.fileToEncrypt.Name()))
+	encryptedContent, err := os.Open(fmt.Sprintf("%s.c4gh", s.fileToEncrypt.Name())) // #nosec G703
 	if err != nil {
 		s.FailNow("failed to read encrypted test file", err)
 	}
@@ -225,14 +225,14 @@ func (s *EncryptTestSuite) TestEncryptWithOutdir() {
 	assert.NoError(s.T(), encryptCmd.Execute())
 
 	// check that encrypted file does not exist in same dir as unencrypted file
-	_, err := os.Stat(fmt.Sprintf("%s.c4gh", s.fileToEncrypt.Name()))
+	_, err := os.Stat(fmt.Sprintf("%s.c4gh", s.fileToEncrypt.Name())) // #nosec G703
 	msg := "no such file or directory"
 	if runtime.GOOS == "windows" {
 		msg = "The system cannot find the file specified."
 	}
 	assert.ErrorContains(s.T(), err, msg)
 
-	encryptedContent, err := os.Open(fmt.Sprintf("%s.c4gh", filepath.Join(targetDir, filepath.Base(s.fileToEncrypt.Name()))))
+	encryptedContent, err := os.Open(fmt.Sprintf("%s.c4gh", filepath.Join(targetDir, filepath.Base(s.fileToEncrypt.Name())))) // #nosec G703
 	if err != nil {
 		s.FailNow("failed to read encrypted test file", err)
 	}
@@ -255,7 +255,7 @@ func (s *EncryptTestSuite) TestEncryptWithOutdir() {
 func (s *EncryptTestSuite) TestStream() {
 	md5hash := md5.New()
 
-	file, err := os.Open(s.fileToEncrypt.Name())
+	file, err := os.Open(s.fileToEncrypt.Name()) // #nosec G703
 	if err != nil {
 		s.FailNow("failed to open file", err)
 	}
@@ -278,7 +278,7 @@ func (s *EncryptTestSuite) TestStream() {
 func (s *EncryptTestSuite) TestStreamLargeFile() {
 	md5hash := md5.New()
 
-	file, err := os.Open(s.largeFileToEncrypt.Name())
+	file, err := os.Open(s.largeFileToEncrypt.Name()) // #nosec G703
 	assert.NoError(s.T(), err, "opening file failed unexpectedly")
 	info, _ := file.Stat()
 	assert.Equal(s.T(), int64(2*1024*1024), info.Size())

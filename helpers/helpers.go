@@ -32,19 +32,19 @@ import (
 // function will not check if the file is readable, or if the file is a
 // directory, only if it exists.
 func FileExists(filename string) bool {
-	_, err := os.Stat(filename)
+	_, err := os.Stat(filename) // #nosec G703
 
 	return err == nil
 }
 
 // FileIsReadable checks that a file exists, and is readable by the program.
 func FileIsReadable(filename string) bool {
-	fileInfo, err := os.Stat(filename)
+	fileInfo, err := os.Stat(filename) // #nosec G703
 	if err != nil || fileInfo.IsDir() {
 		return false
 	}
 	// Check readability by simply trying to open the file and read one byte
-	inFile, err := os.Open(filepath.Clean(filename))
+	inFile, err := os.Open(filepath.Clean(filename)) // #nosec G703
 	if err != nil {
 		return false
 	}

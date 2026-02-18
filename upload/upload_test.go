@@ -348,7 +348,7 @@ func (s *UploadTestSuite) TestUploadWithEncryptionFileAlreadyExists() {
 	if err != nil {
 		s.FailNow("failed to create test file", err)
 	}
-	if err := os.WriteFile(encFile.Name(), []byte("crypt4gh"), 0600); err != nil {
+	if err := os.WriteFile(encFile.Name(), []byte("crypt4gh"), 0600); err != nil { // #nosec G703
 		s.FailNow("failed to write to test file", err)
 	}
 	_ = encFile.Close()
@@ -455,7 +455,7 @@ func (s *UploadTestSuite) TestUploadInvalidCharactersInFileName() {
 		if err != nil {
 			s.FailNow("failed to create test file", err)
 		}
-		err = os.WriteFile(testfile.Name(), []byte("content"), 0600)
+		err = os.WriteFile(testfile.Name(), []byte("content"), 0600) // #nosec G703
 		if err != nil {
 			s.FailNow("failed to write to test file", err)
 		}

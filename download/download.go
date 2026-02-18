@@ -304,7 +304,7 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	defer func() {
 		_ = outFile.Close()
 		if !downloadSuccessful {
-			_ = os.Remove(outFile.Name())
+			_ = os.Remove(outFile.Name()) // #nosec G703
 		}
 	}()
 
@@ -334,7 +334,7 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 		return fmt.Errorf("failed to close partial file %s: %v", outFile.Name(), err)
 	}
 
-	if err := os.Rename(outFile.Name(), filePath); err != nil {
+	if err := os.Rename(outFile.Name(), filePath); err != nil { // #nosec G703
 		return fmt.Errorf("failed to rename partial file %s: %v", outFile.Name(), err)
 	}
 

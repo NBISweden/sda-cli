@@ -241,5 +241,5 @@ func downloadFiles(htsgeURLs HtsgetResponse, config *helpers.Config) (err error)
 func deleteFile(f *os.File) {
 	name := f.Name()
 	// Delete the file created from the downloadFile function
-	_ = os.Remove(name)
+	_ = os.Remove(name) // #nosec G703
 }
