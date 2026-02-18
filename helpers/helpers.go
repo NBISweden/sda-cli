@@ -108,8 +108,11 @@ type XMLerrorResponse struct {
 
 // Config struct for storing the s3cmd file values
 type Config struct {
-	AccessKey            string `ini:"access_key"`
-	SecretKey            string `ini:"secret_key"`
+	// #nosec G117
+	AccessKey string `ini:"access_key"`
+	// #nosec G117
+	SecretKey string `ini:"secret_key"`
+	// #nosec G117
 	AccessToken          string `ini:"access_token"`
 	HostBucket           string `ini:"host_bucket"`
 	HostBase             string `ini:"host_base"`

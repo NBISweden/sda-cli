@@ -54,8 +54,11 @@ func init() {
 }
 
 type S3Config struct {
-	AccessKey            string `ini:"access_key"`
-	SecretKey            string `ini:"secret_key"`
+	// #nosec G117
+	AccessKey string `ini:"access_key"`
+	// #nosec G117
+	SecretKey string `ini:"secret_key"`
+	// #nosec G117
 	AccessToken          string `ini:"access_token"`
 	HostBucket           string `ini:"host_bucket"`
 	HostBase             string `ini:"host_base"`
@@ -83,6 +86,7 @@ type DeviceLoginResponse struct {
 }
 
 type Result struct {
+	// #nosec G117
 	AccessToken      string `json:"access_token"`
 	IDToken          string `json:"id_token"`
 	Scope            string `json:"scope"`
