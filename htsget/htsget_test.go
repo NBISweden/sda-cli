@@ -96,7 +96,7 @@ func (s *HtsgetTestSuite) SetupSuite() {
 }`, s.httpTestServer.URL)
 		case "/s3/DATASET0001/htsnexus_test_NA12878.bam.c4gh":
 			w.WriteHeader(http.StatusOK)
-			_, _ = fmt.Fprintf(w, "content in range: %s", req.Header["Range"])
+			_, _ = fmt.Fprintf(w, "content in range: %s", req.Header["Range"]) // #nosec G705
 
 		default:
 			w.WriteHeader(http.StatusInternalServerError)

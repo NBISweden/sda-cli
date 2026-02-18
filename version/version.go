@@ -56,14 +56,14 @@ func printVersion(ver string) error {
 	client := &http.Client{Timeout: timeout}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to fetch releases, reason: %v\n", err.Error())
+		fmt.Fprintf(os.Stderr, "failed to fetch releases, reason: %v\n", err.Error()) // #nosec G705
 		fmt.Println("sda-cli version: ", ver)
 
 		return nil
 	}
 
 	if resp.StatusCode >= 400 {
-		fmt.Fprintf(os.Stderr, "failed to fetch releases, reason: %s\n", resp.Status)
+		fmt.Fprintf(os.Stderr, "failed to fetch releases, reason: %s\n", resp.Status) // #nosec G705
 		fmt.Println("sda-cli version: ", ver)
 
 		return nil
