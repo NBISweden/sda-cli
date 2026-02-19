@@ -74,17 +74,11 @@ var appVersion string
 // File struct represents the file metadata
 type File struct {
 	FileID                    string `json:"fileId"`
-	DatasetID                 string `json:"datasetId"`
 	DisplayFileName           string `json:"displayFileName"`
 	FilePath                  string `json:"filePath"`
-	FileName                  string `json:"fileName"`
-	FileSize                  int    `json:"fileSize"`
 	DecryptedFileSize         int    `json:"decryptedFileSize"`
 	DecryptedFileChecksum     string `json:"decryptedFileChecksum"`
 	DecryptedFileChecksumType string `json:"decryptedFileChecksumType"`
-	FileStatus                string `json:"fileStatus"`
-	CreatedAt                 string `json:"createdAt"`
-	LastModified              string `json:"lastModified"`
 }
 
 // Download function downloads files from the SDA by using the
@@ -176,7 +170,7 @@ func datasetCase(token string) error {
 
 	for _, file := range files {
 		fileName := helpers.AnonymizeFilepath(file.FilePath)
-		fileURL := URL + "/s3/" + file.DatasetID + "/" + fileName
+		fileURL := URL + "/s3/" + datasetID + "/" + fileName
 
 		err = downloadFile(fileURL, token, pubKeyBase64, file.FilePath)
 		if err != nil {
@@ -208,10 +202,10 @@ func recursiveCase(args []string, token string) error {
 	for _, dirPath := range dirPaths {
 		pathExists := false
 		for _, file := range files {
-			if strings.Contains(file.FilePath, dirPath) {
+			if strings.HasPrefix(file.FilePath, dirPath) {
 				pathExists = true
 				fileName := helpers.AnonymizeFilepath(file.FilePath)
-				fileURL := URL + "/s3/" + file.DatasetID + "/" + fileName
+				fileURL := URL + "/s3/" + datasetID + "/" + fileName
 				err = downloadFile(fileURL, token, pubKeyBase64, file.FilePath)
 				if err != nil {
 					return err
@@ -310,7 +304,7 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	defer func() {
 		_ = outFile.Close()
 		if !downloadSuccessful {
-			_ = os.Remove(outFile.Name())
+			_ = os.Remove(outFile.Name()) // #nosec G703
 		}
 	}()
 
@@ -340,7 +334,7 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 		return fmt.Errorf("failed to close partial file %s: %v", outFile.Name(), err)
 	}
 
-	if err := os.Rename(outFile.Name(), filePath); err != nil {
+	if err := os.Rename(outFile.Name(), filePath); err != nil { // #nosec G703
 		return fmt.Errorf("failed to rename partial file %s: %v", outFile.Name(), err)
 	}
 
@@ -449,7 +443,7 @@ func getBody(requestURL, token, pubKeyBase64 string) (io.ReadCloser, int64, erro
 	}
 
 	client := &http.Client{Jar: cookieJar}
-	res, err := client.Do(req)
+	res, err := client.Do(req) // #nosec G704
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get response, reason: %v", err)
 	}

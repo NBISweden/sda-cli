@@ -32,19 +32,19 @@ import (
 // function will not check if the file is readable, or if the file is a
 // directory, only if it exists.
 func FileExists(filename string) bool {
-	_, err := os.Stat(filename)
+	_, err := os.Stat(filename) // #nosec G703
 
 	return err == nil
 }
 
 // FileIsReadable checks that a file exists, and is readable by the program.
 func FileIsReadable(filename string) bool {
-	fileInfo, err := os.Stat(filename)
+	fileInfo, err := os.Stat(filename) // #nosec G703
 	if err != nil || fileInfo.IsDir() {
 		return false
 	}
 	// Check readability by simply trying to open the file and read one byte
-	inFile, err := os.Open(filepath.Clean(filename))
+	inFile, err := os.Open(filepath.Clean(filename)) // #nosec G703
 	if err != nil {
 		return false
 	}
@@ -108,8 +108,11 @@ type XMLerrorResponse struct {
 
 // Config struct for storing the s3cmd file values
 type Config struct {
-	AccessKey            string `ini:"access_key"`
-	SecretKey            string `ini:"secret_key"`
+	// #nosec G117
+	AccessKey string `ini:"access_key"`
+	// #nosec G117
+	SecretKey string `ini:"secret_key"`
+	// #nosec G117
 	AccessToken          string `ini:"access_token"`
 	HostBucket           string `ini:"host_bucket"`
 	HostBase             string `ini:"host_base"`

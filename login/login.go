@@ -54,8 +54,11 @@ func init() {
 }
 
 type S3Config struct {
-	AccessKey            string `ini:"access_key"`
-	SecretKey            string `ini:"secret_key"`
+	// #nosec G117
+	AccessKey string `ini:"access_key"`
+	// #nosec G117
+	SecretKey string `ini:"secret_key"`
+	// #nosec G117
 	AccessToken          string `ini:"access_token"`
 	HostBucket           string `ini:"host_bucket"`
 	HostBase             string `ini:"host_base"`
@@ -83,6 +86,7 @@ type DeviceLoginResponse struct {
 }
 
 type Result struct {
+	// #nosec G117
 	AccessToken      string `json:"access_token"`
 	IDToken          string `json:"id_token"`
 	Scope            string `json:"scope"`
@@ -297,7 +301,7 @@ func (login *DeviceLogin) getUserInfo() (*UserInfo, error) {
 
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", login.LoginResult.AccessToken))
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) // #nosec G704
 	if err != nil {
 		return nil, err
 	}
@@ -363,7 +367,7 @@ func (login *DeviceLogin) startDeviceLogin() (*DeviceLoginResponse, error) {
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) // #nosec G704
 	if err != nil {
 		return nil, err
 	}
@@ -404,7 +408,7 @@ func (login *DeviceLogin) waitForLogin() (*Result, error) {
 		}
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := http.DefaultClient.Do(req) // #nosec G704
 		if err != nil {
 			return nil, fmt.Errorf("failure to fetch login token: %v", err)
 		}

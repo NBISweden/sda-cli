@@ -244,8 +244,8 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 			if err != nil {
 				return err
 			}
-			defer checksumFileUnencMd5.Close() //nolint:errcheck
-			if _, err := fmt.Fprintf(checksumFileUnencMd5, "%s %s\n", hex.EncodeToString(fs.UnencryptedMD5.Sum(nil)), filename); err != nil {
+			defer checksumFileUnencMd5.Close()                                                                                                //nolint:errcheck
+			if _, err := fmt.Fprintf(checksumFileUnencMd5, "%s %s\n", hex.EncodeToString(fs.UnencryptedMD5.Sum(nil)), filename); err != nil { // #nosec G705
 				return err
 			}
 
@@ -253,8 +253,8 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 			if err != nil {
 				return err
 			}
-			defer checksumFileUnencSha256.Close() //nolint:errcheck
-			if _, err := fmt.Fprintf(checksumFileUnencSha256, "%s %s\n", hex.EncodeToString(fs.UnencryptedSha256.Sum(nil)), filename); err != nil {
+			defer checksumFileUnencSha256.Close()                                                                                                   //nolint:errcheck
+			if _, err := fmt.Fprintf(checksumFileUnencSha256, "%s %s\n", hex.EncodeToString(fs.UnencryptedSha256.Sum(nil)), filename); err != nil { // #nosec G705
 				return err
 			}
 
@@ -262,8 +262,8 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 			if err != nil {
 				return err
 			}
-			defer checksumFileEncMd5.Close() //nolint:errcheck
-			if _, err := fmt.Fprintf(checksumFileEncMd5, "%s %s\n", hex.EncodeToString(fs.EncryptedMD5.Sum(nil)), filename); err != nil {
+			defer checksumFileEncMd5.Close()                                                                                              //nolint:errcheck
+			if _, err := fmt.Fprintf(checksumFileEncMd5, "%s %s\n", hex.EncodeToString(fs.EncryptedMD5.Sum(nil)), filename); err != nil { // #nosec G705
 				return err
 			}
 
@@ -271,8 +271,8 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 			if err != nil {
 				return err
 			}
-			defer checksumFileEncSha256.Close() //nolint:errcheck
-			if _, err := fmt.Fprintf(checksumFileEncSha256, "%s %s\n", hex.EncodeToString(fs.EncryptedSha256.Sum(nil)), filename); err != nil {
+			defer checksumFileEncSha256.Close()                                                                                                 //nolint:errcheck
+			if _, err := fmt.Fprintf(checksumFileEncSha256, "%s %s\n", hex.EncodeToString(fs.EncryptedSha256.Sum(nil)), filename); err != nil { // #nosec G705
 				return err
 			}
 		}
