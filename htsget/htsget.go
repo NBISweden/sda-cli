@@ -24,6 +24,7 @@ var htsgetHost string
 var publicKeyFile string
 var output string
 var forceOverwrite bool
+var format string
 
 var htsgetCmd = &cobra.Command{
 	Use:   "htsget [flags]",
@@ -48,6 +49,7 @@ func init() {
 	htsgetCmd.Flags().StringVar(&htsgetHost, "host", "", "The htsget host to download from")
 	htsgetCmd.Flags().StringVar(&publicKeyFile, "pubkey", "", "Path to the public key file to use for download")
 	htsgetCmd.Flags().StringVar(&output, "output", "", "Name to output the file as after download")
+	htsgetCmd.Flags().StringVar(&format, "format", "", "Format to request data in, for example: BAM, CRAM")
 	htsgetCmd.Flags().BoolVar(&forceOverwrite, "force-overwrite", false, "Force overwriting existing files")
 }
 
@@ -65,8 +67,9 @@ type HtsgetURL struct {
 }
 
 type HtsgetInfo struct {
-	Format string      `json:"format"`
-	Urls   []HtsgetURL `json:"urls"`
+	Format  string      `json:"format"`
+	Urls    []HtsgetURL `json:"urls"`
+	Message string      `json:"message"` // message should be populated if http code != 200
 }
 
 type HtsgetResponse struct {
@@ -89,12 +92,16 @@ func Htsget(_ []string, configPath string) error {
 	}
 	base64publickey := base64.StdEncoding.EncodeToString(publickey)
 
-	// TODO: Add cases for different type of files
+	// TODO: Add cases for variant access
 	// i.e. bam files require the /reads/, replace for vcf
 	url := htsgetHost + "/reads/" + datasetID + "/" + fileName + "?encryptionScheme=C4GH"
 	if referenceName != "" {
 		url += "&referenceName=" + referenceName
 	}
+	if format != "" {
+		url += "&format=" + format
+	}
+
 	method := "GET"
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, nil)
@@ -110,9 +117,6 @@ func Htsget(_ []string, configPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to do the request, reason: %v", err)
 	}
-	if res.StatusCode != 200 {
-		return fmt.Errorf("failed to get the file, status code: %v", res.StatusCode)
-	}
 	defer res.Body.Close() //nolint:errcheck
 
 	body, err := io.ReadAll(res.Body)
@@ -120,13 +124,25 @@ func Htsget(_ []string, configPath string) error {
 		return fmt.Errorf("failed to read response, reason: %v", err)
 	}
 
-	htsgetURLs := HtsgetResponse{}
-	err = json.Unmarshal(body, &htsgetURLs)
-	if err != nil {
+	htsgetResponse := HtsgetResponse{}
+	if err := json.Unmarshal(body, &htsgetResponse); err != nil {
 		return fmt.Errorf("error unmarshaling response, reason: %v", err)
 	}
 
-	err = downloadFiles(htsgetURLs, config)
+	switch res.StatusCode {
+	case 400, 404:
+		// rely on error message from htsget if present
+		if htsgetResponse.Htsget.Message != "" {
+			return errors.New(htsgetResponse.Htsget.Message)
+		}
+
+		return fmt.Errorf("unexpected response from htsget, status code: %v", res.StatusCode)
+	case 200:
+	default:
+		return fmt.Errorf("unexpected response from htsget, status code: %v", res.StatusCode)
+	}
+
+	err = downloadFiles(htsgetResponse, config)
 	if err != nil {
 		return fmt.Errorf("error downloading the files, reason: %v", err)
 	}
