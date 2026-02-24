@@ -40,7 +40,7 @@ func (s *HtsgetTestSuite) SetupSuite() {
 		switch strings.Split(req.RequestURI, "?")[0] {
 		case "/reads/DATASET0001/htsnexus_test_NA12878_file_not_found", "/s3/DATASET0001/htsnexus_test_NA12878_file_range_not_found.bam.c4gh":
 			w.WriteHeader(http.StatusNotFound)
-			_, _ = fmt.Fprintf(w, `{"htsget": { "message": "File not found: %s"}}`, strings.TrimPrefix(strings.Split(req.RequestURI, "?")[0], "/reads/"))
+			_, _ = fmt.Fprintf(w, `{"htsget": { "message": "File not found: %s"}}`, strings.TrimPrefix(strings.Split(req.RequestURI, "?")[0], "/reads/")) // #nosec G705 -- request controlled by unit test
 
 		case "/reads/DATASET0001/htsnexus_test_NA12878_file_range_not_found":
 			w.WriteHeader(http.StatusOK)

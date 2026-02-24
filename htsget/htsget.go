@@ -250,7 +250,7 @@ func downloadFiles(htsgeURLs HtsgetResponse, config *helpers.Config) (err error)
 			return fmt.Errorf("error writing the file, %v", err)
 		}
 	}
-	fmt.Println("File " + out.Name() + " downloaded successfully")
+	_, _ = fmt.Println("File " + out.Name() + " downloaded successfully")
 
 	return nil
 }
