@@ -58,11 +58,11 @@ for filepath in $filepaths; do
     check_crypt4gh_header "$filepath.c4gh"
 done
 
-# Try to download files again using the -continue flag
-testContinue=$(./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem  --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir download-dataset --dataset --continue | grep -c Skipping)
+# Try to download files again using the --ignore-existing flag
+testIgnoreExisting=$(./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem  --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir download-dataset --dataset --ignore-existing | grep -c Skipping)
 
 # Check if all existing files were skipped
-if  [ "$testContinue" -ne 3 ]; then
+if  [ "$testIgnoreExisting" -ne 3 ]; then
     echo "Failed to skip already existing files when using the -continue flag"
     exit 1
 fi
@@ -70,10 +70,10 @@ fi
 # Remove one file and try to download dataset again using the -continue flag
 testContinueFilePath=download-dataset/main/subfolder/dummy_data.c4gh
 rm "$testContinueFilePath"
-testContinue=$(./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem  --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir download-dataset --dataset --continue | grep -c Skipping)
+testIgnoreExisting=$(./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem  --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir download-dataset --dataset --continue | grep -c Skipping)
 
 # Check that only the existing files were skipped and the non-existing file was downloaded
-if  [ "$testContinue" -ne 2 ] || [ ! -f "$testContinueFilePath" ]; then
+if  [ "$testIgnoreExisting" -ne 2 ] || [ ! -f "$testContinueFilePath" ]; then
     echo "Failed to download non-existing file when using the -continue flag"
     exit 1
 fi

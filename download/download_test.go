@@ -90,7 +90,7 @@ func (s *DownloadTestSuite) SetupTest() {
 	downloadCmd.Flag("pubkey").Value.Set("")
 	downloadCmd.Flag("recursive").Value.Set("false")
 	downloadCmd.Flag("from-file").Value.Set("false")
-	downloadCmd.Flag("continue").Value.Set("false")
+	downloadCmd.Flag("ignore-existing").Value.Set("false")
 	pubKeyBase64 = ""
 
 	s.tempDir = s.T().TempDir()
@@ -175,7 +175,7 @@ func (s *DownloadTestSuite) TestDownloadFileAlreadyExistsWithContinue() {
 
 	os.Args = []string{"", "download", "files/dummy-file.txt.c4gh"}
 	downloadCmd.Flag("pubkey").Value.Set(fmt.Sprintf("%s.pub.pem", s.testKeyFile))
-	downloadCmd.Flag("continue").Value.Set("true")
+	downloadCmd.Flag("ignore-existing").Value.Set("true")
 	downloadCmd.Flag("url").Value.Set(s.httpTestServer.URL)
 	downloadCmd.Flag("outdir").Value.Set(s.tempDir)
 	downloadCmd.Flag("dataset-id").Value.Set("TES01")
@@ -495,7 +495,7 @@ func (s *DownloadTestSuite) TestDownloadCleanupOnFailure() {
 	targetFile := "cleanup-test.c4gh"
 	fullPath := filepath.Join(s.tempDir, targetFile)
 
-	downloadCmd.Flag("continue").Value.Set("false")
+	downloadCmd.Flag("ignore-existing").Value.Set("false")
 	outDir = s.tempDir
 
 	err := downloadFile(failServer.URL, s.accessToken, "", targetFile)

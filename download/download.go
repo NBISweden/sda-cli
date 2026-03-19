@@ -59,7 +59,7 @@ func init() {
 	rootcmd.AddCommand(downloadCmd)
 	downloadCmd.Flags().StringVar(&datasetID, "dataset-id", "", "Dataset ID for the file(s) to download")
 	downloadCmd.Flags().StringVar(&URL, "url", "", "The url of the download server")
-	downloadCmd.Flags().BoolVar(&continueDownload, "continue", false, "Skip existing files and continue with the rest")
+	downloadCmd.Flags().BoolVar(&continueDownload, "ignore-existing", false, "Skip existing files and continue with the rest")
 	downloadCmd.Flags().StringVar(&outDir, "outdir", "", "Directory to output downloaded files")
 	downloadCmd.Flags().BoolVar(&datasetDownload, "dataset", false, "Download all the files of the dataset")
 	downloadCmd.Flags().StringVar(&pubKey, "pubkey", "", "Path to the public key file to use for encryption of files to download")

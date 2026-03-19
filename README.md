@@ -417,6 +417,7 @@ structure.
 
 - If the `--pubkey` flag is not provided, the command will be aborted with an error.
 - If the files to be downloaded already exist in your local folder, they will be overwritten.
+  For avoiding the files to be overwritten the `--ignore-existing` flag should be used.
 
 ## Create Crypt4GH key pair
 
