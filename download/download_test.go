@@ -91,6 +91,7 @@ func (s *DownloadTestSuite) SetupTest() {
 	downloadCmd.Flag("recursive").Value.Set("false")
 	downloadCmd.Flag("from-file").Value.Set("false")
 	downloadCmd.Flag("ignore-existing").Value.Set("false")
+	downloadCmd.Flag("overwrite-existing").Value.Set("false")
 	pubKeyBase64 = ""
 
 	s.tempDir = s.T().TempDir()
@@ -508,4 +509,15 @@ func (s *DownloadTestSuite) TestDownloadCleanupOnFailure() {
 	// Check that the final target file was not created
 	_, err = os.Stat(fullPath)
 	assert.True(s.T(), os.IsNotExist(err), "The final target file should not exist after a failed download")
+}
+func (s *DownloadTestSuite) TestDownloadConflictingFlags() {
+	os.Args = []string{"", "download", "files/dummy-file.txt.c4gh"}
+	downloadCmd.Flag("ignore-existing").Value.Set("true")
+	downloadCmd.Flag("overwrite-existing").Value.Set("true")
+	downloadCmd.Flag("url").Value.Set(s.httpTestServer.URL)
+	downloadCmd.Flag("outdir").Value.Set(s.tempDir)
+	downloadCmd.Flag("dataset-id").Value.Set("TES01")
+	err := downloadCmd.Execute()
+	s.Error(err)
+	s.Contains(err.Error(), "both --ignore-existing and --overwrite-existing flags are set, choose one of them")
 }

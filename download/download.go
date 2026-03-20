@@ -26,6 +26,7 @@ import (
 var datasetID string
 var URL string
 var continueDownload bool
+var overwriteExisting bool
 var outDir string
 var datasetDownload bool
 var pubKey string
@@ -60,6 +61,7 @@ func init() {
 	downloadCmd.Flags().StringVar(&datasetID, "dataset-id", "", "Dataset ID for the file(s) to download")
 	downloadCmd.Flags().StringVar(&URL, "url", "", "The url of the download server")
 	downloadCmd.Flags().BoolVar(&continueDownload, "ignore-existing", false, "Skip existing files and continue with the rest")
+	downloadCmd.Flags().BoolVar(&overwriteExisting, "overwrite-existing", false, "Overwrite existing files")
 	downloadCmd.Flags().StringVar(&outDir, "outdir", "", "Directory to output downloaded files")
 	downloadCmd.Flags().BoolVar(&datasetDownload, "dataset", false, "Download all the files of the dataset")
 	downloadCmd.Flags().StringVar(&pubKey, "pubkey", "", "Path to the public key file to use for encryption of files to download")
@@ -95,6 +97,11 @@ func Download(args []string, configPath, version string) error {
 		return errors.New("invalid base URL")
 	}
 	setupCookieJar(u)
+
+	// Check if both --ignore-existing and --overwrite-existing are set
+	if continueDownload && overwriteExisting {
+		return errors.New("both --ignore-existing and --overwrite-existing flags are set, choose one of them")
+	}
 
 	// Check if both --recursive and --dataset flags are set
 	if recursiveDownload && datasetDownload {
