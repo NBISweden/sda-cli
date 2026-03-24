@@ -251,8 +251,7 @@ func fileCase(args []string, token string, fileList bool) error {
 
 	for _, filePath := range files {
 		outputPath := filepath.Join(outDir, filePath)
-
-		if continueDownload {
+		if ignoreExisting {
 			if _, err := os.Stat(outputPath); err == nil {
 				fmt.Printf("Skipping download to %s, file already exists\n", outputPath)
 
@@ -285,6 +284,19 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 			fmt.Printf("Skipping download to %s, file already exists\n", filePath)
 
 			return nil
+		}
+
+		if !overwriteExisting {
+			overwrite, err := helpers.PromptOverwrite(filePath)
+			if err != nil {
+				return fmt.Errorf("failed to prompt for overwrite: %w", err)
+			}
+
+			if !overwrite {
+				fmt.Printf("Skipping download to %s\n", filePath)
+
+				return nil
+			}
 		}
 
 		if err := os.Remove(filePath); err != nil {

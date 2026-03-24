@@ -549,6 +549,61 @@ func (s *HelperTests) TestInvalidCharacters() {
 	}
 }
 
+func (s *HelperTests) TestPromptOverwrite() {
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{"y\n", true},
+		{"Y\n", true},
+		{"yes\n", true},
+		{"Yes\n", true},
+		{"YES\n", true},
+		{"n\n", false},
+		{"N\n", false},
+		{"no\n", false},
+		{"No\n", false},
+		{"NO\n", false},
+		{"foobar\n", false},
+		{"\n", false},
+	}
+
+	localStdin := os.Stdin
+	localStdout := os.Stdout
+	defer func() {
+		os.Stdin = localStdin
+		os.Stdout = localStdout
+	}()
+
+	for _, testCase := range tests {
+		rin, win, err := os.Pipe()
+		s.NoError(err)
+
+		rout, wout, err := os.Pipe()
+		s.NoError(err)
+
+		os.Stdin = rin
+		os.Stdout = wout
+
+		_, err = win.Write([]byte(testCase.input))
+		s.NoError(err)
+		win.Close()
+
+		result, err := PromptOverwrite("testfile")
+		wout.Close()
+
+		s.NoError(err)
+		s.Equal(testCase.expected, result, "Input: %s", testCase.input)
+
+		out, _ := io.ReadAll(rout)
+		s.Contains(string(out), "File testfile already exists, overwrite? [Y]es/[N]o: ")
+
+		rin.Close()
+		rout.Close()
+	}
+
+}
+
 func (s *HelperTests) TestCreatePubFile() {
 	var pubKeyContent = `339eb2a458fec5e23aa8b57cfcb35f10e7389025816e44d4234f814ed2aeed3f`
 	var expectedPubKey = `-----BEGIN CRYPT4GH PUBLIC KEY-----

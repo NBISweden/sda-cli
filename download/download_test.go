@@ -521,3 +521,48 @@ func (s *DownloadTestSuite) TestDownloadConflictingFlags() {
 	s.Error(err)
 	s.Contains(err.Error(), "both --ignore-existing and --overwrite-existing flags are set, choose one of them")
 }
+
+func (s *DownloadTestSuite) TestDownloadPromptOverwrite() {
+	targetFile := "prompt-test.c4gh"
+	fullPath := filepath.Join(s.tempDir, targetFile)
+
+	err := os.WriteFile(fullPath, []byte("old content"), 0600)
+	s.Require().NoError(err)
+
+	r, w, _ := os.Pipe()
+	localStdin := os.Stdin
+	os.Stdin = r
+	defer func() { os.Stdin = localStdin }()
+
+	go func() {
+		_, _ = w.Write([]byte("y\n"))
+		_ = w.Close()
+	}()
+
+	outDir = s.tempDir
+	err = downloadFile(s.httpTestServer.URL, s.accessToken, "", targetFile)
+	s.NoError(err)
+
+	// Verify content is overwritten
+	content, err := os.ReadFile(fullPath)
+	s.NoError(err)
+	s.Equal("test response", string(content))
+
+	err = os.WriteFile(fullPath, []byte("old content"), 0600)
+	s.Require().NoError(err)
+
+	r2, w2, _ := os.Pipe()
+	os.Stdin = r2
+	go func() {
+		_, _ = w2.Write([]byte("n\n"))
+		_ = w2.Close()
+	}()
+
+	err = downloadFile(s.httpTestServer.URL, s.accessToken, "", targetFile)
+	s.NoError(err)
+
+	// Verify content is NOT overwritten
+	content, err = os.ReadFile(fullPath)
+	s.NoError(err)
+	s.Equal("old content", string(content))
+}

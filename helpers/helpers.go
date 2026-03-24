@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"bufio"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -69,6 +70,21 @@ func PromptPassword(message string) (password string, err error) {
 	}
 
 	return prompt.Run()
+}
+
+// PromptOverwrite creates a user prompt for confirming file overwrite
+func PromptOverwrite(filename string) (bool, error) {
+	fmt.Printf("File %s already exists, overwrite? [Y]es/[N]o: ", filename)
+
+	reader := bufio.NewReader(os.Stdin)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		return false, err
+	}
+
+	response = strings.ToLower(strings.TrimSpace(response))
+
+	return response == "y" || response == "yes", nil
 }
 
 // ParseS3ErrorResponse checks if reader stream is xml encoded and if yes unmarshals
