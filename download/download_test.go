@@ -512,6 +512,42 @@ func (s *DownloadTestSuite) TestDownloadCleanupOnFailure() {
 	_, err = os.Stat(fullPath)
 	assert.True(s.T(), os.IsNotExist(err), "The final target file should not exist after a failed download")
 }
+
+func (s *DownloadTestSuite) TestDownloadCleanupPartialFileWhenFullExists() {
+	targetFile := "cleanup-part-test.c4gh"
+	fullPath := filepath.Join(s.tempDir, targetFile)
+	partPath := fullPath + ".part"
+
+	err := os.WriteFile(fullPath, []byte("old content"), 0600)
+	s.Require().NoError(err)
+	err = os.WriteFile(partPath, []byte("partial content"), 0600)
+	s.Require().NoError(err)
+
+	r, w, _ := os.Pipe()
+	localStdin := os.Stdin
+	os.Stdin = r
+	defer func() { os.Stdin = localStdin }()
+
+	go func() {
+		_, _ = w.Write([]byte("n\n"))
+		_ = w.Close()
+	}()
+
+	outDir = s.tempDir
+	sessionOverwrite = helpers.OverwriteNone
+	err = downloadFile(s.httpTestServer.URL, s.accessToken, "", targetFile)
+	s.NoError(err)
+
+	// Verify full content is NOT overwritten
+	content, err := os.ReadFile(fullPath)
+	s.NoError(err)
+	s.Equal("old content", string(content))
+
+	// Verify partial file is deleted
+	_, err = os.Stat(partPath)
+	s.True(os.IsNotExist(err), "The .part file should have been removed because a full file exists")
+}
+
 func (s *DownloadTestSuite) TestDownloadConflictingFlags() {
 	os.Args = []string{"", "download", "files/dummy-file.txt.c4gh"}
 	downloadCmd.Flag("ignore-existing").Value.Set("true")

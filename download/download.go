@@ -281,6 +281,11 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	filePath = filepath.Join(outDir, filePath)
 
 	if _, err := os.Stat(filePath); !errors.Is(err, os.ErrNotExist) {
+		// If a full file exists, any partial file is definitely garbage and should be removed
+		if _, err := os.Stat(filePath + ".part"); err == nil {
+			_ = os.Remove(filePath + ".part")
+		}
+
 		if continueDownload {
 			fmt.Printf("Skipping download to %s, file already exists\n", filePath)
 
