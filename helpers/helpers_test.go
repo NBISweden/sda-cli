@@ -552,20 +552,24 @@ func (s *HelperTests) TestInvalidCharacters() {
 func (s *HelperTests) TestPromptOverwrite() {
 	tests := []struct {
 		input    string
-		expected bool
+		expected OverwriteChoice
 	}{
-		{"y\n", true},
-		{"Y\n", true},
-		{"yes\n", true},
-		{"Yes\n", true},
-		{"YES\n", true},
-		{"n\n", false},
-		{"N\n", false},
-		{"no\n", false},
-		{"No\n", false},
-		{"NO\n", false},
-		{"foobar\n", false},
-		{"\n", false},
+		{"y\n", OverwriteYes},
+		{"Y\n", OverwriteYes},
+		{"yes\n", OverwriteYes},
+		{"Yes\n", OverwriteYes},
+		{"YES\n", OverwriteYes},
+		{"n\n", OverwriteNo},
+		{"N\n", OverwriteNo},
+		{"no\n", OverwriteNo},
+		{"No\n", OverwriteNo},
+		{"NO\n", OverwriteNo},
+		{"a\n", OverwriteAlways},
+		{"always\n", OverwriteAlways},
+		{"v\n", OverwriteNever},
+		{"never\n", OverwriteNever},
+		{"foobar\n", OverwriteNo},
+		{"\n", OverwriteNo},
 	}
 
 	localStdin := os.Stdin
@@ -596,12 +600,11 @@ func (s *HelperTests) TestPromptOverwrite() {
 		s.Equal(testCase.expected, result, "Input: %s", testCase.input)
 
 		out, _ := io.ReadAll(rout)
-		s.Contains(string(out), "File testfile already exists, overwrite? [Y]es/[N]o: ")
+		s.Contains(string(out), "File testfile already exists, overwrite? [Y]es/[N]o/[A]lways/Ne[V]er: ")
 
 		rin.Close()
 		rout.Close()
 	}
-
 }
 
 func (s *HelperTests) TestCreatePubFile() {

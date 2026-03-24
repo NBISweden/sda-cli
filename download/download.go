@@ -33,6 +33,7 @@ var pubKey string
 var recursiveDownload bool
 var fromFile bool
 var pubKeyBase64 string
+var sessionOverwrite helpers.OverwriteChoice
 
 var downloadCmd = &cobra.Command{
 	Use:   "download [flags] [filepath(s) | fileid(s)]",
@@ -287,15 +288,33 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 		}
 
 		if !overwriteExisting {
-			overwrite, err := helpers.PromptOverwrite(filePath)
-			if err != nil {
-				return fmt.Errorf("failed to prompt for overwrite: %w", err)
-			}
-
-			if !overwrite {
-				fmt.Printf("Skipping download to %s\n", filePath)
+			if sessionOverwrite == helpers.OverwriteNever {
+				fmt.Printf("Skipping download to %s, files already exists\n", filePath)
 
 				return nil
+			}
+
+			if sessionOverwrite != helpers.OverwriteAlways {
+				choice, err := helpers.PromptOverwrite(filePath)
+				if err != nil {
+					return fmt.Errorf("failed to prompt for overwrite: %w", err)
+				}
+
+				switch choice {
+				case helpers.OverwriteAlways:
+					sessionOverwrite = helpers.OverwriteAlways
+				case helpers.OverwriteNever:
+					sessionOverwrite = helpers.OverwriteNever
+					fmt.Printf("Skipping download to %s, file already exists\n", filePath)
+
+					return nil
+				case helpers.OverwriteNo:
+					fmt.Printf("Skipping download to %s, file already exists\n", filePath)
+
+					return nil
+				case helpers.OverwriteYes:
+					// Proceed to remove and download
+				}
 			}
 		}
 
