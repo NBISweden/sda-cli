@@ -27,7 +27,7 @@ var listCmd = &cobra.Command{
 	By default, it lists all files under the user's folder. 
 	Use a prefix as optional argument to list files under a specific path.
 
-	Notice: If using '--datasets' or '--dataset' the '-url' flag is required to specify the SDA download server URL
+	Notice: If using '--datasets' or '--dataset' the '--url' flag is required to specify the SDA download server URL
 `,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) > 1 {
@@ -56,7 +56,7 @@ var listCmd = &cobra.Command{
 func init() {
 	rootcmd.AddCommand(listCmd)
 	listCmd.Flags().BoolVar(&bytesFormat, "bytes", false, "Display file sizes in bytes instead of human-readable format")
-	listCmd.Flags().StringVar(&dataset, "dataset", "", "List all files in the sepcified dataset, including dataset size")
+	listCmd.Flags().StringVar(&dataset, "dataset", "", "List all files in the specified dataset, including dataset size")
 	listCmd.Flags().BoolVar(&datasets, "datasets", false, "List all datasets available in the user's folder")
 	listCmd.Flags().StringVar(&url, "url", "", "Specify the SDA download server URL")
 }

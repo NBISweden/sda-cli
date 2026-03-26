@@ -176,7 +176,7 @@ func downloadFiles(htsgeURLs HtsgetResponse, config *helpers.Config) (err error)
 	}
 
 	if helpers.FileExists(filenameToUse) && !forceOverwrite {
-		return errors.New("local file already exists, use -force-overwrite to overwrite")
+		return errors.New("local file already exists, use --force-overwrite to overwrite")
 	}
 	out, err := os.OpenFile(filenameToUse, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {

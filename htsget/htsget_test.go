@@ -246,7 +246,7 @@ func (s *HtsgetTestSuite) TestHtsgetOutPutFileAlreadyExists() {
 	htsgetCmd.Flag("host").Value.Set(s.httpTestServer.URL)
 	htsgetCmd.Flag("pubkey").Value.Set(s.publicKeyPath)
 	err := htsgetCmd.Execute()
-	assert.EqualError(s.T(), err, "error downloading the files, reason: local file already exists, use -force-overwrite to overwrite")
+	assert.EqualError(s.T(), err, "error downloading the files, reason: local file already exists, use --force-overwrite to overwrite")
 
 	outFile, err := os.Open(outFilePath)
 	if err != nil {
