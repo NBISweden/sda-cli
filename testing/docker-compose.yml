@@ -107,13 +107,6 @@ services:
     restart: always
     environment:
       - LOG_LEVEL=info
-      - INBOX_URL=http://s3
-      - INBOX_PORT=9000
-      - INBOX_ACCESSKEY=ElixirID
-      - INBOX_SECRETKEY=987654321
-      - INBOX_BUCKET=test
-      - INBOX_REGION=us-east-1
-      - INBOX_READYPATH=/minio/health/ready
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USER=postgres
@@ -132,6 +125,7 @@ services:
       - LOG_FORMAT=json
     volumes:
       - ./keys/:/keys/
+      - ./config.yaml:/config.yaml
     ports:
       - "8000:8000"
       - "8001:8001"
@@ -232,12 +226,7 @@ services:
       mockauth:
         condition: service_started
     environment:
-      - ARCHIVE_URL=http://s3
-      - ARCHIVE_TYPE=s3
-      - ARCHIVE_PORT=9000
-      - ARCHIVE_ACCESSKEY=ElixirID
-      - ARCHIVE_SECRETKEY=987654321
-      - ARCHIVE_BUCKET=archive
+      - LOG_LEVEL=debug
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USER=postgres
@@ -253,6 +242,7 @@ services:
     image: "ghcr.io/neicnordic/sensitive-data-archive:${TAG}-download"
     volumes:
       - ./archive_data/4293c9a7-dc50-46db-b79a-27ddc0dad1c6:/tmp/4293c9a7-dc50-46db-b79a-27ddc0dad1c6
+      - ./config.yaml:/config.yaml
     mem_limit: 256m
     ports:
       - "8080:8080"
@@ -268,7 +258,7 @@ services:
     restart: always
     volumes:
       - ./:/dev_utils
-      - ./reencrypt_config.yaml:/config.yaml
+      - ./config.yaml:/config.yaml
 volumes:
   data:
   dbdata:
