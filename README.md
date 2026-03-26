@@ -20,7 +20,7 @@ To get help using the tool, run the following command
 
 The main functionalities of this tool are explained in the following sections.
 
-Users unfamiliar with using a command line tools in a terminal window, may find the contents of [this article](https://ftpdocs.broadcom.com/cadocs/0/CA%20ARCserve%20%20Backup%2015-ENU/Bookshelf_Files/HTML/CMD_Ref/command_line_syntax_characters.htm)
+Users unfamiliar with using command line tools in a terminal window, may find the contents of [this article](https://ftpdocs.broadcom.com/cadocs/0/CA%20ARCserve%20%20Backup%2015-ENU/Bookshelf_Files/HTML/CMD_Ref/command_line_syntax_characters.htm)
 and
 [this](https://medium.com/@jaewei.j.w/how-to-read-man-page-synopsis-3408e7fd0e42) helpful.
 
@@ -28,21 +28,21 @@ and
 
 Files stored in the SDA/BP archive are encrypted using the [Crypt4GH
 standard](https://www.ga4gh.org/news/crypt4gh-a-secure-method-for-sharing-human-genetic-data/).
-The sections below explain how to encrypt and upload files to the archive.
+The following sections explain how to encrypt and upload files to the archive.
 
 ### Download the Crypt4GH public key file
 
-Files uploaded to the SDA/BP services must be encrypted with the appropriate
+Files uploaded to the FEGA/BP services must be encrypted with the appropriate
 public key. Depending on the service you are using, you can download
 the key file with the following commands:
 
-**For uploading to the SDA**:
+**For uploading to the FEGA**:
 
 ```bash
 wget https://raw.githubusercontent.com/NBISweden/EGA-SE-user-docs/main/crypt4gh_key.pub
 ```
 
-**For uploading to Big Picture**:
+**For uploading to BigPicture**:
 
 ```bash
 wget https://raw.githubusercontent.com/NBISweden/EGA-SE-user-docs/main/crypt4gh_bp_key.pub
@@ -76,7 +76,7 @@ command like this:
 
 ### Encrypt files with multiple keys
 
-You can encrypt files using multiple public keys by specifying the `-key` flag
+You can encrypt files using multiple public keys by specifying the `--key` flag
 multiple times. For example:
 
 ```bash
@@ -124,14 +124,13 @@ To obtain the configuration file, log in using your Life Science RI account:
 
 - For BigPicture, visit https://login.bp.nbis.se/
 
-Follow the dialogue to get authenticated and then click on `Download inbox s3cmd
-credentials` to download the configuration file named `s3cmd.conf`. Place this
+Follow the prompts to authenticate and then click on **Download credentials to upload to the Inbox** to download the configuration file named `s3cmd-inbox.conf`. Place this
 file in the same folder as the `sda-cli` executable you downloaded earlier.
 
 The access token required for authentication can be provided in one of three
 ways, listed in order of priority:
 
-1. Using the `-accessToken` flag in the command.
+1. Using the `--access-token` flag in the command.
 2. From the `ACCESSTOKEN` environment variable.
 3. In the configuration file.
 
@@ -158,7 +157,7 @@ separated by spaces, as shown below:
 
 **Note**:
 
-- By default, files are uploaded to the user's base directory on the archive.
+- By default, files are uploaded to the user's base directory in the archive. This can be modified using the `--target-directory` flag, see below.
 - If the input contains unencrypted files, the process will exit early.
 
 ### Upload folders
@@ -189,7 +188,7 @@ You can specify a custom path for uploading files or folders using the
 `--target-directory` flag, followed by the desired folder name. For example:
 
 ```bash
-./sda-cli -config <configuration_file> upload -r <encrypted_file_1_to_upload> <folder_1_to_upload> --target-directory <upload_folder>
+./sda-cli --config <configuration_file> upload -r <encrypted_file_1_to_upload> <folder_1_to_upload> --target-directory <upload_folder>
 ```
 
 This command creates `<upload_folder>` under the user's base folder and uploads
@@ -206,7 +205,7 @@ to `folder1/folder2/<encrypted_file_1_to_upload>`.
 itself, you can append `/.` to `<folder_to_upload>`. For instance:
 
 ```bash
-./sda-cli -config <configuration_file> upload -r <folder_to_upload>/. --target-directory <new_folder_name>
+./sda-cli --config <configuration_file> upload -r <folder_to_upload>/. --target-directory <new_folder_name>
 ```
 
 This command uploads all the contents of `<folder_to_upload>` to
@@ -230,7 +229,7 @@ and uploads the resulting `<file_to_upload.c4gh>` to the user's base folder.
 The encrypt on upload feature can be combined with other flags. For example:
 
 ```bash
-./sda-cli -config <configuration_file> upload -encrypt-with-key <public_key_file> -r <folder_to_upload_with_unencrypted_data> --target-directory <new_folder_name>
+./sda-cli --config <configuration_file> upload --encrypt-with-key <public_key_file> -r <folder_to_upload_with_unencrypted_data> --target-directory <new_folder_name>
 ```
 
 This command encrypts all files in `<folder_with_unencrypted_data>` and uploads
@@ -240,39 +239,37 @@ the folder recursively (including only the resulting `.c4gh` files) under
 **Notes**:
 
 - The command internally calls the [encrypt](#Encrypt) module when performing
-encrypt-on-upload, mirroring its behavior, including the creation of hash files.
+encrypt-on-upload; however, encryption is performed via streaming, and the
+encrypted file is not stored locally.
 - For encryption with [multiple public keys](#Encrypt-files-with-multiple-keys),
 concatenate all public keys into a single file and provide it using the
 `--encrypt-with-key` flag.
-- If the input includes already encrypted files, the process will exit without
-further processing.
-- Encrypted files are created in the same directory as their unencrypted counterparts.
 - If encrypted counterparts of the input files already exist, the process will
 exit without further processing.
 - If a file has already been uploaded, the process will exit without further
-processing. To overwrite existing files, use the `-force-overwrite` flag.
+processing. To overwrite existing files, use the `--force-overwrite` flag.
 
 ### Resume a multiple-file upload
 
 Suppose you run the following command to upload two encrypted files,
 
 ```bash
-./sda-cli -config <configuration_file> upload <encrypted_file_to_upload_1> <encrypted_file_to_upload_2>
+./sda-cli --config <configuration_file> upload <encrypted_file_to_upload_1> <encrypted_file_to_upload_2>
 ```
 
-After <encrypted_file_to_upload_1> has been uploaded, the process is interrupted while uploading <encrypted_file_to_upload_2>. To resume the upload, simply add the `-continue` flag to the command, as shown below:
+After <encrypted_file_to_upload_1> has been uploaded, the process is interrupted while uploading <encrypted_file_to_upload_2>. To resume the upload, add the `--continue` flag to the command, as shown below:
 
 ```bash
-./sda-cli -config <configuration_file> upload <encrypted_file_to_re-upload> <encrypted_file_to_upload> -continue
+./sda-cli --config <configuration_file> upload <encrypted_file_to_re-upload> <encrypted_file_to_upload> --continue
 ```
 
-The `-continue` flag is especially useful when recursively uploading an entire folder with encrypted files. For example, the following command:
+The `--continue` flag is especially useful when recursively uploading an entire folder. For example, the following command:
 
 ```bash
-./sda-cli --config <configuration_file> upload -r <folder_to_upload_with_encrypted_data> -continue
+./sda-cli --config <configuration_file> upload -r <folder_to_upload_with_encrypted_data> --continue
 ```
 
-will skip uploading any files that are already uploaded to the target location and proceed with uploading the remaining files of `<folder_to_upload_with_encrypted_data>`, effectively resuming the upload of the later in case this was previously interrupted.
+will skip uploading any files that are already uploaded to the target location and proceed with uploading the remaining files of `<folder_to_upload_with_encrypted_data>`, effectively resuming the upload of the latter in case this was previously interrupted.
 
 Notes:
 
@@ -281,7 +278,7 @@ Notes:
 
 ## List
 
-Before using the `list` functionality, ensure you have [downloaded the configuration file](#download-the-configuration-file).
+Before using the list functionality, ensure you have downloaded the configuration file. Follow the same procedure as you did for the upload configuration, but click **Download credentials to access the Archive** and save the file as `s3cmd-download.conf` in the same folder as the `sda-cli` executable.
 
 ### List uploaded files
 
@@ -303,7 +300,7 @@ This command will return all files or paths that start with the specified `<pref
 ### List datasets
 
 To list datasets or the files within a dataset that the user has access to, use
-the `-datasets` flag and provide the download service URL:
+the `--datasets` flag and provide the download service URL:
 
 ```bash
 ./sda-cli --config <configuration_file> list --datasets (-bytes) --url <download-service-url>
@@ -320,7 +317,7 @@ To list the files within a specific dataset, use the dataset ID (retrieved from
 the previous command):
 
 ```bash
-./sda-cli --config <configuration_file> list --dataset <datasetID> (--bytes) -url <download-service-url>
+./sda-cli --config <configuration_file> list --dataset <datasetID> (--bytes) --url <download-service-url>
 ```
 
 This command returns a list of files within the specified dataset, including
@@ -329,9 +326,9 @@ sizes in bytes.
 
 ## Download
 
-Before using the `download` functionality, ensure you have [downloaded the configuration file](#download-the-configuration-file).
+Before using the `download` functionality, ensure you have downloaded the configuration file `s3cmd-download.conf`.
 
-Depending on the setup of the SDA/BP services, files may be downloaded either
+Depending on the setup of the FEGA/BP services, files may be downloaded either
 encrypted or unencrypted. By default, only encrypted files can be downloaded.
 
 Downloaded files are encrypted server-side using the [public key](#create-crypt4gh-key-pair) specified with the `--pubkey` flag.
@@ -359,8 +356,8 @@ command:
 ./sda-cli --config <configuration_file> download --pubkey <public-key-file> --dataset-id <datasetID> --url <download-service-URL> <filepath>
 ```
 
-where `<configuration_file>` refers to the configuration file downloaded in the
-[previous step](#download-the-configuration-file), `<public-key-file>` is a file
+where `<configuration_file>` refers to the configuration file (`s3cmd-download.conf`) downloaded in the
+previous step, `<public-key-file>` is a file
 containing the [public key](#create-crypt4gh-key-pair) used to server-side
 encrypt the file to be downloaded,  `<datasetID>` is the ID of
 the dataset, and `<filepath>` is the path of the file in the dataset that you
@@ -410,7 +407,7 @@ To download all files in a dataset, use the `-dataset` flag without providing
 any argument.
 
 ```bash
-./sda-cli -config <configuration_file> download --pubkey <public-key-file> --dataset-id <datasetID> --url <download-service-url> --outdir <outdir> --dataset
+./sda-cli --config <configuration_file> download --pubkey <public-key-file> --dataset-id <datasetID> --url <download-service-url> --outdir <outdir> --dataset
 ```
 
 The dataset will be downloaded to the `<outdir>`, preserving its original folder
@@ -430,7 +427,7 @@ To create a Crypt4GH key pair, run the following command:
 ```
 
 where `<name>` is the base name for the key files to be generated.
-This command will two files:
+This command will generate two files:
 
 - `<name>.pub.pem` (public key)
 - `<name>.sec.pem` (private key)
@@ -471,7 +468,7 @@ To decrypt multiple files at once, list them separated by spaces, like this:
 You can download a (partial) file using the htsget server. 
 
 ```bash
-./sda-cli --config <configuration_file> htsget --dataset <datasetID> --filename <filepath> --reference <reference-number> --host <htsget-hostname> --pubkey <public-key-file> 
+./sda-cli --config <configuration_file> htsget --dataset <datasetID> --filename <filepath> --reference <reference-number> --host <htsget-hostname> --pubkey <public-key-file>
 ```
 
 where `<configuration_file>` refers to the configuration file downloaded in the
