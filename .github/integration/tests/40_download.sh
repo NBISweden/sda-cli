@@ -98,6 +98,33 @@ check_crypt4gh_header "$testOverwritePath"
 
 rm -r download-overwrite
 
+# Test user's overwrite choices (Yes, No)
+echo "Testing overwrite choices"
+choicesFolder="download-overwrite"
+yesFile="main/subfolder/dummy_data.c4gh"
+yesFullPath="$choicesFolder"/"$yesFile"
+noFile="main/subfolder2/dummy_data2.c4gh"
+noFullPath="$choicesFolder"/"$noFile"
+
+# Yes case
+mkdir -p "$choicesFolder/$(dirname $yesFile)"
+echo "Yes" > "$yesFullPath"
+echo "y" | ./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir "$choicesFolder" "$yesFile"
+if grep -q "Yes" "$yesFullPath"; then
+    echo "Failed to overwrite with 'y' choice"
+    exit 1
+fi
+check_crypt4gh_header "$yesFullPath"
+
+# No case
+mkdir -p "$choicesFolder/$(dirname $noFile)"
+echo "No" > "$noFullPath"
+echo "n" | ./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir "$choicesFolder" "$noFile"
+if ! grep -q "No" "$noFullPath"; then
+    echo "Should not have overwritten with 'n' choice"
+    exit 1
+fi
+
 # Download encrypted file by using the sda-cli download command
 ./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir test-download main/subfolder/dummy_data.c4gh
 
