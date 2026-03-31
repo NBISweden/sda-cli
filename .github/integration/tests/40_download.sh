@@ -81,6 +81,23 @@ check_crypt4gh_header "$testContinueFilePath"
 
 rm -r download-dataset
 
+# Create a file and overwrite it by using the --overwrite-existing flag
+testOverwriteFolder="download-overwrite/main/subfolder"
+mkdir -p "$testOverwriteFolder"
+testOverwritePath="$testOverwriteFolder/dummy_data.c4gh"
+echo "overwrite" > "$testOverwritePath"
+
+./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem  --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir download-overwrite --dataset --overwrite-existing
+
+# Check if the file was overwritten
+if grep -q "overwrite" "$testOverwritePath"; then
+    echo "Failed to overwrite existing file when using the --overwrite-existing flag"
+    exit 1
+fi
+check_crypt4gh_header "$testOverwritePath"
+
+rm -r download-overwrite
+
 # Download encrypted file by using the sda-cli download command
 ./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir test-download main/subfolder/dummy_data.c4gh
 
