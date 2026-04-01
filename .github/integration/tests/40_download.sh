@@ -98,7 +98,7 @@ check_crypt4gh_header "$testOverwritePath"
 
 rm -r download-overwrite
 
-# Test user's overwrite choices (Yes, No)
+# Test user's overwrite choices (Yes, No, Always and Never)
 echo "Testing overwrite choices"
 choicesFolder="download-overwrite"
 yesFile="main/subfolder/dummy_data.c4gh"
@@ -124,6 +124,30 @@ if ! grep -q "No" "$noFullPath"; then
     echo "Should not have overwritten with 'n' choice"
     exit 1
 fi
+
+# Always case
+echo "Always-1" > "$yesFullPath"
+echo "Always-2" > "$noFullPath"
+echo "a" | ./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem  --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir "$choicesFolder" --dataset
+if grep -q "Always-1" "$yesFullPath" || \
+   grep -q "Always-2" "$noFullPath"; then
+    echo "Failed to overwrite all files with 'a' choice"
+    exit 1
+fi
+check_crypt4gh_header "$yesFullPath"
+check_crypt4gh_header "$noFullPath"
+
+# Never case
+echo "Never-1" > "$yesFullPath"
+echo "Never-2" > "$noFullPath"
+echo "v" | ./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem  --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir "$choicesFolder" --dataset
+if ! grep -q "Never-1" "$yesFullPath" || \
+   ! grep -q "Never-2" "$noFullPath"; then
+    echo "Should not have overwritten any files with 'v' choice"
+    exit 1
+fi
+
+rm -r "$choicesFolder"
 
 # Download encrypted file by using the sda-cli download command
 ./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir test-download main/subfolder/dummy_data.c4gh
