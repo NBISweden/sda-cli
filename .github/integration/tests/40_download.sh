@@ -147,6 +147,14 @@ if ! grep -q "Never-1" "$yesFullPath" || \
     exit 1
 fi
 
+# Check partial file deletion if coexists with the full file
+echo "Partial" > "$yesFullPath".part
+./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir "$choicesFolder" "$yesFile" --ignore-existing
+if [ -f "$yesFullPath".part ]; then
+    echo "Partial file should have been deleted"
+    exit 1
+fi
+
 rm -r "$choicesFolder"
 
 # Download encrypted file by using the sda-cli download command
