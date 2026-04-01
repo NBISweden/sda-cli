@@ -37,9 +37,9 @@ var uploadCmd = &cobra.Command{
 	Short: "Upload to SDA",
 	Long: `Upload files or directories to the Sensitive Data Archive (SDA)
 Important:
-  - Files must be encrypted (Crypt4GH standard) unless the '-encrypt-with-key' flag is set.
-  - When using the '-encrypt-with-key' flag, ensure that only unencrypted files are provided.
-  - Use the '-force-unencrypted' flag with caution to upload unencrypted files explicitly.
+  - Files must be encrypted (Crypt4GH standard) unless the '--encrypt-with-key' flag is set.
+  - When using the '--encrypt-with-key' flag, ensure that only unencrypted files are provided.
+  - Use the '--force-unencrypted' flag with caution to upload unencrypted files explicitly.
 	`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		configPath := cmd.Root().Flag("config").Value.String()

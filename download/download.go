@@ -96,12 +96,12 @@ func Download(args []string, configPath, version string) error {
 	}
 	setupCookieJar(u)
 
-	// Check if both -recursive and -dataset flags are set
+	// Check if both --recursive and --dataset flags are set
 	if recursiveDownload && datasetDownload {
-		return errors.New("both -recursive and -dataset flags are set, choose one of them")
+		return errors.New("both --recursive and --dataset flags are set, choose one of them")
 	}
 
-	// Check that file(s) are not missing if the -dataset flag is not set
+	// Check that file(s) are not missing if the --dataset flag is not set
 	if len(args) == 0 && !datasetDownload {
 		if !recursiveDownload {
 			return errors.New("no files provided for download")
@@ -111,11 +111,11 @@ func Download(args []string, configPath, version string) error {
 	}
 
 	if datasetDownload && len(args) > 0 {
-		return errors.New("files provided with -dataset flag, add either the flag or the file(s), not both")
+		return errors.New("files provided with --dataset flag, add either the flag or the file(s), not both")
 	}
 
 	if fromFile && len(args) != 1 {
-		return errors.New("one file should be provided with the -from-file flag")
+		return errors.New("one file should be provided with the --from-file flag")
 	}
 
 	config, err := helpers.GetAuth(configPath)
