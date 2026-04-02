@@ -416,8 +416,14 @@ structure.
 **Notes**:
 
 - If the `--pubkey` flag is not provided, the command will be aborted with an error.
-- If the files to be downloaded already exist in your local folder, they will be overwritten.
-  For avoiding the files to be overwritten the `--ignore-existing` flag should be used.
+- If the files to be downloaded already exist in your local folder, you will be prompted for an action:
+    - **[Y]es**: Overwrite the current file.
+    - **[N]o**: Skip downloading the current file.
+    - **[A]lways**: Overwrite all existing files in the current session without prompting again.
+    - **Ne[V]er**: Skip all existing files in the current session without prompting again.
+- To bypass the prompt, you can use one of the following flags:
+    - `--ignore-existing`: Skip all files that already exist in the local folder.
+    - `--overwrite-existing`: Automatically overwrite all files that already exist in the local folder.
 
 ## Create Crypt4GH key pair
 
