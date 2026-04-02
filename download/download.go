@@ -280,52 +280,12 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	filePath = helpers.AnonymizeFilepath(filePath)
 	filePath = filepath.Join(outDir, filePath)
 
-	if _, err := os.Stat(filePath); !errors.Is(err, os.ErrNotExist) {
-		// If a full file exists, any partial file is definitely garbage and should be removed
-		if _, err := os.Stat(filePath + ".part"); err == nil {
-			_ = os.Remove(filePath + ".part")
-		}
-
-		if continueDownload {
-			fmt.Printf("Skipping download to %s, file already exists\n", filePath)
-
-			return nil
-		}
-
-		if !overwriteExisting {
-			if sessionOverwrite == helpers.OverwriteNever {
-				fmt.Printf("Skipping download to %s, files already exists\n", filePath)
-
-				return nil
-			}
-
-			if sessionOverwrite != helpers.OverwriteAlways {
-				choice, err := helpers.PromptOverwrite(filePath)
-				if err != nil {
-					return fmt.Errorf("failed to prompt for overwrite: %w", err)
-				}
-
-				switch choice {
-				case helpers.OverwriteAlways:
-					sessionOverwrite = helpers.OverwriteAlways
-				case helpers.OverwriteNever:
-					sessionOverwrite = helpers.OverwriteNever
-					fmt.Printf("Skipping download to %s, file already exists\n", filePath)
-
-					return nil
-				case helpers.OverwriteNo:
-					fmt.Printf("Skipping download to %s, file already exists\n", filePath)
-
-					return nil
-				case helpers.OverwriteYes:
-					// Proceed to remove and download
-				}
-			}
-		}
-
-		if err := os.Remove(filePath); err != nil {
-			return fmt.Errorf("failed to remove existing file: %w", err)
-		}
+	exists, err := handleExistingFile(filePath)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return nil
 	}
 
 	bodyStream, totalSize, err := getBody(uri, token, pubKeyBase64)
@@ -384,6 +344,62 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	downloadSuccessful = true
 
 	return nil
+}
+
+func handleExistingFile(filePath string) (bool, error) {
+	if _, err := os.Stat(filePath); errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+
+	// If a full file exists, any partial file is definitely garbage and should be removed
+	if _, err := os.Stat(filePath + ".part"); err == nil {
+		_ = os.Remove(filePath + ".part")
+	}
+
+	if continueDownload {
+		fmt.Printf("Skipping download to %s, file already exists\n", filePath)
+
+		return true, nil
+	}
+
+	if !overwriteExisting {
+		if sessionOverwrite == helpers.OverwriteNever {
+			fmt.Printf("Skipping download to %s, files already exists\n", filePath)
+
+			return true, nil
+		}
+
+		if sessionOverwrite != helpers.OverwriteAlways {
+			choice, err := helpers.PromptOverwrite(filePath)
+			if err != nil {
+				return false, fmt.Errorf("failed to prompt for overwrite: %w", err)
+			}
+
+			switch choice {
+			case helpers.OverwriteAlways:
+				sessionOverwrite = helpers.OverwriteAlways
+			case helpers.OverwriteNever:
+				sessionOverwrite = helpers.OverwriteNever
+				fmt.Printf("Skipping download to %s, file already exists\n", filePath)
+
+				return true, nil
+			case helpers.OverwriteNo:
+				fmt.Printf("Skipping download to %s, file already exists\n", filePath)
+
+				return true, nil
+			case helpers.OverwriteYes:
+				// Proceed to remove and download
+			default:
+				return false, fmt.Errorf("unknown overwrite choice: %v", choice)
+			}
+		}
+	}
+
+	if err := os.Remove(filePath); err != nil {
+		return false, fmt.Errorf("failed to remove existing file: %w", err)
+	}
+
+	return false, nil
 }
 
 func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (string, string, error) {
