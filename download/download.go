@@ -366,7 +366,7 @@ if _, err := os.Stat(partPath); err == nil {
 
 	if !overwriteExisting {
 		if sessionOverwrite == helpers.OverwriteNever {
-			fmt.Printf("Skipping download to %s, files already exists\n", filePath)
+			fmt.Printf("Skipping download to %s, file already exist\n", filePath)
 
 			return true, nil
 		}
