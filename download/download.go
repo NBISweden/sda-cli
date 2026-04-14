@@ -352,8 +352,10 @@ func handleExistingFile(filePath string) (bool, error) {
 	}
 
 	// If a full file exists, any partial file is definitely garbage and should be removed
-	if _, err := os.Stat(filePath + ".part"); err == nil {
-		_ = os.Remove(filePath + ".part")
+if _, err := os.Stat(partPath); err == nil {
+		if err := os.Remove(partPath); err != nil {
+			fmt.Printf("Warning: could not remove old partial file %s: %v\n", partPath, err)
+		}
 	}
 
 	if ignoreExisting {
