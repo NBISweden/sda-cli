@@ -351,8 +351,10 @@ func handleExistingFile(filePath string) (bool, error) {
 		return false, nil
 	}
 
+	partPath := filePath + ".part"
+
 	// If a full file exists, any partial file is definitely garbage and should be removed
-if _, err := os.Stat(partPath); err == nil {
+	if _, err := os.Stat(partPath); err == nil {
 		if err := os.Remove(partPath); err != nil {
 			fmt.Printf("Warning: could not remove old partial file %s: %v\n", partPath, err)
 		}
@@ -382,9 +384,7 @@ if _, err := os.Stat(partPath); err == nil {
 				sessionOverwrite = helpers.OverwriteAlways
 			case helpers.OverwriteNever:
 				sessionOverwrite = helpers.OverwriteNever
-				fmt.Printf("Skipping download to %s, file already exists\n", filePath)
-
-				return true, nil
+				fallthrough
 			case helpers.OverwriteNo:
 				fmt.Printf("Skipping download to %s, file already exists\n", filePath)
 
