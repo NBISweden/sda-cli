@@ -33,7 +33,6 @@ var pubKey string
 var recursiveDownload bool
 var fromFile bool
 var pubKeyBase64 string
-var sessionOverwrite helpers.OverwriteChoice
 
 var downloadCmd = &cobra.Command{
 	Use:   "download [flags] [filepath(s) | fileid(s)]",
@@ -366,33 +365,26 @@ func handleExistingFile(filePath string) (bool, error) {
 	}
 
 	if !overwriteExisting {
-		if sessionOverwrite == helpers.OverwriteNever {
-			fmt.Printf("Skipping download to %s, file already exist\n", filePath)
-
-			return true, nil
+		choice, err := helpers.PromptOverwrite(filePath)
+		if err != nil {
+			return false, fmt.Errorf("failed to prompt for overwrite: %w", err)
 		}
 
-		if sessionOverwrite != helpers.OverwriteAlways {
-			choice, err := helpers.PromptOverwrite(filePath)
-			if err != nil {
-				return false, fmt.Errorf("failed to prompt for overwrite: %w", err)
-			}
+		switch choice {
+		case helpers.OverwriteAlways:
+			overwriteExisting = true
+		case helpers.OverwriteYes:
+			// Proceed to remove and download
+		case helpers.OverwriteNever:
+			ignoreExisting = true
 
-			switch choice {
-			case helpers.OverwriteAlways:
-				sessionOverwrite = helpers.OverwriteAlways
-			case helpers.OverwriteNever:
-				sessionOverwrite = helpers.OverwriteNever
-				fallthrough
-			case helpers.OverwriteNo:
-				fmt.Printf("Skipping download to %s, file already exists\n", filePath)
+			fallthrough
+		case helpers.OverwriteNo:
+			fmt.Printf("Skipping download to %s, file already exists\n", filePath)
 
-				return true, nil
-			case helpers.OverwriteYes:
-				// Proceed to remove and download
-			default:
-				return false, fmt.Errorf("unknown overwrite choice: %v", choice)
-			}
+			return true, nil
+		default:
+			return false, fmt.Errorf("unknown overwrite choice: %v", choice)
 		}
 	}
 

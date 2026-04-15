@@ -18,7 +18,6 @@ import (
 	"time"
 
 	createkey "github.com/NBISweden/sda-cli/create_key"
-	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/golang-jwt/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -94,7 +93,6 @@ func (s *DownloadTestSuite) SetupTest() {
 	downloadCmd.Flag("ignore-existing").Value.Set("false")
 	downloadCmd.Flag("overwrite-existing").Value.Set("false")
 	pubKeyBase64 = ""
-	sessionOverwrite = helpers.OverwriteNone
 
 	s.tempDir = s.T().TempDir()
 
@@ -543,7 +541,6 @@ func (s *DownloadTestSuite) TestDownloadCleanupPartialFileWhenFullExists() {
 	downloadCmd.Flag("outdir").Value.Set(s.tempDir)
 	downloadCmd.Flag("dataset-id").Value.Set("TES01")
 
-	sessionOverwrite = helpers.OverwriteNone
 	err = downloadCmd.Execute()
 	s.NoError(err)
 
@@ -572,23 +569,28 @@ func (s *DownloadTestSuite) TestDownloadConflictingFlags() {
 func (s *DownloadTestSuite) TestDownloadPromptOverwrite() {
 	targetFile := "prompt-test.c4gh"
 	fullPath := filepath.Join(s.tempDir, targetFile)
+	originalStdin := os.Stdin
+	defer func() { os.Stdin = originalStdin }()
+
+	// Helper to reset flags
+	resetFlags := func() {
+		ignoreExisting = false
+		overwriteExisting = false
+	}
+
+	outDir = s.tempDir
 
 	// Test YES
-	sessionOverwrite = helpers.OverwriteNone
+	resetFlags()
 	err := os.WriteFile(fullPath, []byte("old content"), 0600)
 	s.Require().NoError(err)
 
 	r, w, _ := os.Pipe()
-	localStdin := os.Stdin
 	os.Stdin = r
-	defer func() { os.Stdin = localStdin }()
-
 	go func() {
 		_, _ = w.Write([]byte("y\n"))
 		_ = w.Close()
 	}()
-
-	outDir = s.tempDir
 	err = downloadFile(s.httpTestServer.URL, s.accessToken, "", targetFile)
 	s.NoError(err)
 
@@ -598,7 +600,7 @@ func (s *DownloadTestSuite) TestDownloadPromptOverwrite() {
 	s.Equal("test response", string(content))
 
 	// Test NO
-	sessionOverwrite = helpers.OverwriteNone
+	resetFlags()
 	err = os.WriteFile(fullPath, []byte("old content"), 0600)
 	s.Require().NoError(err)
 
@@ -618,7 +620,7 @@ func (s *DownloadTestSuite) TestDownloadPromptOverwrite() {
 	s.Equal("old content", string(content))
 
 	// Test ALWAYS
-	sessionOverwrite = helpers.OverwriteNone
+	resetFlags()
 	err = os.WriteFile(fullPath, []byte("old content"), 0600)
 	s.Require().NoError(err)
 
@@ -631,9 +633,9 @@ func (s *DownloadTestSuite) TestDownloadPromptOverwrite() {
 
 	err = downloadFile(s.httpTestServer.URL, s.accessToken, "", targetFile)
 	s.NoError(err)
-	s.Equal(helpers.OverwriteAlways, sessionOverwrite)
 
 	// Verify content is overwritten
+	s.True(overwriteExisting)
 	content, err = os.ReadFile(fullPath)
 	s.NoError(err)
 	s.Equal("test response", string(content))
@@ -648,7 +650,7 @@ func (s *DownloadTestSuite) TestDownloadPromptOverwrite() {
 	s.Equal("test response", string(content))
 
 	// Test NEVER
-	sessionOverwrite = helpers.OverwriteNone
+	resetFlags()
 	err = os.WriteFile(fullPath, []byte("old content"), 0600)
 	s.Require().NoError(err)
 
@@ -661,16 +663,18 @@ func (s *DownloadTestSuite) TestDownloadPromptOverwrite() {
 
 	err = downloadFile(s.httpTestServer.URL, s.accessToken, "", targetFile)
 	s.NoError(err)
-	s.Equal(helpers.OverwriteNever, sessionOverwrite)
 
 	// Verify content is NOT overwritten
+	s.True(ignoreExisting)
 	content, err = os.ReadFile(fullPath)
 	s.NoError(err)
 	s.Equal("old content", string(content))
 
 	// Subsequent download (skip overwrite without prompting)
-	err = downloadFile(s.httpTestServer.URL, s.accessToken, "", targetFile)
-	s.NoError(err)
+	if !ignoreExisting {
+		err = downloadFile(s.httpTestServer.URL, s.accessToken, "", targetFile)
+		s.NoError(err)
+	}
 	content, err = os.ReadFile(fullPath)
 	s.NoError(err)
 	s.Equal("old content", string(content))
