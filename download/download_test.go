@@ -514,11 +514,16 @@ func (s *DownloadTestSuite) TestDownloadCleanupOnFailure() {
 }
 
 func (s *DownloadTestSuite) TestDownloadCleanupPartialFileWhenFullExists() {
-	targetFile := "cleanup-part-test.c4gh"
+	// We need to use a file that exists in our mock server to test through fileCase/Download
+	targetFile := "files/dummy-file.txt.c4gh"
 	fullPath := filepath.Join(s.tempDir, targetFile)
 	partPath := fullPath + ".part"
 
-	err := os.WriteFile(fullPath, []byte("old content"), 0600)
+	// Create the subdirectory first
+	err := os.MkdirAll(filepath.Dir(fullPath), 0750)
+	s.Require().NoError(err)
+
+	err = os.WriteFile(fullPath, []byte("old content"), 0600)
 	s.Require().NoError(err)
 	err = os.WriteFile(partPath, []byte("partial content"), 0600)
 	s.Require().NoError(err)
@@ -533,9 +538,13 @@ func (s *DownloadTestSuite) TestDownloadCleanupPartialFileWhenFullExists() {
 		_ = w.Close()
 	}()
 
-	outDir = s.tempDir
+	os.Args = []string{"", "download", targetFile}
+	downloadCmd.Flag("url").Value.Set(s.httpTestServer.URL)
+	downloadCmd.Flag("outdir").Value.Set(s.tempDir)
+	downloadCmd.Flag("dataset-id").Value.Set("TES01")
+
 	sessionOverwrite = helpers.OverwriteNone
-	err = downloadFile(s.httpTestServer.URL, s.accessToken, "", targetFile)
+	err = downloadCmd.Execute()
 	s.NoError(err)
 
 	// Verify full content is NOT overwritten

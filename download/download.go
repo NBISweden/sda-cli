@@ -252,6 +252,14 @@ func fileCase(args []string, token string, fileList bool) error {
 
 	for _, filePath := range files {
 		outputPath := filepath.Join(outDir, filePath)
+		// Cleanup .part if it exists since we are skipping
+		partPath := outputPath + ".part"
+		if _, err := os.Stat(partPath); err == nil {
+			if err := os.Remove(partPath); err != nil {
+				fmt.Printf("Warning: could not remove old partial file %s: %v\n", partPath, err)
+			}
+		}
+
 		if ignoreExisting {
 			if _, err := os.Stat(outputPath); err == nil {
 				fmt.Printf("Skipping download to %s, file already exists\n", outputPath)
@@ -349,15 +357,6 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 func handleExistingFile(filePath string) (bool, error) {
 	if _, err := os.Stat(filePath); errors.Is(err, os.ErrNotExist) {
 		return false, nil
-	}
-
-	partPath := filePath + ".part"
-
-	// If a full file exists, any partial file is definitely garbage and should be removed
-	if _, err := os.Stat(partPath); err == nil {
-		if err := os.Remove(partPath); err != nil {
-			fmt.Printf("Warning: could not remove old partial file %s: %v\n", partPath, err)
-		}
 	}
 
 	if ignoreExisting {
