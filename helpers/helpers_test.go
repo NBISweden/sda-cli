@@ -601,7 +601,7 @@ func (s *HelperTests) TestPromptOverwrite() {
 		out, _ := io.ReadAll(rout)
 		s.Contains(string(out), "File testfile already exists, overwrite? [Y]es/[N]o/[A]lways/Ne[V]er: ")
 		if strings.HasPrefix(testCase.input, "foobar") {
-			s.Contains(string(out), "Invalid input, please try again.")
+			s.Contains(string(out), "Invalid input. Please use [Y]es/[N]o/[A]lways/Ne[V]er.")
 		}
 
 		rin.Close()

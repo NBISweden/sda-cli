@@ -83,32 +83,29 @@ const (
 	OverwriteNever
 )
 
-// PromptOverwrite creates a user prompt for confirming file overwrite
 func PromptOverwrite(filename string) (OverwriteChoice, error) {
 	reader := bufio.NewReader(os.Stdin)
 
+	inputMap := map[string]OverwriteChoice{
+		"y": OverwriteYes, "yes": OverwriteYes,
+		"n": OverwriteNo, "no": OverwriteNo,
+		"a": OverwriteAlways, "always": OverwriteAlways,
+		"v": OverwriteNever, "never": OverwriteNever,
+	}
+
 	for {
 		fmt.Printf("File %s already exists, overwrite? [Y]es/[N]o/[A]lways/Ne[V]er: ", filename)
-
-		response, err := reader.ReadString('\n')
+		input, err := reader.ReadString('\n')
 		if err != nil {
 			return OverwriteNone, err
 		}
 
-		response = strings.ToLower(strings.TrimSpace(response))
-
-		switch response {
-		case "y", "yes":
-			return OverwriteYes, nil
-		case "n", "no":
-			return OverwriteNo, nil
-		case "a", "always":
-			return OverwriteAlways, nil
-		case "v", "never":
-			return OverwriteNever, nil
-		default:
-			fmt.Println("Invalid input, please try again.")
+		cleanInput := strings.ToLower(strings.TrimSpace(input))
+		if choice, ok := inputMap[cleanInput]; ok {
+			return choice, nil
 		}
+
+		fmt.Println("Invalid input. Please use [Y]es/[N]o/[A]lways/Ne[V]er.")
 	}
 }
 
