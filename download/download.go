@@ -25,7 +25,8 @@ import (
 
 var datasetID string
 var URL string
-var continueDownload bool
+var ignoreExisting bool
+var overwriteExisting bool
 var outDir string
 var datasetDownload bool
 var pubKey string
@@ -59,7 +60,8 @@ func init() {
 	rootcmd.AddCommand(downloadCmd)
 	downloadCmd.Flags().StringVar(&datasetID, "dataset-id", "", "Dataset ID for the file(s) to download")
 	downloadCmd.Flags().StringVar(&URL, "url", "", "The url of the download server")
-	downloadCmd.Flags().BoolVar(&continueDownload, "continue", false, "Skip existing files and continue with the rest")
+	downloadCmd.Flags().BoolVar(&ignoreExisting, "ignore-existing", false, "Skip existing files and continue with the rest")
+	downloadCmd.Flags().BoolVar(&overwriteExisting, "overwrite-existing", false, "Overwrite existing files")
 	downloadCmd.Flags().StringVar(&outDir, "outdir", "", "Directory to output downloaded files")
 	downloadCmd.Flags().BoolVar(&datasetDownload, "dataset", false, "Download all the files of the dataset")
 	downloadCmd.Flags().StringVar(&pubKey, "pubkey", "", "Path to the public key file to use for encryption of files to download")
@@ -95,6 +97,11 @@ func Download(args []string, configPath, version string) error {
 		return errors.New("invalid base URL")
 	}
 	setupCookieJar(u)
+
+	// Check if both --ignore-existing and --overwrite-existing are set
+	if ignoreExisting && overwriteExisting {
+		return errors.New("both --ignore-existing and --overwrite-existing flags are set, choose one of them")
+	}
 
 	// Check if both --recursive and --dataset flags are set
 	if recursiveDownload && datasetDownload {
@@ -244,8 +251,15 @@ func fileCase(args []string, token string, fileList bool) error {
 
 	for _, filePath := range files {
 		outputPath := filepath.Join(outDir, filePath)
+		// Cleanup .part if it exists since we are skipping
+		partPath := outputPath + ".part"
+		if _, err := os.Stat(partPath); err == nil {
+			if err := os.Remove(partPath); err != nil {
+				fmt.Printf("Warning: could not remove old partial file %s: %v\n", partPath, err)
+			}
+		}
 
-		if continueDownload {
+		if ignoreExisting {
 			if _, err := os.Stat(outputPath); err == nil {
 				fmt.Printf("Skipping download to %s, file already exists\n", outputPath)
 
@@ -273,16 +287,12 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	filePath = helpers.AnonymizeFilepath(filePath)
 	filePath = filepath.Join(outDir, filePath)
 
-	if _, err := os.Stat(filePath); !errors.Is(err, os.ErrNotExist) {
-		if continueDownload {
-			fmt.Printf("Skipping download to %s, file already exists\n", filePath)
-
-			return nil
-		}
-
-		if err := os.Remove(filePath); err != nil {
-			return fmt.Errorf("failed to remove existing file: %w", err)
-		}
+	exists, err := handleExistingFile(filePath)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return nil
 	}
 
 	bodyStream, totalSize, err := getBody(uri, token, pubKeyBase64)
@@ -341,6 +351,48 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	downloadSuccessful = true
 
 	return nil
+}
+
+func handleExistingFile(filePath string) (bool, error) {
+	if _, err := os.Stat(filePath); errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+
+	if ignoreExisting {
+		fmt.Printf("Skipping download to %s, file already exists\n", filePath)
+
+		return true, nil
+	}
+
+	if !overwriteExisting {
+		choice, err := helpers.PromptOverwrite(filePath)
+		if err != nil {
+			return false, fmt.Errorf("failed to prompt for overwrite: %w", err)
+		}
+
+		switch choice {
+		case helpers.OverwriteAlways:
+			overwriteExisting = true
+		case helpers.OverwriteYes:
+			// Proceed to remove and download
+		case helpers.OverwriteNever:
+			ignoreExisting = true
+
+			fallthrough
+		case helpers.OverwriteNo:
+			fmt.Printf("Skipping download to %s, file already exists\n", filePath)
+
+			return true, nil
+		default:
+			return false, fmt.Errorf("unknown overwrite choice: %v", choice)
+		}
+	}
+
+	if err := os.Remove(filePath); err != nil {
+		return false, fmt.Errorf("failed to remove existing file: %w", err)
+	}
+
+	return false, nil
 }
 
 func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (string, string, error) {

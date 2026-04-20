@@ -90,7 +90,8 @@ func (s *DownloadTestSuite) SetupTest() {
 	downloadCmd.Flag("pubkey").Value.Set("")
 	downloadCmd.Flag("recursive").Value.Set("false")
 	downloadCmd.Flag("from-file").Value.Set("false")
-	downloadCmd.Flag("continue").Value.Set("false")
+	downloadCmd.Flag("ignore-existing").Value.Set("false")
+	downloadCmd.Flag("overwrite-existing").Value.Set("false")
 	pubKeyBase64 = ""
 
 	s.tempDir = s.T().TempDir()
@@ -175,7 +176,7 @@ func (s *DownloadTestSuite) TestDownloadFileAlreadyExistsWithContinue() {
 
 	os.Args = []string{"", "download", "files/dummy-file.txt.c4gh"}
 	downloadCmd.Flag("pubkey").Value.Set(fmt.Sprintf("%s.pub.pem", s.testKeyFile))
-	downloadCmd.Flag("continue").Value.Set("true")
+	downloadCmd.Flag("ignore-existing").Value.Set("true")
 	downloadCmd.Flag("url").Value.Set(s.httpTestServer.URL)
 	downloadCmd.Flag("outdir").Value.Set(s.tempDir)
 	downloadCmd.Flag("dataset-id").Value.Set("TES01")
@@ -495,7 +496,7 @@ func (s *DownloadTestSuite) TestDownloadCleanupOnFailure() {
 	targetFile := "cleanup-test.c4gh"
 	fullPath := filepath.Join(s.tempDir, targetFile)
 
-	downloadCmd.Flag("continue").Value.Set("false")
+	downloadCmd.Flag("ignore-existing").Value.Set("false")
 	outDir = s.tempDir
 
 	err := downloadFile(failServer.URL, s.accessToken, "", targetFile)
@@ -508,4 +509,173 @@ func (s *DownloadTestSuite) TestDownloadCleanupOnFailure() {
 	// Check that the final target file was not created
 	_, err = os.Stat(fullPath)
 	assert.True(s.T(), os.IsNotExist(err), "The final target file should not exist after a failed download")
+}
+
+func (s *DownloadTestSuite) TestDownloadCleanupPartialFileWhenFullExists() {
+	// We need to use a file that exists in our mock server to test through fileCase/Download
+	targetFile := "files/dummy-file.txt.c4gh"
+	fullPath := filepath.Join(s.tempDir, targetFile)
+	partPath := fullPath + ".part"
+
+	// Create the subdirectory first
+	err := os.MkdirAll(filepath.Dir(fullPath), 0750)
+	s.Require().NoError(err)
+
+	err = os.WriteFile(fullPath, []byte("old content"), 0600)
+	s.Require().NoError(err)
+	err = os.WriteFile(partPath, []byte("partial content"), 0600)
+	s.Require().NoError(err)
+
+	r, w, _ := os.Pipe()
+	localStdin := os.Stdin
+	os.Stdin = r
+	defer func() { os.Stdin = localStdin }()
+
+	go func() {
+		_, _ = w.Write([]byte("n\n"))
+		_ = w.Close()
+	}()
+
+	os.Args = []string{"", "download", targetFile}
+	downloadCmd.Flag("url").Value.Set(s.httpTestServer.URL)
+	downloadCmd.Flag("outdir").Value.Set(s.tempDir)
+	downloadCmd.Flag("dataset-id").Value.Set("TES01")
+
+	err = downloadCmd.Execute()
+	s.NoError(err)
+
+	// Verify full content is NOT overwritten
+	content, err := os.ReadFile(fullPath)
+	s.NoError(err)
+	s.Equal("old content", string(content))
+
+	// Verify partial file is deleted
+	_, err = os.Stat(partPath)
+	s.True(os.IsNotExist(err), "The .part file should have been removed because a full file exists")
+}
+
+func (s *DownloadTestSuite) TestDownloadConflictingFlags() {
+	os.Args = []string{"", "download", "files/dummy-file.txt.c4gh"}
+	downloadCmd.Flag("ignore-existing").Value.Set("true")
+	downloadCmd.Flag("overwrite-existing").Value.Set("true")
+	downloadCmd.Flag("url").Value.Set(s.httpTestServer.URL)
+	downloadCmd.Flag("outdir").Value.Set(s.tempDir)
+	downloadCmd.Flag("dataset-id").Value.Set("TES01")
+	err := downloadCmd.Execute()
+	s.Error(err)
+	s.Contains(err.Error(), "both --ignore-existing and --overwrite-existing flags are set, choose one of them")
+}
+
+func (s *DownloadTestSuite) TestDownloadPromptOverwrite() {
+	targetFile := "prompt-test.c4gh"
+	fullPath := filepath.Join(s.tempDir, targetFile)
+	originalStdin := os.Stdin
+	defer func() { os.Stdin = originalStdin }()
+
+	// Helper to reset flags
+	resetFlags := func() {
+		ignoreExisting = false
+		overwriteExisting = false
+	}
+
+	outDir = s.tempDir
+
+	// Test YES
+	resetFlags()
+	err := os.WriteFile(fullPath, []byte("old content"), 0600)
+	s.Require().NoError(err)
+
+	r, w, _ := os.Pipe()
+	os.Stdin = r
+	go func() {
+		_, _ = w.Write([]byte("y\n"))
+		_ = w.Close()
+	}()
+	err = downloadFile(s.httpTestServer.URL, s.accessToken, "", targetFile)
+	s.NoError(err)
+
+	// Verify content is overwritten
+	content, err := os.ReadFile(fullPath)
+	s.NoError(err)
+	s.Equal("test response", string(content))
+
+	// Test NO
+	resetFlags()
+	err = os.WriteFile(fullPath, []byte("old content"), 0600)
+	s.Require().NoError(err)
+
+	r2, w2, _ := os.Pipe()
+	os.Stdin = r2
+	go func() {
+		_, _ = w2.Write([]byte("n\n"))
+		_ = w2.Close()
+	}()
+
+	err = downloadFile(s.httpTestServer.URL, s.accessToken, "", targetFile)
+	s.NoError(err)
+
+	// Verify content is NOT overwritten
+	content, err = os.ReadFile(fullPath)
+	s.NoError(err)
+	s.Equal("old content", string(content))
+
+	// Test ALWAYS
+	resetFlags()
+	err = os.WriteFile(fullPath, []byte("old content"), 0600)
+	s.Require().NoError(err)
+
+	r3, w3, _ := os.Pipe()
+	os.Stdin = r3
+	go func() {
+		_, _ = w3.Write([]byte("a\n"))
+		_ = w3.Close()
+	}()
+
+	err = downloadFile(s.httpTestServer.URL, s.accessToken, "", targetFile)
+	s.NoError(err)
+
+	// Verify content is overwritten
+	s.True(overwriteExisting)
+	content, err = os.ReadFile(fullPath)
+	s.NoError(err)
+	s.Equal("test response", string(content))
+
+	// Subsequent download (overwrite without prompting)
+	err = os.WriteFile(fullPath, []byte("second old content"), 0600)
+	s.Require().NoError(err)
+	err = downloadFile(s.httpTestServer.URL, s.accessToken, "", targetFile)
+	s.NoError(err)
+	content, err = os.ReadFile(fullPath)
+	s.NoError(err)
+	s.Equal("test response", string(content))
+
+	// Test NEVER
+	resetFlags()
+	err = os.WriteFile(fullPath, []byte("old content"), 0600)
+	s.Require().NoError(err)
+
+	r4, w4, _ := os.Pipe()
+	os.Stdin = r4
+	go func() {
+		_, _ = w4.Write([]byte("v\n"))
+		_ = w4.Close()
+	}()
+
+	err = downloadFile(s.httpTestServer.URL, s.accessToken, "", targetFile)
+	s.NoError(err)
+
+	// Verify content is NOT overwritten
+	s.True(ignoreExisting)
+	content, err = os.ReadFile(fullPath)
+	s.NoError(err)
+	s.Equal("old content", string(content))
+
+	// Subsequent download (skip overwrite without prompting)
+	if !ignoreExisting {
+		err = downloadFile(s.httpTestServer.URL, s.accessToken, "", targetFile)
+		s.NoError(err)
+	}
+	content, err = os.ReadFile(fullPath)
+	s.NoError(err)
+	s.Equal("old content", string(content))
 }

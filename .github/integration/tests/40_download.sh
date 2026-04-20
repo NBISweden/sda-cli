@@ -58,28 +58,104 @@ for filepath in $filepaths; do
     check_crypt4gh_header "$filepath.c4gh"
 done
 
-# Try to download files again using the -continue flag
-testContinue=$(./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem  --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir download-dataset --dataset --continue | grep -c Skipping)
+# Try to download files again using the --ignore-existing flag
+testIgnoreExisting=$(./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem  --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir download-dataset --dataset --ignore-existing | grep -c Skipping)
 
 # Check if all existing files were skipped
-if  [ "$testContinue" -ne 3 ]; then
+if  [ "$testIgnoreExisting" -ne 3 ]; then
     echo "Failed to skip already existing files when using the -continue flag"
     exit 1
 fi
 
-# Remove one file and try to download dataset again using the -continue flag
+# Remove one file and try to download dataset again using the --ignore-existing flag
 testContinueFilePath=download-dataset/main/subfolder/dummy_data.c4gh
 rm "$testContinueFilePath"
-testContinue=$(./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem  --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir download-dataset --dataset --continue | grep -c Skipping)
+testIgnoreExisting=$(./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem  --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir download-dataset --dataset --ignore-existing | grep -c Skipping)
 
 # Check that only the existing files were skipped and the non-existing file was downloaded
-if  [ "$testContinue" -ne 2 ] || [ ! -f "$testContinueFilePath" ]; then
-    echo "Failed to download non-existing file when using the -continue flag"
+if  [ "$testIgnoreExisting" -ne 2 ] || [ ! -f "$testContinueFilePath" ]; then
+    echo "Failed to download non-existing file when using the --ignore-existing flag"
     exit 1
 fi
 check_crypt4gh_header "$testContinueFilePath"
 
 rm -r download-dataset
+
+# Create a file and overwrite it by using the --overwrite-existing flag
+testOverwriteFolder="download-overwrite/main/subfolder"
+mkdir -p "$testOverwriteFolder"
+testOverwritePath="$testOverwriteFolder/dummy_data.c4gh"
+echo "overwrite" > "$testOverwritePath"
+
+./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem  --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir download-overwrite --dataset --overwrite-existing
+
+# Check if the file was overwritten
+if grep -q "overwrite" "$testOverwritePath"; then
+    echo "Failed to overwrite existing file when using the --overwrite-existing flag"
+    exit 1
+fi
+check_crypt4gh_header "$testOverwritePath"
+
+rm -r download-overwrite
+
+# Test user's overwrite choices (Yes, No, Always and Never)
+echo "Testing overwrite choices"
+choicesFolder="download-overwrite"
+yesFile="main/subfolder/dummy_data.c4gh"
+yesFullPath="$choicesFolder"/"$yesFile"
+noFile="main/subfolder2/dummy_data2.c4gh"
+noFullPath="$choicesFolder"/"$noFile"
+
+# Yes case
+mkdir -p "$choicesFolder/$(dirname $yesFile)"
+echo "Yes" > "$yesFullPath"
+echo "y" | ./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir "$choicesFolder" "$yesFile"
+if grep -q "Yes" "$yesFullPath"; then
+    echo "Failed to overwrite with 'y' choice"
+    exit 1
+fi
+check_crypt4gh_header "$yesFullPath"
+
+# No case
+mkdir -p "$choicesFolder/$(dirname $noFile)"
+echo "No" > "$noFullPath"
+echo "n" | ./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir "$choicesFolder" "$noFile"
+if ! grep -q "No" "$noFullPath"; then
+    echo "Should not have overwritten with 'n' choice"
+    exit 1
+fi
+
+# Always case
+echo "Always-1" > "$yesFullPath"
+echo "Always-2" > "$noFullPath"
+echo "a" | ./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem  --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir "$choicesFolder" --dataset
+if grep -q "Always-1" "$yesFullPath" || \
+   grep -q "Always-2" "$noFullPath"; then
+    echo "Failed to overwrite all files with 'a' choice"
+    exit 1
+fi
+check_crypt4gh_header "$yesFullPath"
+check_crypt4gh_header "$noFullPath"
+
+# Never case
+echo "Never-1" > "$yesFullPath"
+echo "Never-2" > "$noFullPath"
+echo "v" | ./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem  --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir "$choicesFolder" --dataset
+if ! grep -q "Never-1" "$yesFullPath" || \
+   ! grep -q "Never-2" "$noFullPath"; then
+    echo "Should not have overwritten any files with 'v' choice"
+    exit 1
+fi
+
+# Check partial file deletion if coexists with the full file
+echo "Partial" > "$yesFullPath".part
+./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir "$choicesFolder" "$yesFile" --ignore-existing
+if [ -f "$yesFullPath".part ]; then
+    echo "Partial file should have been deleted"
+    exit 1
+fi
+
+rm -r "$choicesFolder"
 
 # Download encrypted file by using the sda-cli download command
 ./sda-cli --config testing/s3cmd-download.conf download --pubkey user_key.pub.pem --dataset-id https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080 --outdir test-download main/subfolder/dummy_data.c4gh

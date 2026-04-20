@@ -14,10 +14,9 @@ db:
   password: rootpasswd
   database: sda
   sslmode: disable
-inbox:
+s3inbox:
+  endpoint: http://ceph-octopus:8100
   type: s3
-  url: http://ceph-octopus
-  port: 8100
   accessKey: 
   secretKey: 
   bucket: test

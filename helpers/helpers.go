@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"bufio"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -69,6 +70,43 @@ func PromptPassword(message string) (password string, err error) {
 	}
 
 	return prompt.Run()
+}
+
+// OverwriteChoice represents the user's choice for file overwrite
+type OverwriteChoice int
+
+const (
+	OverwriteNone OverwriteChoice = iota
+	OverwriteYes
+	OverwriteNo
+	OverwriteAlways
+	OverwriteNever
+)
+
+func PromptOverwrite(filename string) (OverwriteChoice, error) {
+	reader := bufio.NewReader(os.Stdin)
+
+	inputMap := map[string]OverwriteChoice{
+		"y": OverwriteYes, "yes": OverwriteYes,
+		"n": OverwriteNo, "no": OverwriteNo,
+		"a": OverwriteAlways, "always": OverwriteAlways,
+		"v": OverwriteNever, "never": OverwriteNever,
+	}
+
+	for {
+		fmt.Printf("File %s already exists, overwrite? [Y]es/[N]o/[A]lways/Ne[V]er: ", filename)
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return OverwriteNone, err
+		}
+
+		cleanInput := strings.ToLower(strings.TrimSpace(input))
+		if choice, ok := inputMap[cleanInput]; ok {
+			return choice, nil
+		}
+
+		fmt.Println("Invalid input. Please use [Y]es/[N]o/[A]lways/Ne[V]er.")
+	}
 }
 
 // ParseS3ErrorResponse checks if reader stream is xml encoded and if yes unmarshals

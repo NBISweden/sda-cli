@@ -549,6 +549,66 @@ func (s *HelperTests) TestInvalidCharacters() {
 	}
 }
 
+func (s *HelperTests) TestPromptOverwrite() {
+	tests := []struct {
+		input    string
+		expected OverwriteChoice
+	}{
+		{"y\n", OverwriteYes},
+		{"Y\n", OverwriteYes},
+		{"yes\n", OverwriteYes},
+		{"Yes\n", OverwriteYes},
+		{"YES\n", OverwriteYes},
+		{"n\n", OverwriteNo},
+		{"N\n", OverwriteNo},
+		{"no\n", OverwriteNo},
+		{"No\n", OverwriteNo},
+		{"NO\n", OverwriteNo},
+		{"a\n", OverwriteAlways},
+		{"always\n", OverwriteAlways},
+		{"v\n", OverwriteNever},
+		{"never\n", OverwriteNever},
+		{"foobar\nyes\n", OverwriteYes},
+	}
+
+	localStdin := os.Stdin
+	localStdout := os.Stdout
+	defer func() {
+		os.Stdin = localStdin
+		os.Stdout = localStdout
+	}()
+
+	for _, testCase := range tests {
+		rin, win, err := os.Pipe()
+		s.NoError(err)
+
+		rout, wout, err := os.Pipe()
+		s.NoError(err)
+
+		os.Stdin = rin
+		os.Stdout = wout
+
+		_, err = win.Write([]byte(testCase.input))
+		s.NoError(err)
+		win.Close()
+
+		result, err := PromptOverwrite("testfile")
+		wout.Close()
+
+		s.NoError(err)
+		s.Equal(testCase.expected, result, "Input: %s", testCase.input)
+
+		out, _ := io.ReadAll(rout)
+		s.Contains(string(out), "File testfile already exists, overwrite? [Y]es/[N]o/[A]lways/Ne[V]er: ")
+		if strings.HasPrefix(testCase.input, "foobar") {
+			s.Contains(string(out), "Invalid input. Please use [Y]es/[N]o/[A]lways/Ne[V]er.")
+		}
+
+		rin.Close()
+		rout.Close()
+	}
+}
+
 func (s *HelperTests) TestCreatePubFile() {
 	var pubKeyContent = `339eb2a458fec5e23aa8b57cfcb35f10e7389025816e44d4234f814ed2aeed3f`
 	var expectedPubKey = `-----BEGIN CRYPT4GH PUBLIC KEY-----

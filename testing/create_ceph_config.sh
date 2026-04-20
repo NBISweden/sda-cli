@@ -43,4 +43,4 @@ export CEPH_ACCESS
 CEPH_SECRET=$(docker exec ceph-octopus cat /nano_user_details | jq -r '.keys[0].secret_key')
 export CEPH_SECRET
 
-yq --lua-unquoted -i '.inbox.accessKey = env(CEPH_ACCESS) | .inbox.secretKey = env(CEPH_SECRET)' ceph_proxy_config.yaml
+yq --lua-unquoted -i '.s3inbox.access_key = env(CEPH_ACCESS) | .s3inbox.secret_key = env(CEPH_SECRET)' ceph_proxy_config.yaml

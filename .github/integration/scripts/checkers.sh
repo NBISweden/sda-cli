@@ -21,10 +21,10 @@ function check_encrypted_file {
 function check_uploaded_file {
     if s3cmd -c testing/directS3 ls s3://"$1" | grep -q "$2"; then
         echo "Uploaded encrypted file to s3 backend"
-        s3size=$(s3cmd -c testing/directS3 ls s3://"$1" | cut -d ' ' -f7)
-        size=$(stat data_file.c4gh | grep Size | cut -d ' ' -f4)
+        s3size=$(s3cmd -c testing/directS3 ls s3://"$1" | awk '{print $3}')
+        size=$(wc -c < data_file.c4gh | awk '{print $1}')
         s3cmd -c testing/directS3 get s3://"$1" downloaded.file --force
-        stat downloaded.file | grep Size | cut -d ' ' -f4
+        wc -c < downloaded.file | awk '{print $1}'
         if [ "$s3size" != "$size" ]; then
             echo "wrong size of encrypted file"
             exit 1
