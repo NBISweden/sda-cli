@@ -2,12 +2,13 @@
 package list
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/NBISweden/sda-cli/apiclient"
 	rootcmd "github.com/NBISweden/sda-cli/cmd"
-	"github.com/NBISweden/sda-cli/download"
 	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/dustin/go-humanize"
 	"github.com/inhies/go-bytesize"
@@ -19,6 +20,7 @@ var datasets bool
 var url string
 var prefix string
 var bytesFormat bool
+var apiVersionFlag string
 
 var listCmd = &cobra.Command{
 	Use:   "list [flags] [args]",
@@ -59,6 +61,7 @@ func init() {
 	listCmd.Flags().StringVar(&dataset, "dataset", "", "List all files in the specified dataset, including dataset size")
 	listCmd.Flags().BoolVar(&datasets, "datasets", false, "List all datasets available in the user's folder")
 	listCmd.Flags().StringVar(&url, "url", "", "Specify the SDA download server URL")
+	listCmd.Flags().StringVar(&apiVersionFlag, "api-version", "v1", "SDA download API version to use (v1 or v2)")
 }
 
 func list(configPath string, prefix string) error {
@@ -106,7 +109,16 @@ func list(configPath string, prefix string) error {
 }
 
 func datasetFiles(token string, url string, dataset string, bytesFormat bool) error {
-	files, err := download.GetFilesInfo(url, dataset, "", token, rootcmd.Version)
+	client, err := apiclient.New(apiclient.Config{
+		BaseURL: url,
+		Token:   token,
+		Version: rootcmd.Version,
+	}, apiVersionFlag)
+	if err != nil {
+		return err
+	}
+
+	files, err := client.ListFiles(context.Background(), dataset, apiclient.ListFilesOptions{})
 	if err != nil {
 		return err
 	}
@@ -133,13 +145,23 @@ func formatFileSizeOutput(size int, bytesFormat bool) string {
 }
 
 func Datasets(url string, token string) error {
-	datasets, err := download.GetDatasets(url, token, rootcmd.Version)
+	client, err := apiclient.New(apiclient.Config{
+		BaseURL: url,
+		Token:   token,
+		Version: rootcmd.Version,
+	}, apiVersionFlag)
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+	datasets, err := client.ListDatasets(ctx)
 	if err != nil {
 		return err
 	}
 
 	for _, dataset := range datasets {
-		files, err := download.GetFilesInfo(url, dataset, "", token, rootcmd.Version)
+		files, err := client.ListFiles(ctx, dataset, apiclient.ListFilesOptions{})
 		if err != nil {
 			return err
 		}
