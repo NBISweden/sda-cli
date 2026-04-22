@@ -24,6 +24,7 @@ import (
 	"github.com/johannesboyne/gofakes3"
 	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -246,7 +247,7 @@ func (s *ListTestSuite) TestList_APIVersionV2_NotYetImplemented() {
 	listCmd.Flag("url").Value.Set(s.downloadMockHTTPServer.URL)
 	listCmd.Flag("api-version").Value.Set("v2")
 	err := listCmd.Execute()
-	assert.Error(s.T(), err)
+	require.Error(s.T(), err)
 	assert.Contains(s.T(), err.Error(), "not yet implemented")
 }
 
