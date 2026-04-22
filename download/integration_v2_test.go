@@ -25,9 +25,15 @@ func TestV2_ListDatasets_Smoke(t *testing.T) {
 	require.NotEmpty(t, token, "DOWNLOAD_V2_TOKEN must be set (curl /tokens on mockauth)")
 
 	client, err := downloadclient.New(downloadclient.Config{
+<<<<<<< HEAD
 		BaseURL:       baseURL,
 		Token:         token,
 		ClientVersion: "test",
+=======
+		BaseURL: baseURL,
+		Token:   token,
+		Version: "test",
+>>>>>>> 478f1e5 (feat(list): use v2 DatasetInfo + PathPrefix on v2)
 	}, "v2")
 	require.NoError(t, err)
 

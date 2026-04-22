@@ -274,39 +274,6 @@ func (s *ListTestSuite) TestListDataset_WrapsTransportError() {
 	assert.Contains(s.T(), err.Error(), "failed to get files, reason:")
 }
 
-func (s *ListTestSuite) TestList_APIVersionV2_ListDatasets() {
-	// Under #675, `list --datasets --api-version v2` prints just the dataset
-	// IDs returned by v2's /datasets endpoint; #676 reintroduces the
-	// per-dataset file count + size enrichment via DatasetInfo.
-	v2Server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if req.URL.Path != "/datasets" {
-			w.WriteHeader(http.StatusNotFound)
-
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"datasets":["EGAD00000000001","EGAD00000000002"],"nextPageToken":null}`)
-	}))
-	defer v2Server.Close()
-
-	rescueStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	listCmd.Flag("datasets").Value.Set("true")
-	listCmd.Flag("url").Value.Set(v2Server.URL)
-	listCmd.Flag("api-version").Value.Set("v2")
-	err := listCmd.Execute()
-	require.NoError(s.T(), err)
-
-	_ = w.Close()
-	os.Stdout = rescueStdout
-	listOutput, _ := io.ReadAll(r)
-	_ = r.Close()
-	assert.Contains(s.T(), string(listOutput), "EGAD00000000001")
-	assert.Contains(s.T(), string(listOutput), "EGAD00000000002")
-}
-
 func (s *ListTestSuite) TestList_APIVersionV2_HitsV2Endpoint() {
 	// v2 factory now returns a real V2Client (#675). For `--dataset <id>`,
 	// list calls client.ListFiles, which (in #676) issues GET
@@ -318,6 +285,73 @@ func (s *ListTestSuite) TestList_APIVersionV2_HitsV2Endpoint() {
 	err := listCmd.Execute()
 	require.Error(s.T(), err)
 	assert.Contains(s.T(), err.Error(), "server returned status 500")
+}
+
+func (s *ListTestSuite) TestList_V2_Datasets_UsesDatasetInfo() {
+	// Proves the v2 path calls GET /datasets/{id} (DatasetInfo) rather than
+	// the v1 N+1 /datasets/{id}/files scan. The handler fails the test if
+	// /files is ever touched.
+	var hitDatasets, hitDatasetInfo bool
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/datasets":
+			hitDatasets = true
+			fmt.Fprint(w, `{"datasets":["EGAD001"],"nextPageToken":null}`)
+		case "/datasets/EGAD001":
+			hitDatasetInfo = true
+			fmt.Fprint(w, `{"datasetId":"EGAD001","files":3,"size":1024}`)
+		case "/datasets/EGAD001/files":
+			s.T().Fatalf("v2 --datasets must not call /files; got %s", r.URL.Path)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer ts.Close()
+
+	rescueStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	listCmd.Flag("datasets").Value.Set("true")
+	listCmd.Flag("url").Value.Set(ts.URL)
+	listCmd.Flag("api-version").Value.Set("v2")
+	err := listCmd.Execute()
+	assert.NoError(s.T(), err)
+
+	_ = w.Close()
+	os.Stdout = rescueStdout
+	listOutput, _ := io.ReadAll(r)
+	_ = r.Close()
+
+	assert.True(s.T(), hitDatasets, "GET /datasets must be called")
+	assert.True(s.T(), hitDatasetInfo, "GET /datasets/{id} must be called")
+	assert.Contains(s.T(), string(listOutput), "EGAD001 \t 3 \t 1.0 kB")
+}
+
+func (s *ListTestSuite) TestList_V2_Datasets_WrapsDatasetInfoError() {
+	// v2 --datasets enriches per-dataset via DatasetInfo. A failure in
+	// the per-dataset call must stay under the legacy "failed to get
+	// datasets, reason: ..." wrap so v2 matches the v1 contract guarded
+	// by TestListDatasets_WrapsTransportError.
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path == "/datasets" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"datasets":["EGAD001"],"nextPageToken":null}`)
+
+			return
+		}
+		// /datasets/EGAD001 — simulate transient server failure
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer ts.Close()
+
+	listCmd.Flag("datasets").Value.Set("true")
+	listCmd.Flag("url").Value.Set(ts.URL)
+	listCmd.Flag("api-version").Value.Set("v2")
+	err := listCmd.Execute()
+	require.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "failed to get datasets, reason:")
 }
 
 func (s *ListTestSuite) generateDummyToken() string {
