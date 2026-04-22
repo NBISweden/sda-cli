@@ -106,3 +106,17 @@ func TestV2_DownloadFile_EndToEnd(t *testing.T) {
 		assert.Equal(t, result.ContentLength, int64(len(got)), "body size should match Content-Length")
 	}
 }
+
+func TestV2_DownloadFile_NotFound403(t *testing.T) {
+	client := buildIntegrationClient(t)
+	pubKey := os.Getenv("DOWNLOAD_V2_PUBKEY_B64")
+	require.NotEmpty(t, pubKey)
+
+	_, err := client.DownloadFile(context.Background(), apiclient.DownloadRequest{
+		DatasetID:       "EGAD00000000001",
+		UserArg:         "definitely-not-a-real-file.c4gh",
+		PublicKeyBase64: pubKey,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "dataset/file does not exist or access denied")
+}
