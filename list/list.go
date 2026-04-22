@@ -160,6 +160,9 @@ func Datasets(url string, token string) error {
 		return err
 	}
 
+	// NOTE: v1 has no DatasetInfo endpoint, so we call ListFiles per dataset
+	// to compute file count and size. #676 of issue #663 switches v2 to
+	// apiclient.Client.DatasetInfo.
 	for _, dataset := range datasets {
 		files, err := client.ListFiles(ctx, dataset, apiclient.ListFilesOptions{})
 		if err != nil {
