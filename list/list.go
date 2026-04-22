@@ -25,9 +25,13 @@ var apiVersionFlag string
 var listCmd = &cobra.Command{
 	Use:   "list [flags] [args]",
 	Short: "List files and datasets",
-	Long: `Recursively list files and datasets in the user's folder in the Sensitive Data Archive (SDA). 
-	By default, it lists all files under the user's folder. 
+	Long: `Recursively list files and datasets in the user's folder in the Sensitive Data Archive (SDA).
+	By default, it lists all files under the user's folder.
 	Use a prefix as optional argument to list files under a specific path.
+
+	On --api-version v2, the prefix is treated as a directory boundary: a
+	trailing "/" is appended if missing, so "docs" matches "docs/foo" but
+	not "docs-old". Use the S3 path on v1 for flat-prefix matching.
 
 	Notice: If using '--datasets' or '--dataset' the '--url' flag is required to specify the SDA download server URL
 `,
@@ -87,7 +91,7 @@ func list(configPath string, prefix string) error {
 	}
 
 	if dataset != "" {
-		err := datasetFiles(config.AccessToken, url, dataset, bytesFormat)
+		err := datasetFiles(config.AccessToken, url, dataset, bytesFormat, prefix)
 		if err != nil {
 			return err
 		}
@@ -108,7 +112,7 @@ func list(configPath string, prefix string) error {
 	return nil
 }
 
-func datasetFiles(token string, url string, dataset string, bytesFormat bool) error {
+func datasetFiles(token string, url string, dataset string, bytesFormat bool, prefix string) error {
 	client, err := apiclient.New(apiclient.Config{
 		BaseURL: url,
 		Token:   token,
@@ -118,7 +122,19 @@ func datasetFiles(token string, url string, dataset string, bytesFormat bool) er
 		return err
 	}
 
-	files, err := client.ListFiles(context.Background(), dataset, apiclient.ListFilesOptions{})
+	opts := apiclient.ListFilesOptions{}
+	// v2 supports server-side pathPrefix filtering; push the prefix arg down
+	// so the server returns only matching files. v1 has no such filter, so
+	// the prefix is ignored there (use the S3 path for prefix-filtered listing
+	// on v1).
+	if apiVersionFlag == "v2" && prefix != "" {
+		opts.PathPrefix = prefix
+		if !strings.HasSuffix(opts.PathPrefix, "/") {
+			opts.PathPrefix += "/"
+		}
+	}
+
+	files, err := client.ListFiles(context.Background(), dataset, opts)
 	if err != nil {
 		// URL-validation errors are returned unwrapped so TestListDatasetNoUrl
 		// still sees the bare "invalid base URL" string; transport / parse /
@@ -177,29 +193,32 @@ func Datasets(url string, token string) error {
 		return fmt.Errorf("failed to get datasets, reason: %v", err)
 	}
 
-	// v2 has a dedicated DatasetInfo endpoint; until #676 wires it up, print
-	// just the dataset IDs. v1 has no DatasetInfo endpoint, so the v1 branch
-	// falls back to calling ListFiles per dataset to compute file count and
-	// size — that per-dataset enrichment returns for v2 in #676.
-	if apiVersionFlag == "v2" {
-		fileIDWidth := 40
-		fmt.Printf("%-*s\n", fileIDWidth, "DatasetID")
-		for _, dataset := range datasets {
-			fmt.Println(dataset)
+	fileIDWidth := 40 // fileIdwith=40 ensures header matches rest of the table
+	fmt.Printf("%-*s \t %s \t %s\n", fileIDWidth, "DatasetID", "Files", "Size")
+
+	// v2 has a /datasets/{id} metadata endpoint that returns count+size
+	// directly; use it to avoid the N+1 file scan. v1 has no such endpoint,
+	// so we fall back to ListFiles per dataset (unavoidable for v1).
+	for _, dataset := range datasets {
+		if apiVersionFlag == "v2" {
+			info, err := client.DatasetInfo(ctx, dataset)
+			if err != nil {
+				// Per-dataset enrichment is still "get datasets" from the
+				// CLI user's perspective; keep the legacy wrap prefix so v2
+				// matches the v1 contract for failures.
+				return fmt.Errorf("failed to get datasets, reason: %v", err)
+			}
+			fmt.Printf("%s \t %d \t %s\n", dataset, info.FileCount, formatFileSizeOutput(int(info.Size), bytesFormat))
+
+			continue
 		}
 
-		return nil
-	}
-
-	for _, dataset := range datasets {
 		files, err := client.ListFiles(ctx, dataset, apiclient.ListFilesOptions{})
 		if err != nil {
 			// URL was already validated by ListDatasets above, so any failure
 			// here is transport/parse/HTTP and takes the legacy wrap prefix.
 			return fmt.Errorf("failed to get files, reason: %v", err)
 		}
-		fileIDWidth := 40 // fileIdwith=40 ensures header matches rest of the table
-		fmt.Printf("%-*s \t %s \t %s\n", fileIDWidth, "DatasetID", "Files", "Size")
 		datasetSize := 0
 		noOfFiles := 0
 		for _, file := range files {
