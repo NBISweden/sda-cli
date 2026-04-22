@@ -60,7 +60,7 @@ func parseErrorResponse(resp *http.Response) error {
 
 	apiErr := &APIError{
 		StatusCode: resp.StatusCode,
-		Body:       truncate(string(body), 200),
+		Body:       truncate(string(body), maxErrorBodyBytes),
 	}
 
 	if isJSONContentType(resp.Header.Get("Content-Type")) && len(body) > 0 {
