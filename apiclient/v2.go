@@ -97,6 +97,12 @@ func (c *V2Client) ListFiles(ctx context.Context, datasetID string, opts ListFil
 	})
 }
 
+// DownloadFile implements Client. Stubbed here; real implementation
+// lands two commits down in this branch.
+func (c *V2Client) DownloadFile(_ context.Context, _ DownloadRequest) (io.ReadCloser, int64, error) {
+	return nil, 0, errors.New("V2Client.DownloadFile not yet wired in this branch")
+}
+
 // DatasetInfo implements Client. Calls GET /datasets/{id} and returns the
 // v2-only dataset metadata (file count + total decrypted size).
 func (c *V2Client) DatasetInfo(ctx context.Context, datasetID string) (DatasetInfo, error) {

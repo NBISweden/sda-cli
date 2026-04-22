@@ -154,6 +154,12 @@ func (c *V1Client) DatasetInfo(_ context.Context, _ string) (DatasetInfo, error)
 	return DatasetInfo{}, ErrNotSupportedOnV1
 }
 
+// DownloadFile implements Client. Stubbed here; real implementation
+// lands in the next commit.
+func (c *V1Client) DownloadFile(_ context.Context, _ DownloadRequest) (io.ReadCloser, int64, error) {
+	return nil, 0, errors.New("V1Client.DownloadFile not yet wired in this branch")
+}
+
 // getBody is the v1 HTTP helper. Headers, error shape, and 412 handling
 // match the legacy download.getBody (download/download.go:483-514) verbatim.
 //

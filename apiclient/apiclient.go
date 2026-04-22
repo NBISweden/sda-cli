@@ -3,6 +3,7 @@ package apiclient
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"go.nhat.io/cookiejar"
 )
@@ -14,13 +15,43 @@ type Config struct {
 	Version string // sda-cli version; SDA-Client-Version on v1, User-Agent "sda-cli/<version>" on v2
 }
 
-// Client is the SDA download API abstraction for list-family operations.
-// The DownloadFile method joins this interface in #677 alongside v2
-// download implementation.
+// DownloadRequest describes one file to fetch.
+type DownloadRequest struct {
+	// DatasetID — always required.
+	DatasetID string
+	// UserArg is the raw positional arg from the CLI: either a file path
+	// (may contain "/" or end in ".c4gh") or a fileId. Implementations
+	// disambiguate internally.
+	UserArg string
+	// PublicKeyBase64 is the recipient public key (v2 preferred: base64
+	// of raw 32-byte X25519 key; v2 legacy: base64 of full PEM text; v1
+	// uses whatever download.helpers.GetPublicKey64 produced).
+	PublicKeyBase64 string
+}
+
+// DownloadResult bundles the three things a caller needs after a successful
+// DownloadFile: the canonical File metadata (authoritative filename), a
+// ReadCloser streaming the Crypt4GH-encrypted bytes, and the server's
+// Content-Length (0 when absent). Callers must close Body.
+type DownloadResult struct {
+	File          File
+	Body          io.ReadCloser
+	ContentLength int64
+}
+
+// Client is the SDA download API abstraction for list-family operations
+// and file download.
 type Client interface {
 	ListDatasets(ctx context.Context) ([]string, error)
 	ListFiles(ctx context.Context, datasetID string, opts ListFilesOptions) ([]File, error)
 	DatasetInfo(ctx context.Context, datasetID string) (DatasetInfo, error)
+
+	// DownloadFile resolves req.UserArg against the dataset and returns a
+	// DownloadResult. The returned File is the authoritative name to use
+	// for the on-disk output — callers must not derive the output path
+	// from req.UserArg, because UserArg may be a fileId with no
+	// relationship to the filename.
+	DownloadFile(ctx context.Context, req DownloadRequest) (DownloadResult, error)
 }
 
 // Option customises the Client returned by New. Options only affect the
