@@ -127,3 +127,21 @@ func TestV2Client_ListFiles_BothFiltersRejectedClientSide(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "mutually exclusive")
 }
+
+func TestV2Client_DatasetInfo(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/datasets/EGAD001", r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"datasetId":"EGAD001","files":42,"size":1234567890}`)
+	}))
+	defer ts.Close()
+
+	c := NewV2Client(Config{BaseURL: ts.URL, Token: "t"})
+	c.http = ts.Client()
+
+	got, err := c.DatasetInfo(context.Background(), "EGAD001")
+	require.NoError(t, err)
+	assert.Equal(t, "EGAD001", got.DatasetID)
+	assert.Equal(t, 42, got.FileCount)
+	assert.Equal(t, int64(1234567890), got.Size)
+}
