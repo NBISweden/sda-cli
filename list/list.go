@@ -160,9 +160,20 @@ func Datasets(url string, token string) error {
 		return err
 	}
 
-	// NOTE: v1 has no DatasetInfo endpoint, so we call ListFiles per dataset
-	// to compute file count and size. #676 of issue #663 switches v2 to
-	// apiclient.Client.DatasetInfo.
+	// v2 has a dedicated DatasetInfo endpoint; until #676 wires it up, print
+	// just the dataset IDs. v1 has no DatasetInfo endpoint, so the v1 branch
+	// falls back to calling ListFiles per dataset to compute file count and
+	// size — that per-dataset enrichment returns for v2 in #676.
+	if apiVersionFlag == "v2" {
+		fileIDWidth := 40
+		fmt.Printf("%-*s\n", fileIDWidth, "DatasetID")
+		for _, dataset := range datasets {
+			fmt.Println(dataset)
+		}
+
+		return nil
+	}
+
 	for _, dataset := range datasets {
 		files, err := client.ListFiles(ctx, dataset, apiclient.ListFilesOptions{})
 		if err != nil {
