@@ -307,16 +307,17 @@ func (s *ListTestSuite) TestList_APIVersionV2_ListDatasets() {
 	assert.Contains(s.T(), string(listOutput), "EGAD00000000002")
 }
 
-func (s *ListTestSuite) TestList_APIVersionV2_StubsNotImplemented() {
+func (s *ListTestSuite) TestList_APIVersionV2_HitsV2Endpoint() {
 	// v2 factory now returns a real V2Client (#675). For `--dataset <id>`,
-	// list calls client.ListFiles, which for v2 is stubbed until #676 and
-	// returns a "not implemented until #676" error.
+	// list calls client.ListFiles, which (in #676) issues GET
+	// /datasets/{id}/files. The mock server has no v2 handler, so the
+	// default 500 surfaces — proving v2 is wired up.
 	listCmd.Flag("dataset").Value.Set("TES01")
 	listCmd.Flag("url").Value.Set(s.downloadMockHTTPServer.URL)
 	listCmd.Flag("api-version").Value.Set("v2")
 	err := listCmd.Execute()
 	require.Error(s.T(), err)
-	assert.Contains(s.T(), err.Error(), "not implemented until #676")
+	assert.Contains(s.T(), err.Error(), "server returned status 500")
 }
 
 func (s *ListTestSuite) generateDummyToken() string {

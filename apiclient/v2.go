@@ -36,7 +36,7 @@ func (c *V2Client) ListDatasets(ctx context.Context) ([]string, error) {
 	return paginate(ctx, func(ctx context.Context, pageToken *string) ([]string, *string, error) {
 		u := c.cfg.BaseURL + "/datasets"
 		if pageToken != nil {
-			u += "?pageToken=" + url.QueryEscape(*pageToken)
+			u += "?" + url.Values{"pageToken": {*pageToken}}.Encode()
 		}
 		body, err := c.getJSON(ctx, u)
 		if err != nil {
@@ -53,9 +53,48 @@ func (c *V2Client) ListDatasets(ctx context.Context) ([]string, error) {
 	})
 }
 
-// ListFiles implements Client. Not implemented until #676.
-func (c *V2Client) ListFiles(_ context.Context, _ string, _ ListFilesOptions) ([]File, error) {
-	return nil, errors.New("V2Client.ListFiles not implemented until #676")
+// ListFiles implements Client. Walks all pages of GET /datasets/{id}/files,
+// optionally applying the v2 server-side filters (exact filePath, or recursive
+// pathPrefix). The two filters are mutually exclusive per v2's contract;
+// we reject that combo client-side for a friendlier message than the
+// server's 400.
+func (c *V2Client) ListFiles(ctx context.Context, datasetID string, opts ListFilesOptions) ([]File, error) {
+	if opts.ExactPath != "" && opts.PathPrefix != "" {
+		return nil, errors.New("ListFilesOptions.ExactPath and .PathPrefix are mutually exclusive")
+	}
+
+	return paginate(ctx, func(ctx context.Context, pageToken *string) ([]File, *string, error) {
+		u := c.cfg.BaseURL + "/datasets/" + url.PathEscape(datasetID) + "/files"
+		q := url.Values{}
+		if opts.ExactPath != "" {
+			q.Set("filePath", opts.ExactPath)
+		}
+		if opts.PathPrefix != "" {
+			q.Set("pathPrefix", opts.PathPrefix)
+		}
+		if pageToken != nil {
+			q.Set("pageToken", *pageToken)
+		}
+		if enc := q.Encode(); enc != "" {
+			u += "?" + enc
+		}
+		body, err := c.getJSON(ctx, u)
+		if err != nil {
+			return nil, nil, err
+		}
+		defer body.Close() //nolint:errcheck
+
+		var resp fileListResponse
+		if err := json.NewDecoder(body).Decode(&resp); err != nil {
+			return nil, nil, fmt.Errorf("failed to decode /datasets/%s/files response: %w", datasetID, err)
+		}
+		out := make([]File, len(resp.Files))
+		for i, f := range resp.Files {
+			out[i] = f.toFile()
+		}
+
+		return out, resp.NextPageToken, nil
+	})
 }
 
 // DatasetInfo implements Client. Not implemented until #676.
