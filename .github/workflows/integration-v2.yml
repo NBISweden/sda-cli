@@ -32,16 +32,17 @@ jobs:
           make build-all
           PR_NUMBER=$(date +%F) make dev-download-v2-up
 
-      - name: Wait for download service
+      - name: Wait for services
         run: |
-          for i in {1..60}; do
-            if curl -sf http://localhost:8085/health/ready; then
-              echo "download service ready"
+          for i in {1..120}; do
+            if curl -sf http://localhost:8085/health/ready \
+               && curl -sf http://localhost:8000/tokens > /dev/null; then
+              echo "download service and mockauth ready"
               exit 0
             fi
             sleep 2
           done
-          echo "download service did not come up in 120s"
+          echo "services did not come up in 240s"
           exit 1
 
       - name: Fetch dev token
@@ -63,13 +64,13 @@ jobs:
         run: |
           go test -tags=integration -v ./...
 
+      - name: Dump all service logs on failure
+        if: failure()
+        working-directory: sensitive-data-archive
+        run: |
+          docker compose --project-name download-v2-dev logs || true
+
       - name: Tear down (always)
         if: always()
         working-directory: sensitive-data-archive
         run: PR_NUMBER=$(date +%F) make dev-download-v2-down || true
-
-      - name: Dump download service logs on failure
-        if: failure()
-        working-directory: sensitive-data-archive
-        run: |
-          docker compose --project-name download-v2-dev logs download || true
