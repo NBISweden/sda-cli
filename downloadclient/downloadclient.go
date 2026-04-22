@@ -50,19 +50,18 @@ func WithV1CookieJar(jar *cookiejar.PersistentJar) Option {
 // error out anyway.
 func ValidateVersion(apiVersion string) error {
 	switch apiVersion {
-	case "v1":
+	case "v1", "v2":
 		return nil
-	case "v2":
-		return errors.New("--api-version v2 is not yet implemented; see #663 for progress")
 	default:
 		return fmt.Errorf("unsupported --api-version %q (v1 or v2)", apiVersion)
 	}
 }
 
-// New returns a Client for the requested apiVersion. Returns an error if
-// apiVersion is unsupported, BaseURL is empty or unparseable, or Token is
-// empty. ClientVersion is optional (header only) and not validated.
-// Today accepts "v1" only; "v2" errors. Extended in #675 to return a V2Client.
+// New returns a Client for the requested apiVersion. "v1" returns a V1Client;
+// "v2" returns a V2Client (minimal, some methods are stubs until later PRs
+// of issue #663, see V2Client doc). Returns an error if apiVersion is
+// unsupported, BaseURL is empty or unparseable, or Token is empty.
+// ClientVersion is optional (header only) and not validated.
 func New(cfg Config, apiVersion string, opts ...Option) (Client, error) {
 	if err := ValidateVersion(apiVersion); err != nil {
 		return nil, err
@@ -75,9 +74,16 @@ func New(cfg Config, apiVersion string, opts ...Option) (Client, error) {
 	for _, opt := range opts {
 		opt(&o)
 	}
-	// ValidateVersion above guarantees apiVersion is "v1" (the only
-	// branch that returns a client in this implementation).
-	return NewV1Client(cfg, o.v1CookieJar), nil
+
+	switch apiVersion {
+	case "v1":
+		return NewV1Client(cfg, o.v1CookieJar), nil
+	case "v2":
+		return NewV2Client(cfg), nil
+	default:
+		// Unreachable: ValidateVersion returned nil, so apiVersion is "v1" or "v2".
+		return nil, fmt.Errorf("unsupported --api-version %q", apiVersion)
+	}
 }
 
 // validate checks the required Config fields. ClientVersion is optional

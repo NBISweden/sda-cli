@@ -14,10 +14,12 @@ func TestNew_V1(t *testing.T) {
 	assert.True(t, ok)
 }
 
-func TestNew_V2NotYetImplemented(t *testing.T) {
-	_, err := New(Config{BaseURL: "http://x", Token: "t"}, "v2")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "not yet implemented")
+func TestNew_V2(t *testing.T) {
+	client, err := New(Config{BaseURL: "http://x", Token: "t"}, "v2")
+	require.NoError(t, err)
+	require.NotNil(t, client)
+	_, ok := client.(*V2Client)
+	assert.True(t, ok, "expected *V2Client, got %T", client)
 }
 
 func TestNew_UnknownVersion(t *testing.T) {

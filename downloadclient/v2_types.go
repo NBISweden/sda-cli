@@ -33,7 +33,7 @@ type fileListResponse struct {
 // Currently a mirror of the public downloadclient.DatasetInfo, but kept as a
 // separate wire type so v2-only schema drift (added/renamed fields, extra
 // metadata) can be absorbed here without rippling into the shared
-// apiclient surface. The file count uses json:"files" per swagger (not
+// downloadclient surface. The file count uses json:"files" per swagger (not
 // "fileCount" as the Go field name might suggest). The swagger schema
 // also lists "date" as required; we intentionally don't decode it since
 // the CLI doesn't surface it today — add it here first when that changes.
