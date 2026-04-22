@@ -325,6 +325,51 @@ func (s *DownloadTestSuite) TestGetDatasets() {
 	assert.Equal(s.T(), datasets, []string{"https://doi.example/ty009.sfrrss/600.45asasga"})
 }
 
+// Guards the pre-abstraction error shape: transport/status failures from
+// GetDatasets were wrapped as "failed to get datasets, reason: ...".
+// This test ensures the shim still preserves that prefix after the
+// apiclient refactor.
+func (s *DownloadTestSuite) TestGetDatasets_WrapsTransportError() {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	defer ts.Close()
+
+	_, err := GetDatasets(ts.URL, s.accessToken, "test-version")
+	require.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "failed to get datasets, reason:")
+	assert.Contains(s.T(), err.Error(), "status 403")
+}
+
+// Same parity guard for GetFilesInfo: pre-abstraction, transport/status
+// failures got a "failed to get files, reason: ..." prefix while parse
+// errors kept their own "failed to parse file list JSON, reason: ..."
+// shape. The shim must not double-wrap parse errors.
+func (s *DownloadTestSuite) TestGetFilesInfo_WrapsTransportError() {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	defer ts.Close()
+
+	_, err := GetFilesInfo(ts.URL, "TES01", "", s.accessToken, "test-version")
+	require.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "failed to get files, reason:")
+	assert.Contains(s.T(), err.Error(), "status 403")
+}
+
+func (s *DownloadTestSuite) TestGetFilesInfo_PassesParseErrorThrough() {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, "not json")
+	}))
+	defer ts.Close()
+
+	_, err := GetFilesInfo(ts.URL, "TES01", "", s.accessToken, "test-version")
+	require.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "failed to parse file list")
+	assert.NotContains(s.T(), err.Error(), "failed to get files, reason: failed to parse",
+		"parse errors must not be double-wrapped")
+}
+
 func (s *DownloadTestSuite) TestGetBodyNoPublicKey() {
 	bodyStream, size, err := getBody(s.httpTestServer.URL, "test-token", "")
 	if err != nil {
