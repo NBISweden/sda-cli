@@ -11,7 +11,7 @@ import (
 type Config struct {
 	BaseURL string // e.g. "https://download.example.org"
 	Token   string // bearer token (raw, no "Bearer " prefix)
-	Version string // sda-cli version; sent as SDA-Client-Version header
+	Version string // sda-cli version; SDA-Client-Version on v1, User-Agent "sda-cli/<version>" on v2
 }
 
 // Client is the SDA download API abstraction for list-family operations.

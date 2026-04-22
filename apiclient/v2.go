@@ -43,7 +43,7 @@ func (c *V2Client) ListDatasets(ctx context.Context) ([]string, error) {
 		return nil, fmt.Errorf("failed to decode /datasets response: %w", err)
 	}
 	if resp.NextPageToken != nil && *resp.NextPageToken != "" {
-		return nil, errors.New("pagination not yet implemented (coming in PR #3 of issue #663); v2 response had nextPageToken but paginate helper is not wired yet")
+		return nil, errors.New("pagination not yet implemented (coming in #676)")
 	}
 
 	return resp.Datasets, nil
