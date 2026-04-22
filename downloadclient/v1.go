@@ -166,7 +166,7 @@ func (c *V1Client) DownloadFile(ctx context.Context, req DownloadRequest) (Downl
 	// Client-Public-Key — mirrors legacy getFileIDURL → GetFilesInfo.
 	// Wrap list-resolution failures with the legacy "failed to get
 	// files, reason: ..." prefix that scripts and the download.go shim
-	// have relied on since before the apiclient abstraction.
+	// have relied on since before the downloadclient abstraction.
 	files, err := c.ListFiles(ctx, req.DatasetID, ListFilesOptions{
 		LegacyV1PubKey: req.PublicKeyBase64,
 	})
@@ -189,8 +189,8 @@ func (c *V1Client) DownloadFile(ctx context.Context, req DownloadRequest) (Downl
 	}
 	httpReq.Header.Set("Authorization", "Bearer "+c.cfg.Token)
 	// SDA-Client-Version is emitted on every v1 call by legacy getBody.
-	if c.cfg.Version != "" {
-		httpReq.Header.Set("SDA-Client-Version", c.cfg.Version)
+	if c.cfg.ClientVersion != "" {
+		httpReq.Header.Set("SDA-Client-Version", c.cfg.ClientVersion)
 	}
 	if req.PublicKeyBase64 != "" {
 		httpReq.Header.Set("Client-Public-Key", req.PublicKeyBase64)

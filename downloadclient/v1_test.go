@@ -233,7 +233,7 @@ func TestV1Client_DownloadFile_StripsUserPrefix(t *testing.T) {
 // TestV1Client_DownloadFile_WrapsListFailure guards the legacy
 // "failed to get files, reason: ..." error prefix on list-resolution
 // failures inside DownloadFile. Scripts and the download.go shim have
-// asserted on this prefix since before the apiclient abstraction; without
+// asserted on this prefix since before the downloadclient abstraction; without
 // the wrap, callers see the bare transport error and string-matching
 // breaks.
 func TestV1Client_DownloadFile_WrapsListFailure(t *testing.T) {

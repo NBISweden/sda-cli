@@ -172,8 +172,8 @@ func (c *V2Client) DownloadFile(ctx context.Context, req DownloadRequest) (Downl
 		httpReq.Header.Set("Authorization", "Bearer "+c.cfg.Token)
 	}
 	httpReq.Header.Set("X-C4GH-Public-Key", req.PublicKeyBase64)
-	if c.cfg.Version != "" {
-		httpReq.Header.Set("User-Agent", "sda-cli/"+c.cfg.Version)
+	if c.cfg.ClientVersion != "" {
+		httpReq.Header.Set("User-Agent", "sda-cli/"+c.cfg.ClientVersion)
 	}
 
 	resp, err := c.http.Do(httpReq) // #nosec G704
@@ -199,7 +199,7 @@ func (c *V2Client) DownloadFile(ctx context.Context, req DownloadRequest) (Downl
 	return DownloadResult{File: target, Body: resp.Body, ContentLength: resp.ContentLength}, nil
 }
 
-// resolveFile converts UserArg (path or fileId) into an apiclient.File so
+// resolveFile converts UserArg (path or fileId) into an downloadclient.File so
 // callers can use its DownloadURL. Uses the exact filePath filter for paths;
 // for bare ids, falls back to list + match (v2 has no exact-id filter).
 // Returns a zero File (FileID == "") if not found.

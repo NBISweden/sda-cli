@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-
-	"go.nhat.io/cookiejar"
 )
 
 // Config holds per-call configuration.
@@ -56,24 +54,6 @@ type Client interface {
 	DownloadFile(ctx context.Context, req DownloadRequest) (DownloadResult, error)
 }
 
-// Option customises the Client returned by New. Options only affect the
-// versions they apply to; unknown options are silently ignored by
-// versions that do not honour them (WithV1CookieJar is v1-only).
-type Option func(*clientOpts)
-
-type clientOpts struct {
-	v1CookieJar *cookiejar.PersistentJar
-}
-
-// WithV1CookieJar hands V1Client an externally-managed persistent cookie
-// jar instead of letting it lazy-init its own. Required when the caller
-// (e.g. download/download.go) also runs the legacy downloadFile path so
-// metadata listing and /s3 transfer share the same in-memory jar and
-// avoid clobbering each other via AutoSync to the shared on-disk file.
-func WithV1CookieJar(jar *cookiejar.PersistentJar) Option {
-	return func(o *clientOpts) { o.v1CookieJar = jar }
-}
-
 // ValidateVersion returns the same error shape as New for a given
 // apiVersion string without constructing a client. Callers can use it
 // to fail fast on unsupported versions before doing other setup work
@@ -89,11 +69,10 @@ func ValidateVersion(apiVersion string) error {
 }
 
 // New returns a Client for the requested apiVersion. "v1" returns a V1Client;
-// "v2" returns a V2Client (minimal, some methods are stubs until later PRs
-// of issue #663, see V2Client doc). Returns an error if apiVersion is
-// unsupported, BaseURL is empty or unparseable, or Token is empty.
-// ClientVersion is optional (header only) and not validated.
-func New(cfg Config, apiVersion string, opts ...Option) (Client, error) {
+// "v2" returns a V2Client. Returns an error if apiVersion is unsupported,
+// BaseURL is empty or unparseable, or Token is empty. ClientVersion is
+// optional (header only) and not validated.
+func New(cfg Config, apiVersion string) (Client, error) {
 	if err := ValidateVersion(apiVersion); err != nil {
 		return nil, err
 	}
@@ -101,14 +80,9 @@ func New(cfg Config, apiVersion string, opts ...Option) (Client, error) {
 		return nil, err
 	}
 
-	var o clientOpts
-	for _, opt := range opts {
-		opt(&o)
-	}
-
 	switch apiVersion {
 	case "v1":
-		return NewV1Client(cfg, o.v1CookieJar), nil
+		return NewV1Client(cfg, nil), nil
 	case "v2":
 		return NewV2Client(cfg), nil
 	default:
