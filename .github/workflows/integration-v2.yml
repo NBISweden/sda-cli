@@ -56,11 +56,20 @@ jobs:
           echo "::add-mask::$TOKEN"
           echo "TOKEN=$TOKEN" >> "$GITHUB_OUTPUT"
 
+      - name: Extract c4gh pubkey
+        id: pubkey
+        run: |
+          docker compose --project-name download-v2-dev cp reencrypt:/shared/c4gh.pub.pem ./c4gh.pub.pem
+          KEY=$(base64 -w0 ./c4gh.pub.pem)
+          echo "::add-mask::$KEY"
+          echo "KEY=$KEY" >> "$GITHUB_OUTPUT"
+
       - name: Run v2 integration tests
         working-directory: sda-cli
         env:
           DOWNLOAD_V2_URL: http://localhost:8085
           DOWNLOAD_V2_TOKEN: ${{ steps.token.outputs.TOKEN }}
+          DOWNLOAD_V2_PUBKEY_B64: ${{ steps.pubkey.outputs.KEY }}
         run: |
           go test -tags=integration -v ./...
 
