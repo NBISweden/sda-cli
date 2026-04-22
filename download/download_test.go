@@ -1,6 +1,7 @@
 package download
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"errors"
@@ -17,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/NBISweden/sda-cli/apiclient"
 	createkey "github.com/NBISweden/sda-cli/create_key"
 	"github.com/golang-jwt/jwt"
 	"github.com/stretchr/testify/assert"
@@ -92,6 +94,7 @@ func (s *DownloadTestSuite) SetupTest() {
 	downloadCmd.Flag("from-file").Value.Set("false")
 	downloadCmd.Flag("ignore-existing").Value.Set("false")
 	downloadCmd.Flag("overwrite-existing").Value.Set("false")
+	downloadCmd.Flag("api-version").Value.Set("v1")
 	pubKeyBase64 = ""
 
 	s.tempDir = s.T().TempDir()
@@ -312,7 +315,13 @@ func (s *DownloadTestSuite) TestFileIdUrl() {
 		},
 	} {
 		s.T().Run(test.testName, func(t *testing.T) {
-			url, _, err := getFileIDURL(test.baseURL, s.accessToken, "", test.datasetID, test.filePath)
+			client := apiclient.NewV1Client(apiclient.Config{
+				BaseURL: test.baseURL,
+				Token:   s.accessToken,
+				Version: "test",
+			}, nil)
+			client.SetHTTPClientForTest(s.httpTestServer.Client())
+			url, _, err := getFileIDURL(context.Background(), client, test.baseURL, test.datasetID, "", test.filePath)
 			assert.Equal(t, test.expectedError, err)
 			assert.Equal(t, test.expectedURL, url)
 		})
