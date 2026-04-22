@@ -28,20 +28,24 @@ func TestV2Client_ListDatasets_SinglePage(t *testing.T) {
 	assert.Equal(t, []string{"EGAD00000000001", "EGAD00000000002"}, got)
 }
 
-func TestV2Client_ListDatasets_MultiPageNotYetImplemented(t *testing.T) {
-	// Minimal ListDatasets returns the first page only. If nextPageToken
-	// is non-null, we explicitly warn by returning an error so #676 can
-	// flip this into a real paginate call without silent truncation.
+func TestV2Client_ListDatasets_MultiPage(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"datasets":["EGAD001"],"nextPageToken":"ptk_second"}`)
+		switch r.URL.Query().Get("pageToken") {
+		case "":
+			fmt.Fprint(w, `{"datasets":["EGAD001","EGAD002"],"nextPageToken":"ptk_a"}`)
+		case "ptk_a":
+			fmt.Fprint(w, `{"datasets":["EGAD003"],"nextPageToken":null}`)
+		default:
+			t.Fatalf("unexpected pageToken %q", r.URL.Query().Get("pageToken"))
+		}
 	}))
 	defer ts.Close()
 
 	c := NewV2Client(Config{BaseURL: ts.URL, Token: "t"})
 	c.http = ts.Client()
 
-	_, err := c.ListDatasets(context.Background())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "pagination not yet implemented")
+	got, err := c.ListDatasets(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, []string{"EGAD001", "EGAD002", "EGAD003"}, got)
 }
