@@ -97,9 +97,25 @@ func (c *V2Client) ListFiles(ctx context.Context, datasetID string, opts ListFil
 	})
 }
 
-// DatasetInfo implements Client. Not implemented until #676.
-func (c *V2Client) DatasetInfo(_ context.Context, _ string) (DatasetInfo, error) {
-	return DatasetInfo{}, errors.New("V2Client.DatasetInfo not implemented until #676")
+// DatasetInfo implements Client. Calls GET /datasets/{id} and returns the
+// v2-only dataset metadata (file count + total decrypted size).
+func (c *V2Client) DatasetInfo(ctx context.Context, datasetID string) (DatasetInfo, error) {
+	u := c.cfg.BaseURL + "/datasets/" + url.PathEscape(datasetID)
+	body, err := c.getJSON(ctx, u)
+	if err != nil {
+		return DatasetInfo{}, err
+	}
+	defer body.Close() //nolint:errcheck
+
+	var resp datasetInfoResponse
+	if err := json.NewDecoder(body).Decode(&resp); err != nil {
+		return DatasetInfo{}, fmt.Errorf("failed to decode /datasets/%s response: %w", datasetID, err)
+	}
+
+	// Structural type conversion: fails to compile if datasetInfoResponse
+	// ever drifts from DatasetInfo, which forces the decoupling rationale
+	// in v2_types.go to be re-examined rather than silently papered over.
+	return DatasetInfo(resp), nil
 }
 
 // getJSON performs an authenticated GET returning the response body.
