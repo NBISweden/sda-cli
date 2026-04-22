@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 )
 
 // V2Client talks to the v2 SDA download API
@@ -28,25 +29,28 @@ func NewV2Client(cfg Config) *V2Client {
 	}
 }
 
-// ListDatasets implements Client. Single-page only here; pagination via the
-// paginate[T] helper arrives in #676. Returning an explicit error when
-// nextPageToken != null prevents silently truncating results.
+// ListDatasets implements Client. Uses the paginate[T] helper to walk all
+// pages of GET /datasets, following nextPageToken until the server returns
+// null or an empty string.
 func (c *V2Client) ListDatasets(ctx context.Context) ([]string, error) {
-	body, err := c.getJSON(ctx, c.cfg.BaseURL+"/datasets")
-	if err != nil {
-		return nil, err
-	}
-	defer body.Close() //nolint:errcheck
+	return paginate(ctx, func(ctx context.Context, pageToken *string) ([]string, *string, error) {
+		u := c.cfg.BaseURL + "/datasets"
+		if pageToken != nil {
+			u += "?pageToken=" + url.QueryEscape(*pageToken)
+		}
+		body, err := c.getJSON(ctx, u)
+		if err != nil {
+			return nil, nil, err
+		}
+		defer body.Close() //nolint:errcheck
 
-	var resp datasetListResponse
-	if err := json.NewDecoder(body).Decode(&resp); err != nil {
-		return nil, fmt.Errorf("failed to decode /datasets response: %w", err)
-	}
-	if resp.NextPageToken != nil && *resp.NextPageToken != "" {
-		return nil, errors.New("pagination not yet implemented (coming in #676)")
-	}
+		var resp datasetListResponse
+		if err := json.NewDecoder(body).Decode(&resp); err != nil {
+			return nil, nil, fmt.Errorf("failed to decode /datasets response: %w", err)
+		}
 
-	return resp.Datasets, nil
+		return resp.Datasets, resp.NextPageToken, nil
+	})
 }
 
 // ListFiles implements Client. Not implemented until #676.
