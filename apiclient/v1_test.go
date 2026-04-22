@@ -115,6 +115,22 @@ func TestV1Client_ListFiles_ForwardsLegacyV1PubKey(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// Guards the "failed to parse file list" prefix that download.GetFilesInfo
+// relies on to skip double-wrapping parse errors. See download.GetFilesInfo.
+func TestV1Client_ListFiles_InvalidJSON(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, "not json")
+	}))
+	defer ts.Close()
+
+	c := NewV1Client(Config{BaseURL: ts.URL, Token: "t"}, nil)
+	c.http = ts.Client()
+
+	_, err := c.ListFiles(context.Background(), "TES01", ListFilesOptions{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse file list")
+}
+
 func TestV1Client_ListFiles_RejectsV2Options(t *testing.T) {
 	c := NewV1Client(Config{BaseURL: "http://unused", Token: "t"}, nil)
 

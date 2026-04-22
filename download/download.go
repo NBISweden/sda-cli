@@ -2,6 +2,7 @@ package download
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/NBISweden/sda-cli/apiclient"
 	rootcmd "github.com/NBISweden/sda-cli/cmd"
 	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/spf13/cobra"
@@ -73,15 +75,10 @@ var cookieJar *cookiejar.PersistentJar
 var cookiePath string
 var appVersion string
 
-// File struct represents the file metadata
-type File struct {
-	FileID                    string `json:"fileId"`
-	DisplayFileName           string `json:"displayFileName"`
-	FilePath                  string `json:"filePath"`
-	DecryptedFileSize         int    `json:"decryptedFileSize"`
-	DecryptedFileChecksum     string `json:"decryptedFileChecksum"`
-	DecryptedFileChecksumType string `json:"decryptedFileChecksumType"`
-}
+// File is the file metadata type. Canonical definition lives in apiclient.
+// Alias preserves source compat for existing callers (list/, tests). Removed
+// in #677 when callers reference apiclient.File directly.
+type File = apiclient.File
 
 // Download function downloads files from the SDA by using the
 // download's service APIs
@@ -428,53 +425,74 @@ func getFileIDURL(baseURL, token, pubKeyBase64, dataset, filename string) (strin
 	return fileURL, fileName, nil
 }
 
+// GetDatasets is retained for backward compatibility with list/ and
+// download_test.go. Deprecated: new code should call apiclient.Client
+// via apiclient.New(...). Removed in #677 when callers finish migrating.
 func GetDatasets(baseURL, token, version string) ([]string, error) {
-	appVersion = version
+	// URL-parse errors are returned unwrapped to preserve legacy behavior
+	// (TestListDatasetsNoUrl asserts on the bare "invalid base URL" string).
 	u, err := url.ParseRequestURI(baseURL)
 	if err != nil || u.Scheme == "" {
-		return []string{}, errors.New("invalid base URL")
+		return nil, errors.New("invalid base URL")
 	}
 
-	setupCookieJar(u)
+	c := apiclient.NewV1Client(apiclient.Config{
+		BaseURL: baseURL,
+		Token:   token,
+		Version: version,
+	})
 
-	datasetsURL := baseURL + "/metadata/datasets"
-
-	bodyStream, _, err := getBody(datasetsURL, token, "")
+	datasets, err := c.ListDatasets(context.Background())
 	if err != nil {
-		return []string{}, fmt.Errorf("failed to get datasets, reason: %v", err)
-	}
-	defer bodyStream.Close()
+		// Preserve pre-abstraction error shape: transport/status failures were
+		// wrapped as "failed to get datasets, reason: ..."; parse errors
+		// already carry their own "failed to parse ..." prefix from
+		// V1Client.ListDatasets, so pass those through untouched to avoid
+		// double-wrapping.
+		if strings.HasPrefix(err.Error(), "failed to parse") {
+			return nil, err
+		}
 
-	var datasets []string
-	err = json.NewDecoder(bodyStream).Decode(&datasets)
-	if err != nil {
-		return []string{}, fmt.Errorf("failed to parse dataset list JSON, reason: %v", err)
+		return nil, fmt.Errorf("failed to get datasets, reason: %v", err)
 	}
 
 	return datasets, nil
 }
 
-// GetFilesInfo gets the files of the dataset by using the dataset ID
+// GetFilesInfo is retained for backward compatibility. Preserves v1's
+// error-prefix behavior ("failed to get files, reason: ...") that
+// existing tests like TestInvalidUrl rely on. Deprecated: call
+// apiclient.Client.ListFiles instead. Removed in #677.
 func GetFilesInfo(baseURL, dataset, pubKeyBase64, token, version string) ([]File, error) {
-	appVersion = version
+	_ = pubKeyBase64 // preserved in signature for caller ABI; V1Client.ListFiles
+	// does not send Client-Public-Key on /files (server ignores it);
+	// re-introduced in PR #4 if caller-side need surfaces.
+
+	// URL-parse errors are returned unwrapped to preserve legacy behavior
+	// (tests like TestFileIdUrl/InvalidUrl and TestListDatasetNoUrl rely on
+	// the bare "invalid base URL" string).
 	u, err := url.ParseRequestURI(baseURL)
 	if err != nil || u.Scheme == "" {
-		return []File{}, errors.New("invalid base URL")
+		return nil, errors.New("invalid base URL")
 	}
 
-	setupCookieJar(u)
-
-	filesURL := baseURL + "/metadata/datasets/" + dataset + "/files"
-	bodyStream, _, err := getBody(filesURL, token, pubKeyBase64)
+	c := apiclient.NewV1Client(apiclient.Config{
+		BaseURL: baseURL,
+		Token:   token,
+		Version: version,
+	})
+	files, err := c.ListFiles(context.Background(), dataset, apiclient.ListFilesOptions{})
 	if err != nil {
-		return []File{}, fmt.Errorf("failed to get files, reason: %v", err)
-	}
-	defer bodyStream.Close()
+		// Same shape discrimination as GetDatasets: parse errors from
+		// V1Client already carry "failed to parse ..." prefixes, so avoid
+		// double-wrapping by passing those through. Transport/status
+		// failures keep the legacy "failed to get files, reason: ..."
+		// wrapper that callers and TestInvalidUrl depend on.
+		if strings.HasPrefix(err.Error(), "failed to parse") {
+			return nil, err
+		}
 
-	var files []File
-	err = json.NewDecoder(bodyStream).Decode(&files)
-	if err != nil {
-		return []File{}, fmt.Errorf("failed to parse file list JSON, reason: %v", err)
+		return nil, fmt.Errorf("failed to get files, reason: %v", err)
 	}
 
 	return files, nil
