@@ -151,6 +151,25 @@ func (s *DownloadTestSuite) TestInvalidUrl() {
 	)
 }
 
+func (s *DownloadTestSuite) TestDownload_APIVersionV2_NotYetImplemented() {
+	// Set everything Download() requires so it reaches the apiclient.New factory.
+	oldDatasetID, oldURL, oldAPIVersion := datasetID, URL, apiVersionFlag
+	datasetID = "TES01"
+	URL = s.httpTestServer.URL
+	apiVersionFlag = "v2"
+	defer func() {
+		datasetID, URL, apiVersionFlag = oldDatasetID, oldURL, oldAPIVersion
+	}()
+
+	oldPubKey := pubKey
+	pubKey = fmt.Sprintf("%s.pub.pem", s.testKeyFile)
+	defer func() { pubKey = oldPubKey }()
+
+	err := Download([]string{"files/file1.c4gh"}, s.configFilePath, "test")
+	require.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "not yet implemented")
+}
+
 func (s *DownloadTestSuite) TestDownloadOneFileWithPublicKey() {
 	os.Args = []string{"", "download", "files/dummy-file.txt.c4gh"}
 	downloadCmd.Flag("pubkey").Value.Set(fmt.Sprintf("%s.pub.pem", s.testKeyFile))
