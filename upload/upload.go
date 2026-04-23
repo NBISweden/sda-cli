@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -276,10 +277,14 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		}
 
 		p.Shutdown()
+		keySegments := strings.Split(path.Join(targetDir, outFiles[k]), "/")
+		for i := range keySegments {
+			keySegments[i] = url.PathEscape(keySegments[i])
+		}
 		fmt.Printf("file uploaded to %s/%s/%s\n",
 			strings.TrimRight(config.HostBase, "/"),
-			config.AccessKey,
-			path.Join(targetDir, outFiles[k]))
+			url.PathEscape(config.AccessKey),
+			strings.Join(keySegments, "/"))
 	}
 
 	return nil
