@@ -242,6 +242,38 @@ func (s *ListTestSuite) TestListDatasetsNoUrl() {
 	assert.EqualError(s.T(), err, "invalid base URL")
 }
 
+func (s *ListTestSuite) TestListDatasets_WrapsTransportError() {
+	// v1 list --datasets surfaces HTTP / transport failures with the legacy
+	// "failed to get datasets, reason: ..." prefix that callers of the
+	// pre-apiclient download.GetDatasets shim used to emit.
+	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer failing.Close()
+
+	listCmd.Flag("datasets").Value.Set("true")
+	listCmd.Flag("url").Value.Set(failing.URL)
+	err := listCmd.Execute()
+	require.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "failed to get datasets, reason:")
+}
+
+func (s *ListTestSuite) TestListDataset_WrapsTransportError() {
+	// v1 list --dataset surfaces HTTP / transport failures with the legacy
+	// "failed to get files, reason: ..." prefix (same contract as
+	// download.GetFilesInfo emitted before apiclient was introduced).
+	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer failing.Close()
+
+	listCmd.Flag("dataset").Value.Set("TES01")
+	listCmd.Flag("url").Value.Set(failing.URL)
+	err := listCmd.Execute()
+	require.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "failed to get files, reason:")
+}
+
 func (s *ListTestSuite) TestList_APIVersionV2_ListDatasets() {
 	// Under #675, `list --datasets --api-version v2` prints just the dataset
 	// IDs returned by v2's /datasets endpoint; #676 reintroduces the
