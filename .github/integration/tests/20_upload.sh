@@ -19,6 +19,20 @@ cp data_files_enc/data_file.c4gh data_files_enc/dir1/dir2/data_file2.c4gh
 ./sda-cli --config testing/s3cmd.conf upload data_file.c4gh
 check_uploaded_file "test/$user/data_file.c4gh" data_file.c4gh
 
+# Exercise multipart code path (PartSizeBytes=50MiB, file>60MiB encrypted)
+./sda-cli --config testing/s3cmd.conf upload data_file_big.c4gh
+if ! s3cmd -c testing/directS3 ls "s3://test/$user/data_file_big.c4gh" | grep -q data_file_big.c4gh; then
+    echo "Multipart upload missing from s3 backend"
+    exit 1
+fi
+s3size=$(s3cmd -c testing/directS3 ls "s3://test/$user/data_file_big.c4gh" | awk '{print $3}')
+local_size=$(wc -c < data_file_big.c4gh | awk '{print $1}')
+if [ "$s3size" != "$local_size" ]; then
+    echo "Multipart upload size mismatch: s3=$s3size local=$local_size"
+    exit 1
+fi
+echo "Multipart upload verified ($s3size bytes)"
+
 # Upload the file twice check that this returns an error
 msg=$(./sda-cli --config testing/s3cmd.conf upload data_file.c4gh 2>&1 | tail -1 || true)
 if ! grep -q "Error:" <<< "$msg"

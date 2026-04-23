@@ -16,7 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/neicnordic/crypt4gh/keys"
 	"github.com/spf13/cobra"
@@ -130,7 +130,9 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 	})
 
 	// Create an uploader with the session and default options
-	uploader := manager.NewUploader(s3Client)
+	uploader := transfermanager.New(s3Client, func(o *transfermanager.Options) {
+		o.PartSizeBytes = config.MultipartChunkSizeMb * 1024 * 1024
+	})
 	for k, filename := range files {
 		// create progress bar instance
 		p := mpb.New()
@@ -221,15 +223,11 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		)
 
 		// Upload the file to S3.
-		result, err := uploader.Upload(ctx, &s3.PutObjectInput{
+		result, err := uploader.UploadObject(ctx, &transfermanager.UploadObjectInput{
 			Body:            bar.ProxyReader(fs.Reader),
 			Bucket:          aws.String(config.AccessKey),
 			Key:             aws.String(path.Join(targetDir, outFiles[k])),
 			ContentEncoding: aws.String(config.Encoding),
-		}, func(u *manager.Uploader) {
-			u.PartSize = config.MultipartChunkSizeMb * 1024 * 1024
-			// Delete parts of failed multipart, since we cannot currently continue them
-			u.LeavePartsOnError = false
 		})
 		// Print the progress bar. Second check is to filter out some junk from the output
 		if result != nil && result.VersionID != nil {
@@ -278,7 +276,10 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		}
 
 		p.Shutdown()
-		fmt.Printf("file uploaded to %s\n", aws.ToString(&result.Location))
+		fmt.Printf("file uploaded to %s/%s/%s\n",
+			strings.TrimRight(config.HostBase, "/"),
+			config.AccessKey,
+			path.Join(targetDir, outFiles[k]))
 	}
 
 	return nil

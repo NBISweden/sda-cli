@@ -6,6 +6,9 @@ source "$test_dir/../scripts/checkers.sh"
 # Create random file
 dd if=/dev/urandom of=data_file count=10 bs=1M
 
+# Larger file to exercise multipart upload path (>50 MiB chunk threshold)
+dd if=/dev/urandom of=data_file_big count=60 bs=1M
+
 # Create key pair
 if ( yes "" | ./sda-cli createKey sda_key ) ; then
     echo "Created key pair for encryption"
@@ -18,6 +21,9 @@ fi
 ./sda-cli encrypt --key sda_key.pub.pem data_file
 
 check_encrypted_file data_file.c4gh
+
+./sda-cli encrypt --key sda_key.pub.pem data_file_big
+check_encrypted_file data_file_big.c4gh
 
 
 # Create folder and encrypt files in it
