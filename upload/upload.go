@@ -229,6 +229,9 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 			Bucket:          aws.String(config.AccessKey),
 			Key:             aws.String(path.Join(targetDir, outFiles[k])),
 			ContentEncoding: aws.String(config.Encoding),
+		}, func(o *transfermanager.Options) {
+			// Preserve RequestChecksumCalculationWhenRequired for S3-compatible inboxes.
+			o.ChecksumAlgorithm = ""
 		})
 		// Print the progress bar. Second check is to filter out some junk from the output
 		if result != nil && result.VersionID != nil {
