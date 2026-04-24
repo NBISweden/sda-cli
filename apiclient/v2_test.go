@@ -277,3 +277,95 @@ func TestV2Client_DatasetInfo(t *testing.T) {
 	assert.Equal(t, 42, got.FileCount)
 	assert.Equal(t, int64(1234567890), got.Size)
 }
+
+func TestV2Client_ListDatasets_ProblemDetails401(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprint(w, `{"type":"/errors/auth","title":"Unauthorized","status":401,"detail":"token expired"}`)
+	}))
+	defer ts.Close()
+
+	c := NewV2Client(Config{BaseURL: ts.URL, Token: "bad"})
+	c.http = ts.Client()
+
+	_, err := c.ListDatasets(context.Background())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Unauthorized")
+	assert.Contains(t, err.Error(), "token expired")
+	assert.Contains(t, err.Error(), "401")
+}
+
+func TestV2Client_DownloadFile_ResolveForbidden(t *testing.T) {
+	// A 403 on the list/resolve step (Problem Details body) must still
+	// flatten to the ambiguous leakage-contract message, not leak the
+	// Problem Details wording. Exercises the errors.As(*APIError) typed
+	// path that replaced the old substring-match on "status 403".
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(http.StatusForbidden)
+		fmt.Fprint(w, `{"title":"Forbidden","status":403,"detail":"no access to dataset"}`)
+	}))
+	defer ts.Close()
+
+	c := NewV2Client(Config{BaseURL: ts.URL, Token: "t"})
+	c.http = ts.Client()
+
+	_, err := c.DownloadFile(context.Background(), DownloadRequest{
+		DatasetID: "EGAD001", UserArg: "a.c4gh", PublicKeyBase64: "k",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "dataset/file does not exist or access denied")
+	assert.NotContains(t, err.Error(), "Forbidden")
+	assert.NotContains(t, err.Error(), "no access to dataset")
+}
+
+func TestV2Client_DownloadFile_403Ambiguous(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/datasets/EGAD001/files":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"files":[{"fileId":"f1","filePath":"a.c4gh","size":1,"decryptedSize":1,"checksums":[],"downloadUrl":"/files/f1"}],"nextPageToken":null}`)
+		case "/files/f1":
+			w.Header().Set("Content-Type", "application/problem+json")
+			w.WriteHeader(http.StatusForbidden)
+			fmt.Fprint(w, `{"title":"Forbidden","status":403,"detail":"user lacks access"}`)
+		default:
+			t.Errorf("unexpected request path: %s", r.URL.Path)
+		}
+	}))
+	defer ts.Close()
+
+	c := NewV2Client(Config{BaseURL: ts.URL, Token: "t"})
+	c.http = ts.Client()
+
+	_, err := c.DownloadFile(context.Background(), DownloadRequest{
+		DatasetID: "EGAD001", UserArg: "a.c4gh", PublicKeyBase64: "k",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "dataset/file does not exist or access denied")
+	assert.NotContains(t, err.Error(), "Forbidden")
+	assert.NotContains(t, err.Error(), "user lacks access")
+}
+
+func TestV2Client_DownloadFile_Resolve500NotFlattened(t *testing.T) {
+	// Non-403 errors from the resolve step must NOT flatten — they carry
+	// actionable info (like "db down") that the user needs to see.
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, `{"title":"Internal Server Error","status":500,"detail":"db down"}`)
+	}))
+	defer ts.Close()
+
+	c := NewV2Client(Config{BaseURL: ts.URL, Token: "t"})
+	c.http = ts.Client()
+
+	_, err := c.DownloadFile(context.Background(), DownloadRequest{
+		DatasetID: "EGAD001", UserArg: "a.c4gh", PublicKeyBase64: "k",
+	})
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "does not exist or access denied")
+	assert.Contains(t, err.Error(), "Internal Server Error")
+	assert.Contains(t, err.Error(), "db down")
+}
