@@ -136,7 +136,12 @@ func (c *V2Client) getJSON(ctx context.Context, reqURL string) (io.ReadCloser, e
 		return nil, fmt.Errorf("http request: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		b, _ := io.ReadAll(resp.Body)
+		// Cap the read at 201 bytes: we only surface up to 200 bytes of
+		// the body in the error and a hostile or misconfigured server
+		// could otherwise stream a large payload into memory just to be
+		// truncated. The remainder is intentionally not drained; a bogus
+		// error body isn't worth keeping the connection in the pool.
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 201))
 		_ = resp.Body.Close()
 		body := string(b)
 		if len(body) > 200 {
