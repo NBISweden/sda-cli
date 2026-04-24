@@ -18,7 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/golang-jwt/jwt"
 	"github.com/johannesboyne/gofakes3"
@@ -86,11 +86,11 @@ func (s *ListTestSuite) SetupSuite() {
 	if err != nil {
 		s.FailNow("failed to create s3 bucket", err)
 	}
-	uploader := manager.NewUploader(s3Client)
+	uploader := transfermanager.New(s3Client)
 
 	fileToUpload := strings.NewReader("test content")
 	s.testFilePath = "dummy/testfile"
-	if _, err := uploader.Upload(context.Background(), &s3.PutObjectInput{
+	if _, err := uploader.UploadObject(context.Background(), &transfermanager.UploadObjectInput{
 		Body:            fileToUpload,
 		Bucket:          aws.String("dummy"),
 		Key:             aws.String(s.testFilePath),
