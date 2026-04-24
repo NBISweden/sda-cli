@@ -242,13 +242,81 @@ func (s *ListTestSuite) TestListDatasetsNoUrl() {
 	assert.EqualError(s.T(), err, "invalid base URL")
 }
 
-func (s *ListTestSuite) TestList_APIVersionV2_NotYetImplemented() {
+func (s *ListTestSuite) TestListDatasets_WrapsTransportError() {
+	// v1 list --datasets surfaces HTTP / transport failures with the legacy
+	// "failed to get datasets, reason: ..." prefix that callers of the
+	// pre-apiclient download.GetDatasets shim used to emit.
+	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer failing.Close()
+
 	listCmd.Flag("datasets").Value.Set("true")
+	listCmd.Flag("url").Value.Set(failing.URL)
+	err := listCmd.Execute()
+	require.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "failed to get datasets, reason:")
+}
+
+func (s *ListTestSuite) TestListDataset_WrapsTransportError() {
+	// v1 list --dataset surfaces HTTP / transport failures with the legacy
+	// "failed to get files, reason: ..." prefix (same contract as
+	// download.GetFilesInfo emitted before apiclient was introduced).
+	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer failing.Close()
+
+	listCmd.Flag("dataset").Value.Set("TES01")
+	listCmd.Flag("url").Value.Set(failing.URL)
+	err := listCmd.Execute()
+	require.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "failed to get files, reason:")
+}
+
+func (s *ListTestSuite) TestList_APIVersionV2_ListDatasets() {
+	// Under #675, `list --datasets --api-version v2` prints just the dataset
+	// IDs returned by v2's /datasets endpoint; #676 reintroduces the
+	// per-dataset file count + size enrichment via DatasetInfo.
+	v2Server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path != "/datasets" {
+			w.WriteHeader(http.StatusNotFound)
+
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"datasets":["EGAD00000000001","EGAD00000000002"],"nextPageToken":null}`)
+	}))
+	defer v2Server.Close()
+
+	rescueStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	listCmd.Flag("datasets").Value.Set("true")
+	listCmd.Flag("url").Value.Set(v2Server.URL)
+	listCmd.Flag("api-version").Value.Set("v2")
+	err := listCmd.Execute()
+	require.NoError(s.T(), err)
+
+	_ = w.Close()
+	os.Stdout = rescueStdout
+	listOutput, _ := io.ReadAll(r)
+	_ = r.Close()
+	assert.Contains(s.T(), string(listOutput), "EGAD00000000001")
+	assert.Contains(s.T(), string(listOutput), "EGAD00000000002")
+}
+
+func (s *ListTestSuite) TestList_APIVersionV2_StubsNotImplemented() {
+	// v2 factory now returns a real V2Client (#675). For `--dataset <id>`,
+	// list calls client.ListFiles, which for v2 is stubbed until #676 and
+	// returns a "not implemented until #676" error.
+	listCmd.Flag("dataset").Value.Set("TES01")
 	listCmd.Flag("url").Value.Set(s.downloadMockHTTPServer.URL)
 	listCmd.Flag("api-version").Value.Set("v2")
 	err := listCmd.Execute()
 	require.Error(s.T(), err)
-	assert.Contains(s.T(), err.Error(), "not yet implemented")
+	assert.Contains(s.T(), err.Error(), "not implemented until #676")
 }
 
 func (s *ListTestSuite) generateDummyToken() string {
