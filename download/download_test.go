@@ -151,11 +151,12 @@ func (s *DownloadTestSuite) TestInvalidUrl() {
 	)
 }
 
-func (s *DownloadTestSuite) TestDownload_APIVersionV2_StubsNotImplemented() {
-	// v2 factory now returns a real V2Client (#675). The error surfaces
-	// when Download() hits a stubbed method — for the single-file path,
-	// getFileIDURL calls client.ListFiles which returns
-	// "V2Client.ListFiles not implemented until #676".
+func (s *DownloadTestSuite) TestDownload_APIVersionV2_RejectedUntilPR677() {
+	// v2 list commands are live as of #676, but download still uses the
+	// legacy /s3 transfer. Download() rejects --api-version v2 early so
+	// users don't silently half-succeed (v2 ListFiles OK) then hit a
+	// cryptic 404 on /s3/{fileID}. The real v2 download path arrives in
+	// #677.
 	oldDatasetID, oldURL, oldAPIVersion := datasetID, URL, apiVersionFlag
 	datasetID = "TES01"
 	URL = s.httpTestServer.URL
@@ -164,13 +165,9 @@ func (s *DownloadTestSuite) TestDownload_APIVersionV2_StubsNotImplemented() {
 		datasetID, URL, apiVersionFlag = oldDatasetID, oldURL, oldAPIVersion
 	}()
 
-	oldPubKey := pubKey
-	pubKey = fmt.Sprintf("%s.pub.pem", s.testKeyFile)
-	defer func() { pubKey = oldPubKey }()
-
 	err := Download([]string{"files/file1.c4gh"}, s.configFilePath, "test")
 	require.Error(s.T(), err)
-	assert.Contains(s.T(), err.Error(), "not implemented until #676")
+	assert.Contains(s.T(), err.Error(), "v2 download is not yet implemented")
 }
 
 func (s *DownloadTestSuite) TestDownloadOneFileWithPublicKey() {

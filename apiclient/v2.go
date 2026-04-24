@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 )
 
 // V2Client talks to the v2 SDA download API
@@ -28,35 +29,93 @@ func NewV2Client(cfg Config) *V2Client {
 	}
 }
 
-// ListDatasets implements Client. Single-page only here; pagination via the
-// paginate[T] helper arrives in #676. Returning an explicit error when
-// nextPageToken != null prevents silently truncating results.
+// ListDatasets implements Client. Uses the paginate[T] helper to walk all
+// pages of GET /datasets, following nextPageToken until the server returns
+// null or an empty string.
 func (c *V2Client) ListDatasets(ctx context.Context) ([]string, error) {
-	body, err := c.getJSON(ctx, c.cfg.BaseURL+"/datasets")
+	return paginate(ctx, func(ctx context.Context, pageToken *string) ([]string, *string, error) {
+		u := c.cfg.BaseURL + "/datasets"
+		if pageToken != nil {
+			u += "?" + url.Values{"pageToken": {*pageToken}}.Encode()
+		}
+		body, err := c.getJSON(ctx, u)
+		if err != nil {
+			return nil, nil, err
+		}
+		defer body.Close() //nolint:errcheck
+
+		var resp datasetListResponse
+		if err := json.NewDecoder(body).Decode(&resp); err != nil {
+			return nil, nil, fmt.Errorf("failed to decode /datasets response: %w", err)
+		}
+
+		return resp.Datasets, resp.NextPageToken, nil
+	})
+}
+
+// ListFiles implements Client. Walks all pages of GET /datasets/{id}/files,
+// optionally applying the v2 server-side filters (exact filePath, or recursive
+// pathPrefix). The two filters are mutually exclusive per v2's contract;
+// we reject that combo client-side for a friendlier message than the
+// server's 400.
+func (c *V2Client) ListFiles(ctx context.Context, datasetID string, opts ListFilesOptions) ([]File, error) {
+	if opts.ExactPath != "" && opts.PathPrefix != "" {
+		return nil, errors.New("ListFilesOptions.ExactPath and .PathPrefix are mutually exclusive")
+	}
+
+	return paginate(ctx, func(ctx context.Context, pageToken *string) ([]File, *string, error) {
+		u := c.cfg.BaseURL + "/datasets/" + url.PathEscape(datasetID) + "/files"
+		q := url.Values{}
+		if opts.ExactPath != "" {
+			q.Set("filePath", opts.ExactPath)
+		}
+		if opts.PathPrefix != "" {
+			q.Set("pathPrefix", opts.PathPrefix)
+		}
+		if pageToken != nil {
+			q.Set("pageToken", *pageToken)
+		}
+		if enc := q.Encode(); enc != "" {
+			u += "?" + enc
+		}
+		body, err := c.getJSON(ctx, u)
+		if err != nil {
+			return nil, nil, err
+		}
+		defer body.Close() //nolint:errcheck
+
+		var resp fileListResponse
+		if err := json.NewDecoder(body).Decode(&resp); err != nil {
+			return nil, nil, fmt.Errorf("failed to decode /datasets/%s/files response: %w", datasetID, err)
+		}
+		out := make([]File, len(resp.Files))
+		for i, f := range resp.Files {
+			out[i] = f.toFile()
+		}
+
+		return out, resp.NextPageToken, nil
+	})
+}
+
+// DatasetInfo implements Client. Calls GET /datasets/{id} and returns the
+// v2-only dataset metadata (file count + total decrypted size).
+func (c *V2Client) DatasetInfo(ctx context.Context, datasetID string) (DatasetInfo, error) {
+	u := c.cfg.BaseURL + "/datasets/" + url.PathEscape(datasetID)
+	body, err := c.getJSON(ctx, u)
 	if err != nil {
-		return nil, err
+		return DatasetInfo{}, err
 	}
 	defer body.Close() //nolint:errcheck
 
-	var resp datasetListResponse
+	var resp datasetInfoResponse
 	if err := json.NewDecoder(body).Decode(&resp); err != nil {
-		return nil, fmt.Errorf("failed to decode /datasets response: %w", err)
-	}
-	if resp.NextPageToken != nil && *resp.NextPageToken != "" {
-		return nil, errors.New("pagination not yet implemented (coming in #676)")
+		return DatasetInfo{}, fmt.Errorf("failed to decode /datasets/%s response: %w", datasetID, err)
 	}
 
-	return resp.Datasets, nil
-}
-
-// ListFiles implements Client. Not implemented until #676.
-func (c *V2Client) ListFiles(_ context.Context, _ string, _ ListFilesOptions) ([]File, error) {
-	return nil, errors.New("V2Client.ListFiles not implemented until #676")
-}
-
-// DatasetInfo implements Client. Not implemented until #676.
-func (c *V2Client) DatasetInfo(_ context.Context, _ string) (DatasetInfo, error) {
-	return DatasetInfo{}, errors.New("V2Client.DatasetInfo not implemented until #676")
+	// Structural type conversion: fails to compile if datasetInfoResponse
+	// ever drifts from DatasetInfo, which forces the decoupling rationale
+	// in v2_types.go to be re-examined rather than silently papered over.
+	return DatasetInfo(resp), nil
 }
 
 // getJSON performs an authenticated GET returning the response body.
@@ -77,7 +136,12 @@ func (c *V2Client) getJSON(ctx context.Context, reqURL string) (io.ReadCloser, e
 		return nil, fmt.Errorf("http request: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		b, _ := io.ReadAll(resp.Body)
+		// Cap the read at 201 bytes: we only surface up to 200 bytes of
+		// the body in the error and a hostile or misconfigured server
+		// could otherwise stream a large payload into memory just to be
+		// truncated. The remainder is intentionally not drained; a bogus
+		// error body isn't worth keeping the connection in the pool.
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 201))
 		_ = resp.Body.Close()
 		body := string(b)
 		if len(body) > 200 {

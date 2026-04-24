@@ -98,6 +98,15 @@ func Download(args []string, configPath, version string) error {
 		return err
 	}
 
+	// v2 list commands work as of #676, but the actual download still goes
+	// through the legacy /s3 transfer path. Without this guard, a successful
+	// v2 ListFiles would be followed by a silent 404 on /s3/{fileID} once
+	// the real v2 dev stack is targeted. Reject cleanly until #677 wires
+	// v2 download via /files/{fileId} + X-C4GH-Public-Key.
+	if apiVersionFlag == "v2" {
+		return errors.New("v2 download is not yet implemented (see #677)")
+	}
+
 	u, err := url.Parse(URL)
 	if err != nil || u.Scheme == "" {
 		return errors.New("invalid base URL")
