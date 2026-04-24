@@ -4,6 +4,7 @@ package download_test
 
 import (
 	"context"
+	"io"
 	"os"
 	"testing"
 
@@ -77,4 +78,31 @@ func TestV2_DatasetInfo_Smoke(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "EGAD00000000001", info.DatasetID)
 	assert.Greater(t, info.FileCount, 0)
+}
+
+// TestV2_DownloadFile_EndToEnd exercises the full v2 download path against
+// the dev stack: resolve test-file.c4gh via the exact filePath filter,
+// follow the server-provided downloadUrl, stream the encrypted bytes.
+// Requires DOWNLOAD_V2_PUBKEY_B64 (CI extracts it from the reencrypt
+// container's /shared/c4gh.pub.pem).
+func TestV2_DownloadFile_EndToEnd(t *testing.T) {
+	client := buildIntegrationClient(t)
+
+	pubKeyBase64 := os.Getenv("DOWNLOAD_V2_PUBKEY_B64")
+	require.NotEmpty(t, pubKeyBase64, "DOWNLOAD_V2_PUBKEY_B64 must be set")
+
+	result, err := client.DownloadFile(context.Background(), apiclient.DownloadRequest{
+		DatasetID:       "EGAD00000000001",
+		UserArg:         "test-file.c4gh",
+		PublicKeyBase64: pubKeyBase64,
+	})
+	require.NoError(t, err)
+	defer result.Body.Close()
+
+	got, err := io.ReadAll(result.Body)
+	require.NoError(t, err)
+	assert.Greater(t, len(got), 0)
+	if result.ContentLength > 0 {
+		assert.Equal(t, result.ContentLength, int64(len(got)), "body size should match Content-Length")
+	}
 }

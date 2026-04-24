@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/NBISweden/sda-cli/helpers"
 	"go.nhat.io/cookiejar"
 	"golang.org/x/net/publicsuffix"
 )
@@ -152,6 +153,97 @@ func (c *V1Client) ListFiles(ctx context.Context, datasetID string, opts ListFil
 // DatasetInfo implements Client. v1 has no /datasets/{id} endpoint.
 func (c *V1Client) DatasetInfo(_ context.Context, _ string) (DatasetInfo, error) {
 	return DatasetInfo{}, ErrNotSupportedOnV1
+}
+
+// DownloadFile implements Client. Resolves req.UserArg (either a file
+// path or a fileId) via ListFiles + legacy substring match, then GETs
+// /s3/{dataset}/{filePath}. Returns the resolved File so callers can
+// derive the output filename from canonical metadata rather than from
+// UserArg (which may be a bare fileId). Caller is responsible for
+// closing the returned body.
+func (c *V1Client) DownloadFile(ctx context.Context, req DownloadRequest) (DownloadResult, error) {
+	// Forward the caller-supplied pubkey so the metadata GET emits
+	// Client-Public-Key — mirrors legacy getFileIDURL → GetFilesInfo.
+	// Wrap list-resolution failures with the legacy "failed to get
+	// files, reason: ..." prefix that scripts and the download.go shim
+	// have relied on since before the apiclient abstraction.
+	files, err := c.ListFiles(ctx, req.DatasetID, ListFilesOptions{
+		LegacyV1PubKey: req.PublicKeyBase64,
+	})
+	if err != nil {
+		return DownloadResult{}, fmt.Errorf("failed to get files, reason: %v", err)
+	}
+	target, err := v1MatchFile(files, req.UserArg)
+	if err != nil {
+		return DownloadResult{}, err
+	}
+
+	// The v1 /s3 server expects the user-prefix (e.g. "user_example.com/…")
+	// already stripped — legacy download.getFileIDURL ran AnonymizeFilepath
+	// on target.FilePath before building the URL. Preserve that behavior so
+	// datasets whose files carry a user prefix don't 404 on v1 download.
+	reqURL := c.cfg.BaseURL + "/s3/" + url.PathEscape(req.DatasetID) + "/" + helpers.AnonymizeFilepath(target.FilePath)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return DownloadResult{}, err
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+c.cfg.Token)
+	// SDA-Client-Version is emitted on every v1 call by legacy getBody.
+	if c.cfg.Version != "" {
+		httpReq.Header.Set("SDA-Client-Version", c.cfg.Version)
+	}
+	if req.PublicKeyBase64 != "" {
+		httpReq.Header.Set("Client-Public-Key", req.PublicKeyBase64)
+	}
+
+	resp, err := c.http.Do(httpReq) // #nosec G704
+	if err != nil {
+		return DownloadResult{}, err
+	}
+	// Partial-Content without a Range request is a server bug; treat as a
+	// non-success to avoid renaming a truncated .part as a complete file.
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 201))
+		_ = resp.Body.Close()
+		// Legacy getBody surfaces 412 bodies verbatim — some sda-download
+		// paths return actionable messages (e.g. token expired) in the body.
+		if resp.StatusCode == http.StatusPreconditionFailed {
+			return DownloadResult{}, errors.New(strings.TrimSpace(string(b)))
+		}
+		body := string(b)
+		if len(body) > 200 {
+			body = body[:200]
+		}
+
+		return DownloadResult{}, fmt.Errorf("server returned status %d: %s", resp.StatusCode, body)
+	}
+
+	return DownloadResult{File: target, Body: resp.Body, ContentLength: resp.ContentLength}, nil
+}
+
+// v1MatchFile mirrors the substring-match logic from the retired
+// download.getFileIDURL. Known to be imprecise; v2 uses an exact
+// filePath filter instead. Semantics are unchanged from the legacy
+// code — we just house it here now.
+func v1MatchFile(files []File, userArg string) (File, error) {
+	if strings.Contains(userArg, "/") {
+		if !strings.HasSuffix(userArg, ".c4gh") {
+			userArg += ".c4gh"
+		}
+		for _, f := range files {
+			if strings.Contains(f.FilePath, userArg) {
+				return f, nil
+			}
+		}
+	} else {
+		for _, f := range files {
+			if strings.Contains(f.FileID, userArg) {
+				return f, nil
+			}
+		}
+	}
+
+	return File{}, fmt.Errorf("file not found in dataset: %s", userArg)
 }
 
 // getBody is the v1 HTTP helper. Headers, error shape, and 412 handling

@@ -6,15 +6,11 @@ import (
 	"crypto/rsa"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
-	"strings"
 	"testing"
 	"time"
 
@@ -127,9 +123,6 @@ encrypt = False
 		s.FailNow("failed to write to config file", err)
 	}
 
-	u, _ := url.Parse("http://localhost")
-	setupCookieJar(u)
-
 	s.testKeyFile = filepath.Join(s.tempDir, "testkey")
 	err = createkey.GenerateKeyPair(s.testKeyFile, "test")
 	assert.NoError(s.T(), err)
@@ -147,16 +140,13 @@ func (s *DownloadTestSuite) TestInvalidUrl() {
 	assert.Contains(
 		s.T(),
 		err.Error(),
-		"failed to get files, reason: failed to get response, reason: Get \"https://some/url/metadata/datasets/TES01/files\": dial tcp: lookup some",
+		"failed to get response, reason: Get \"https://some/url/metadata/datasets/TES01/files\": dial tcp: lookup some",
 	)
 }
 
-func (s *DownloadTestSuite) TestDownload_APIVersionV2_RejectedUntilPR677() {
-	// v2 list commands are live as of #676, but download still uses the
-	// legacy /s3 transfer. Download() rejects --api-version v2 early so
-	// users don't silently half-succeed (v2 ListFiles OK) then hit a
-	// cryptic 404 on /s3/{fileID}. The real v2 download path arrives in
-	// #677.
+func (s *DownloadTestSuite) TestDownload_APIVersionV2_MissingPubkey() {
+	// v2 requires --pubkey. Without one, V2Client.DownloadFile errors before
+	// any HTTP request.
 	oldDatasetID, oldURL, oldAPIVersion := datasetID, URL, apiVersionFlag
 	datasetID = "TES01"
 	URL = s.httpTestServer.URL
@@ -167,7 +157,30 @@ func (s *DownloadTestSuite) TestDownload_APIVersionV2_RejectedUntilPR677() {
 
 	err := Download([]string{"files/file1.c4gh"}, s.configFilePath, "test")
 	require.Error(s.T(), err)
-	assert.Contains(s.T(), err.Error(), "v2 download is not yet implemented")
+	assert.Contains(s.T(), err.Error(), "v2 downloads require --pubkey")
+}
+
+func (s *DownloadTestSuite) TestDownload_APIVersionV2_HitsV2Endpoint() {
+	// v2 factory returns a real V2Client. For the single-file path, the
+	// flow is downloadOne -> V2Client.DownloadFile -> resolveFile ->
+	// ListFiles which issues GET /datasets/{id}/files. The mock server has
+	// no v2 handler, so decoding its default non-JSON body fails — proving
+	// v2 is wired up.
+	oldDatasetID, oldURL, oldAPIVersion := datasetID, URL, apiVersionFlag
+	datasetID = "TES01"
+	URL = s.httpTestServer.URL
+	apiVersionFlag = "v2"
+	defer func() {
+		datasetID, URL, apiVersionFlag = oldDatasetID, oldURL, oldAPIVersion
+	}()
+
+	oldPubKey := pubKey
+	pubKey = fmt.Sprintf("%s.pub.pem", s.testKeyFile)
+	defer func() { pubKey = oldPubKey }()
+
+	err := Download([]string{"files/file1.c4gh"}, s.configFilePath, "test")
+	require.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "failed to decode /datasets/TES01/files response")
 }
 
 func (s *DownloadTestSuite) TestDownloadOneFileWithPublicKey() {
@@ -184,6 +197,32 @@ func (s *DownloadTestSuite) TestDownloadOneFileWithPublicKey() {
 	downloadedContent, err := os.ReadFile(fmt.Sprintf("%s/files/dummy-file.txt.c4gh", s.tempDir))
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "test content dummy file", string(downloadedContent))
+}
+
+// TestDownloadDefaultOutdir guards that the default --outdir "" writes to
+// the current working directory. The previous prefix-based escape check
+// rejected this case (filepath.Clean("") = "." and filepath.Join strips
+// the leading "./", so strings.HasPrefix on the cleaned path was always
+// false), meaning every download without --outdir failed AFTER the body
+// stream was already opened on the server side.
+func (s *DownloadTestSuite) TestDownloadDefaultOutdir() {
+	cwd, err := os.Getwd()
+	require.NoError(s.T(), err)
+	runDir := filepath.Join(s.tempDir, "defaultoutdir-run")
+	require.NoError(s.T(), os.MkdirAll(runDir, 0750))
+	require.NoError(s.T(), os.Chdir(runDir))
+	defer os.Chdir(cwd) //nolint:errcheck
+
+	os.Args = []string{"", "download", "files/dummy-file.txt.c4gh"}
+	downloadCmd.Flag("pubkey").Value.Set(fmt.Sprintf("%s.pub.pem", s.testKeyFile))
+	downloadCmd.Flag("url").Value.Set(s.httpTestServer.URL)
+	downloadCmd.Flag("outdir").Value.Set("") // explicit default
+	downloadCmd.Flag("dataset-id").Value.Set("TES01")
+	require.NoError(s.T(), downloadCmd.Execute())
+
+	downloaded, err := os.ReadFile(filepath.Join(runDir, "files", "dummy-file.txt.c4gh"))
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), "test content dummy file", string(downloaded))
 }
 
 func (s *DownloadTestSuite) TestDownloadFileAlreadyExistsWithContinue() {
@@ -282,306 +321,39 @@ func generateDummyToken(t *testing.T) string {
 	return accessToken
 }
 
-func (s *DownloadTestSuite) TestGetFilesInfo() {
-	files, err := GetFilesInfo(s.httpTestServer.URL, "TES01", "", s.accessToken, "test-version")
-	require.NoError(s.T(), err)
-	require.Len(s.T(), files, 3)
-	assert.Equal(s.T(), "file1id", files[0].FileID)
-	assert.Equal(s.T(), "file1.c4gh", files[0].DisplayFileName)
-	assert.Equal(s.T(), "files/file1.c4gh", files[0].FilePath)
-	assert.Equal(s.T(), "file2id", files[1].FileID)
-	assert.Equal(s.T(), "file2.c4gh", files[1].DisplayFileName)
-	assert.Equal(s.T(), "files/file2.c4gh", files[1].FilePath)
-	assert.Equal(s.T(), "dummyFile", files[2].FileID)
-	assert.Equal(s.T(), "dummy-file.txt.c4gh", files[2].DisplayFileName)
-	assert.Equal(s.T(), "files/dummy-file.txt.c4gh", files[2].FilePath)
+// errReader returns some data then an error on the next Read, so
+// writeBodyToDisk triggers its cleanup defer.
+type errReader struct {
+	data []byte
+	err  error
+	sent bool
 }
 
-func (s *DownloadTestSuite) TestFileIdUrl() {
-	for _, test := range []struct {
-		testName, baseURL, datasetID, filePath string
-		expectedURL                            string
-		expectedError                          error
-	}{
-		{
-			testName:      "ValidInputNoPubKey",
-			baseURL:       s.httpTestServer.URL,
-			datasetID:     "TES01",
-			filePath:      "files/file1",
-			expectedURL:   fmt.Sprintf("%s/s3/TES01/files/file1.c4gh", s.httpTestServer.URL),
-			expectedError: nil,
-		}, {
-			testName:      "UnknownFilePath",
-			baseURL:       s.httpTestServer.URL,
-			datasetID:     "TES01",
-			filePath:      "files/unknown",
-			expectedURL:   "",
-			expectedError: errors.New("File not found in dataset files/unknown.c4gh"),
-		}, {
-			testName:      "FileIdInFilePath",
-			baseURL:       s.httpTestServer.URL,
-			datasetID:     "TES01",
-			filePath:      "file1id",
-			expectedURL:   fmt.Sprintf("%s/s3/TES01/files/file1.c4gh", s.httpTestServer.URL),
-			expectedError: nil,
-		}, {
-			testName:      "InvalidUrl",
-			baseURL:       "some/url",
-			datasetID:     "TES01",
-			filePath:      "file1id",
-			expectedURL:   "",
-			expectedError: errors.New("invalid base URL"),
-		},
-	} {
-		s.T().Run(test.testName, func(t *testing.T) {
-			client := apiclient.NewV1Client(apiclient.Config{
-				BaseURL: test.baseURL,
-				Token:   s.accessToken,
-				Version: "test",
-			}, nil)
-			client.SetHTTPClientForTest(s.httpTestServer.Client())
-			url, _, err := getFileIDURL(context.Background(), client, test.baseURL, test.datasetID, "", test.filePath)
-			assert.Equal(t, test.expectedError, err)
-			assert.Equal(t, test.expectedURL, url)
-		})
+func (r *errReader) Read(p []byte) (int, error) {
+	if !r.sent {
+		r.sent = true
+		n := copy(p, r.data)
+
+		return n, nil
 	}
+
+	return 0, r.err
 }
 
-func (s *DownloadTestSuite) TestGetDatasets() {
-	datasets, err := GetDatasets(s.httpTestServer.URL, s.accessToken, "test-version")
-	require.NoError(s.T(), err)
-	assert.Equal(s.T(), datasets, []string{"https://doi.example/ty009.sfrrss/600.45asasga"})
-}
+func (s *DownloadTestSuite) TestWriteBodyToDiskCleanupOnFailure() {
+	destPath := filepath.Join(s.tempDir, "cleanup-test.c4gh")
 
-// Guards the pre-abstraction error shape: transport/status failures from
-// GetDatasets were wrapped as "failed to get datasets, reason: ...".
-// This test ensures the shim still preserves that prefix after the
-// apiclient refactor.
-func (s *DownloadTestSuite) TestGetDatasets_WrapsTransportError() {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusForbidden)
-	}))
-	defer ts.Close()
+	reader := &errReader{data: []byte("partial"), err: errors.New("mid-stream failure")}
+	err := writeBodyToDisk(reader, int64(len("partial")+10), destPath)
+	assert.Error(s.T(), err, "expected writeBodyToDisk to return an error when body errors mid-stream")
 
-	_, err := GetDatasets(ts.URL, s.accessToken, "test-version")
-	require.Error(s.T(), err)
-	assert.Contains(s.T(), err.Error(), "failed to get datasets, reason:")
-	assert.Contains(s.T(), err.Error(), "status 403")
-}
+	// Final target should not exist
+	_, err = os.Stat(destPath)
+	assert.True(s.T(), os.IsNotExist(err), "the final target file should not exist after a failed download")
 
-// Same parity guard for GetFilesInfo: pre-abstraction, transport/status
-// failures got a "failed to get files, reason: ..." prefix while parse
-// errors kept their own "failed to parse file list JSON, reason: ..."
-// shape. The shim must not double-wrap parse errors.
-func (s *DownloadTestSuite) TestGetFilesInfo_WrapsTransportError() {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusForbidden)
-	}))
-	defer ts.Close()
-
-	_, err := GetFilesInfo(ts.URL, "TES01", "", s.accessToken, "test-version")
-	require.Error(s.T(), err)
-	assert.Contains(s.T(), err.Error(), "failed to get files, reason:")
-	assert.Contains(s.T(), err.Error(), "status 403")
-}
-
-func (s *DownloadTestSuite) TestGetFilesInfo_PassesParseErrorThrough() {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		fmt.Fprint(w, "not json")
-	}))
-	defer ts.Close()
-
-	_, err := GetFilesInfo(ts.URL, "TES01", "", s.accessToken, "test-version")
-	require.Error(s.T(), err)
-	assert.Contains(s.T(), err.Error(), "failed to parse file list")
-	assert.NotContains(s.T(), err.Error(), "failed to get files, reason: failed to parse",
-		"parse errors must not be double-wrapped")
-}
-
-func (s *DownloadTestSuite) TestGetBodyNoPublicKey() {
-	bodyStream, size, err := getBody(s.httpTestServer.URL, "test-token", "")
-	if err != nil {
-		s.T().Errorf("getBody returned an error: %v", err)
-
-		return // Exit early if there's an error to avoid nil pointer panics below
-	}
-
-	defer bodyStream.Close()
-
-	body, err := io.ReadAll(bodyStream)
-	if err != nil {
-		s.T().Errorf("failed to read from bodyStream: %v", err)
-	}
-
-	expectedBody := "test response"
-	if string(body) != expectedBody {
-		s.T().Errorf("getBody returned incorrect response body, got: %s, want: %s", string(body), expectedBody)
-	}
-
-	if size != int64(len(expectedBody)) && size != -1 {
-		s.T().Logf("Note: size returned (%d) does not match expected length (%d)", size, len(expectedBody))
-	}
-}
-
-func (s *DownloadTestSuite) TestGetBodyWithPublicKey() {
-	bodyStream, _, err := getBody(s.httpTestServer.URL, "test-token", "test-public-key")
-
-	if err != nil {
-		s.T().Fatalf("getBody returned an error: %v", err)
-	}
-
-	defer bodyStream.Close()
-
-	body, err := io.ReadAll(bodyStream)
-	if err != nil {
-		s.T().Fatalf("failed to read from bodyStream: %v", err)
-	}
-
-	expectedBody := "test response"
-	if string(body) != expectedBody {
-		s.T().Errorf("getBody returned incorrect response body, got: %s, want: %s", string(body), expectedBody)
-	}
-}
-
-func (s *DownloadTestSuite) TestGetBodyPreconditionFailed() {
-	// Test the specific 412 logic where the body becomes the error message
-	errorMessage := "error message with precondition failed"
-	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusPreconditionFailed)
-		fmt.Fprint(w, errorMessage)
-	}))
-	defer errorServer.Close()
-
-	bodyStream, size, err := getBody(errorServer.URL, "test-token", "")
-
-	assert.Nil(s.T(), bodyStream) // On error, the stream should be nil
-	assert.Equal(s.T(), int64(0), size)
-	assert.Error(s.T(), err)
-	assert.Equal(s.T(), errorMessage, err.Error())
-}
-
-func (s *DownloadTestSuite) TestSetupCookiejar() {
-	var testCookie string
-	switch runtime.GOOS {
-	case "windows":
-		testCookie = filepath.Join(s.tempDir, "sda-cli", "sda_cookie")
-	case "darwin": // macOS
-		testCookie = filepath.Join(s.tempDir, "Library", "Caches", "sda-cli", "sda_cookie")
-	default: // Linux and others
-		testCookie = filepath.Join(s.tempDir, ".cache", "sda-cli", "sda_cookie")
-	}
-	pwdCookie, _ := filepath.Abs(".sda_cookie")
-	for _, test := range []struct {
-		cachePath     string
-		cookiePath    string
-		cookieString  string
-		createCookie  bool
-		expectedError error
-		testName      string
-	}{
-		{
-			cachePath:    s.tempDir,
-			cookiePath:   testCookie,
-			cookieString: "",
-			createCookie: false,
-			testName:     "cookie_file_doesn't_exist",
-		},
-		{
-			cachePath:    "",
-			cookiePath:   pwdCookie,
-			cookieString: "[{\"Name\":\"test-cookie\", \"Value\":\"current_dir_cookie\"}]",
-			createCookie: true,
-			testName:     "current_dir_cookie",
-		},
-		{
-			cachePath:    s.tempDir,
-			cookiePath:   testCookie,
-			cookieString: "[{\"Name\":\"test-cookie\", \"Value\":\"cache_path_cookie\"}]",
-			createCookie: true,
-			testName:     "cache_path_cookie",
-		},
-		{
-			cachePath:    s.tempDir,
-			cookiePath:   testCookie,
-			cookieString: "[{\"Name\":\"test-cookie\", \"Value\":\"test-data\",\"Domain\":\"example.org\"}]",
-			createCookie: true,
-			testName:     "wrong_domain",
-		},
-		{
-			cachePath:    s.tempDir,
-			cookiePath:   testCookie,
-			cookieString: "[{\"Name\":\"test-cookie\", \"Value\":\"test-data\",\"Expires\":\"2001-01-01T00:00:00Z\"}]",
-			createCookie: true,
-			testName:     "expired",
-		},
-		{
-			cachePath:    s.tempDir,
-			cookiePath:   testCookie,
-			cookieString: fmt.Sprintf("[{\"Name\":\"test-cookie\", \"Value\":\"not_expired_cookie\",\"Expires\":\"%s\",\"MaxAge\":0}]", time.Now().AddDate(1, 0, 0).Format(time.RFC3339)),
-			createCookie: true,
-			testName:     "not_expired_cookie",
-		},
-		{
-			cachePath:    s.tempDir,
-			cookiePath:   testCookie,
-			cookieString: "[{\"Name\":\"test-cookie\", \"Value\":\"max-age_cookie\",\"Expires\":\"0001-01-01T00:00:00Z\",\"MaxAge\":300}]",
-			createCookie: true,
-			testName:     "max-age_cookie",
-		},
-	} {
-		s.T().Run(test.testName, func(t *testing.T) {
-			if runtime.GOOS == "windows" {
-				os.Setenv("LocalAppData", test.cachePath)
-			} else {
-				os.Setenv("HOME", test.cachePath)
-			}
-			if test.createCookie {
-				cookieFile, _ := filepath.Abs(test.cookiePath)
-				if err := os.WriteFile(cookieFile, []byte(test.cookieString), 0600); err != nil {
-					fmt.Fprintln(os.Stderr, "failed to save cookie file ", err.Error())
-				}
-			}
-
-			u, _ := url.Parse(s.httpTestServer.URL)
-			setupCookieJar(u)
-			assert.Equal(t, test.cookiePath, cookiePath)
-			cj := cookieJar.Cookies(u)
-
-			if strings.HasSuffix(test.testName, "cookie") {
-				assert.Equal(t, "test-cookie", cj[0].Name)
-				assert.Equal(t, test.testName, cj[0].Value)
-				assert.Equal(t, "0001-01-01T00:00:00Z", cj[0].Expires.Format(time.RFC3339))
-				_ = os.Remove(cookiePath)
-			} else {
-				assert.Nil(t, cj)
-			}
-		})
-	}
-}
-
-func (s *DownloadTestSuite) TestDownloadCleanupOnFailure() {
-	failServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "server error")
-	}))
-	defer failServer.Close()
-
-	targetFile := "cleanup-test.c4gh"
-	fullPath := filepath.Join(s.tempDir, targetFile)
-
-	downloadCmd.Flag("ignore-existing").Value.Set("false")
-	outDir = s.tempDir
-
-	err := downloadFile(failServer.URL, s.accessToken, "", targetFile)
-	assert.Error(s.T(), err, "Expected downloadFile to return an error on 500 response")
-
-	// Check that the .part file was cleaned up
-	_, err = os.Stat(fullPath + ".part")
-	assert.True(s.T(), os.IsNotExist(err), "The .part file should have been removed by the defer cleanup block")
-
-	// Check that the final target file was not created
-	_, err = os.Stat(fullPath)
-	assert.True(s.T(), os.IsNotExist(err), "The final target file should not exist after a failed download")
+	// .part should have been cleaned up
+	_, err = os.Stat(destPath + ".part")
+	assert.True(s.T(), os.IsNotExist(err), "the .part file should have been removed by the defer cleanup block")
 }
 
 func (s *DownloadTestSuite) TestDownloadCleanupPartialFileWhenFullExists() {
@@ -639,8 +411,25 @@ func (s *DownloadTestSuite) TestDownloadConflictingFlags() {
 	s.Contains(err.Error(), "both --ignore-existing and --overwrite-existing flags are set, choose one of them")
 }
 
+// downloadOneWithClient is a small helper for TestDownloadPromptOverwrite.
+// It lets the test drive downloadOne directly with a V1Client pointed at
+// the suite's test server, so we can exercise the overwrite-prompt logic
+// without going through downloadCmd.Execute (which has its own flag
+// bookkeeping that's less ergonomic to reset between four sub-cases).
+func (s *DownloadTestSuite) downloadOneWithClient(userArg string) error {
+	client := apiclient.NewV1Client(apiclient.Config{
+		BaseURL: s.httpTestServer.URL,
+		Token:   s.accessToken,
+		Version: "test",
+	}, nil)
+	client.SetHTTPClientForTest(s.httpTestServer.Client())
+
+	return downloadOne(context.Background(), client, userArg)
+}
+
 func (s *DownloadTestSuite) TestDownloadPromptOverwrite() {
-	targetFile := "prompt-test.c4gh"
+	targetFile := "files/dummy-file.txt.c4gh"
+	expectedContent := "test content dummy file"
 	fullPath := filepath.Join(s.tempDir, targetFile)
 	originalStdin := os.Stdin
 	defer func() { os.Stdin = originalStdin }()
@@ -651,7 +440,14 @@ func (s *DownloadTestSuite) TestDownloadPromptOverwrite() {
 		overwriteExisting = false
 	}
 
+	oldDatasetID := datasetID
+	datasetID = "TES01"
+	defer func() { datasetID = oldDatasetID }()
+
 	outDir = s.tempDir
+
+	// Ensure parent dir exists so we can pre-populate the target
+	s.Require().NoError(os.MkdirAll(filepath.Dir(fullPath), 0750))
 
 	// Test YES
 	resetFlags()
@@ -664,13 +460,13 @@ func (s *DownloadTestSuite) TestDownloadPromptOverwrite() {
 		_, _ = w.Write([]byte("y\n"))
 		_ = w.Close()
 	}()
-	err = downloadFile(s.httpTestServer.URL, s.accessToken, "", targetFile)
+	err = s.downloadOneWithClient(targetFile)
 	s.NoError(err)
 
 	// Verify content is overwritten
 	content, err := os.ReadFile(fullPath)
 	s.NoError(err)
-	s.Equal("test response", string(content))
+	s.Equal(expectedContent, string(content))
 
 	// Test NO
 	resetFlags()
@@ -684,7 +480,7 @@ func (s *DownloadTestSuite) TestDownloadPromptOverwrite() {
 		_ = w2.Close()
 	}()
 
-	err = downloadFile(s.httpTestServer.URL, s.accessToken, "", targetFile)
+	err = s.downloadOneWithClient(targetFile)
 	s.NoError(err)
 
 	// Verify content is NOT overwritten
@@ -704,23 +500,23 @@ func (s *DownloadTestSuite) TestDownloadPromptOverwrite() {
 		_ = w3.Close()
 	}()
 
-	err = downloadFile(s.httpTestServer.URL, s.accessToken, "", targetFile)
+	err = s.downloadOneWithClient(targetFile)
 	s.NoError(err)
 
 	// Verify content is overwritten
 	s.True(overwriteExisting)
 	content, err = os.ReadFile(fullPath)
 	s.NoError(err)
-	s.Equal("test response", string(content))
+	s.Equal(expectedContent, string(content))
 
 	// Subsequent download (overwrite without prompting)
 	err = os.WriteFile(fullPath, []byte("second old content"), 0600)
 	s.Require().NoError(err)
-	err = downloadFile(s.httpTestServer.URL, s.accessToken, "", targetFile)
+	err = s.downloadOneWithClient(targetFile)
 	s.NoError(err)
 	content, err = os.ReadFile(fullPath)
 	s.NoError(err)
-	s.Equal("test response", string(content))
+	s.Equal(expectedContent, string(content))
 
 	// Test NEVER
 	resetFlags()
@@ -734,7 +530,7 @@ func (s *DownloadTestSuite) TestDownloadPromptOverwrite() {
 		_ = w4.Close()
 	}()
 
-	err = downloadFile(s.httpTestServer.URL, s.accessToken, "", targetFile)
+	err = s.downloadOneWithClient(targetFile)
 	s.NoError(err)
 
 	// Verify content is NOT overwritten
@@ -745,7 +541,7 @@ func (s *DownloadTestSuite) TestDownloadPromptOverwrite() {
 
 	// Subsequent download (skip overwrite without prompting)
 	if !ignoreExisting {
-		err = downloadFile(s.httpTestServer.URL, s.accessToken, "", targetFile)
+		err = s.downloadOneWithClient(targetFile)
 		s.NoError(err)
 	}
 	content, err = os.ReadFile(fullPath)

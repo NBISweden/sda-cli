@@ -3,15 +3,11 @@ package download
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
@@ -21,8 +17,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
-	"go.nhat.io/cookiejar"
-	"golang.org/x/net/publicsuffix"
 )
 
 var datasetID string
@@ -40,11 +34,11 @@ var apiVersionFlag string
 var downloadCmd = &cobra.Command{
 	Use:   "download [flags] [filepath(s) | fileid(s)]",
 	Short: "Download files from SDA",
-	Long: `Download files from the Sensitive Data Archive (SDA) using APIs at the specified URL. 
+	Long: `Download files from the Sensitive Data Archive (SDA) using APIs at the specified URL.
 	The user must have the necessary access rights (visas) to the datasets being downloaded
 	Important:
 		Provide exactly one of the following options to specify files to download:
-			- [filepath(s) or fileid(s)] 
+			- [filepath(s) or fileid(s)]
 			- --dataset
 			- --recursive <dirpath>
 			- --from-file <list-filepath>`,
@@ -73,45 +67,12 @@ func init() {
 	downloadCmd.Flags().StringVar(&apiVersionFlag, "api-version", "v1", "SDA download API version to use (v1 or v2)")
 }
 
-var cookieJar *cookiejar.PersistentJar
-var cookiePath string
-var appVersion string
-
-// File is the file metadata type. Canonical definition lives in apiclient.
-// Alias preserves source compat for existing callers (list/, tests). Removed
-// in #677 when callers reference apiclient.File directly.
-type File = apiclient.File
-
 // Download function downloads files from the SDA by using the
 // download's service APIs
 func Download(args []string, configPath, version string) error {
-	appVersion = version
-
 	if datasetID == "" || URL == "" || configPath == "" {
 		return errors.New("missing required arguments, dataset-id, config and url are required")
 	}
-
-	// Fail fast on an unsupported --api-version before we touch the
-	// filesystem via setupCookieJar. Cheap check; avoids creating
-	// ${UserCacheDir}/sda-cli/ when the command is about to error out.
-	if err := apiclient.ValidateVersion(apiVersionFlag); err != nil {
-		return err
-	}
-
-	// v2 list commands work as of #676, but the actual download still goes
-	// through the legacy /s3 transfer path. Without this guard, a successful
-	// v2 ListFiles would be followed by a silent 404 on /s3/{fileID} once
-	// the real v2 dev stack is targeted. Reject cleanly until #677 wires
-	// v2 download via /files/{fileId} + X-C4GH-Public-Key.
-	if apiVersionFlag == "v2" {
-		return errors.New("v2 download is not yet implemented (see #677)")
-	}
-
-	u, err := url.Parse(URL)
-	if err != nil || u.Scheme == "" {
-		return errors.New("invalid base URL")
-	}
-	setupCookieJar(u)
 
 	// Check if both --ignore-existing and --overwrite-existing are set
 	if ignoreExisting && overwriteExisting {
@@ -155,16 +116,11 @@ func Download(args []string, configPath, version string) error {
 		return err
 	}
 
-	// Share the cookie jar that downloadFile uses so V1Client's metadata
-	// calls and the legacy /s3 transfer path see the same in-memory
-	// cookie state. Two independent AutoSync:ed jars on the same on-disk
-	// file would race and clobber each other (fixed here; removed in
-	// #677 when downloadFile also moves onto apiclient.Client).
 	client, err := apiclient.New(apiclient.Config{
 		BaseURL: URL,
 		Token:   config.AccessToken,
 		Version: version,
-	}, apiVersionFlag, apiclient.WithV1CookieJar(cookieJar))
+	}, apiVersionFlag)
 	if err != nil {
 		return err
 	}
@@ -174,22 +130,22 @@ func Download(args []string, configPath, version string) error {
 
 	switch {
 	case datasetDownload:
-		err = datasetCase(ctx, client, config.AccessToken)
+		err = datasetCase(ctx, client)
 		if err != nil {
 			return err
 		}
 	case recursiveDownload:
-		err = recursiveCase(ctx, client, args, config.AccessToken)
+		err = recursiveCase(ctx, client, args)
 		if err != nil {
 			return err
 		}
 	case fromFile:
-		err = fileCase(ctx, client, args, config.AccessToken, true)
+		err = fileCase(ctx, client, args, true)
 		if err != nil {
 			return err
 		}
 	default:
-		err = fileCase(ctx, client, args, config.AccessToken, false)
+		err = fileCase(ctx, client, args, false)
 		if err != nil {
 			return err
 		}
@@ -198,7 +154,7 @@ func Download(args []string, configPath, version string) error {
 	return nil
 }
 
-func datasetCase(ctx context.Context, client apiclient.Client, token string) error {
+func datasetCase(ctx context.Context, client apiclient.Client) error {
 	fmt.Println("Downloading all files in the dataset")
 	files, err := client.ListFiles(ctx, datasetID, apiclient.ListFilesOptions{})
 	if err != nil {
@@ -206,11 +162,7 @@ func datasetCase(ctx context.Context, client apiclient.Client, token string) err
 	}
 
 	for _, file := range files {
-		fileName := helpers.AnonymizeFilepath(file.FilePath)
-		fileURL := URL + "/s3/" + datasetID + "/" + fileName
-
-		err = downloadFile(fileURL, token, pubKeyBase64, file.FilePath)
-		if err != nil {
+		if err := downloadOne(ctx, client, file.FilePath); err != nil {
 			return err
 		}
 	}
@@ -218,12 +170,8 @@ func datasetCase(ctx context.Context, client apiclient.Client, token string) err
 	return nil
 }
 
-func recursiveCase(ctx context.Context, client apiclient.Client, args []string, token string) error {
+func recursiveCase(ctx context.Context, client apiclient.Client, args []string) error {
 	fmt.Println("Downloading content of the path(s)")
-	files, err := client.ListFiles(ctx, datasetID, apiclient.ListFilesOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to get files, reason: %v", err)
-	}
 
 	var dirPaths []string
 	for _, path := range args {
@@ -232,25 +180,44 @@ func recursiveCase(ctx context.Context, client apiclient.Client, args []string, 
 		}
 		dirPaths = append(dirPaths, path)
 	}
+
+	// v1 has no server-side prefix filter, so fetch the full list once and
+	// filter client-side. v2 has a pathPrefix filter; apply it per dirPath.
+	var allFiles []apiclient.File
+	if apiVersionFlag != "v2" {
+		files, err := client.ListFiles(ctx, datasetID, apiclient.ListFilesOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to get files, reason: %v", err)
+		}
+		allFiles = files
+	}
+
 	var missingPaths []string
-	// Loop over all the files of the dataset and
-	// check if the provided path is part of their filepath.
-	// If it is then download the file
 	for _, dirPath := range dirPaths {
-		pathExists := false
-		for _, file := range files {
-			if strings.HasPrefix(file.FilePath, dirPath) {
-				pathExists = true
-				fileName := helpers.AnonymizeFilepath(file.FilePath)
-				fileURL := URL + "/s3/" + datasetID + "/" + fileName
-				err = downloadFile(fileURL, token, pubKeyBase64, file.FilePath)
-				if err != nil {
-					return err
+		var matched []apiclient.File
+		if apiVersionFlag == "v2" {
+			files, err := client.ListFiles(ctx, datasetID, apiclient.ListFilesOptions{PathPrefix: dirPath})
+			if err != nil {
+				return fmt.Errorf("failed to get files, reason: %v", err)
+			}
+			matched = files
+		} else {
+			for _, f := range allFiles {
+				if strings.HasPrefix(f.FilePath, dirPath) {
+					matched = append(matched, f)
 				}
 			}
 		}
-		if !pathExists {
+
+		if len(matched) == 0 {
 			missingPaths = append(missingPaths, dirPath)
+
+			continue
+		}
+		for _, file := range matched {
+			if err := downloadOne(ctx, client, file.FilePath); err != nil {
+				return err
+			}
 		}
 	}
 	if len(missingPaths) == len(dirPaths) {
@@ -265,47 +232,22 @@ func recursiveCase(ctx context.Context, client apiclient.Client, args []string, 
 	return nil
 }
 
-func fileCase(ctx context.Context, client apiclient.Client, args []string, token string, fileList bool) error {
+func fileCase(ctx context.Context, client apiclient.Client, args []string, fileList bool) error {
 	var files []string
 	if fileList {
 		fmt.Println("Downloading files from file list")
-		fileList, err := GetURLsFile(args[0])
+		fl, err := GetURLsFile(args[0])
 		if err != nil {
 			return err
 		}
-		files = append(files, fileList...)
+		files = append(files, fl...)
 	} else {
 		fmt.Println("Downloading files")
 		files = append(files, args...)
 	}
 
 	for _, filePath := range files {
-		outputPath := filepath.Join(outDir, filePath)
-		// Cleanup .part if it exists since we are skipping
-		partPath := outputPath + ".part"
-		if _, err := os.Stat(partPath); err == nil {
-			if err := os.Remove(partPath); err != nil {
-				fmt.Printf("Warning: could not remove old partial file %s: %v\n", partPath, err)
-			}
-		}
-
-		if ignoreExisting {
-			if _, err := os.Stat(outputPath); err == nil {
-				fmt.Printf("Skipping download to %s, file already exists\n", outputPath)
-
-				continue
-			} else if !errors.Is(err, os.ErrNotExist) {
-				return err
-			}
-		}
-
-		fileIDURL, apiFilePath, err := getFileIDURL(ctx, client, URL, datasetID, pubKeyBase64, filePath)
-		if err != nil {
-			return err
-		}
-
-		err = downloadFile(fileIDURL, token, pubKeyBase64, apiFilePath)
-		if err != nil {
+		if err := downloadOne(ctx, client, filePath); err != nil {
 			return err
 		}
 	}
@@ -313,11 +255,48 @@ func fileCase(ctx context.Context, client apiclient.Client, args []string, token
 	return nil
 }
 
-func downloadFile(uri, token, pubKeyBase64, filePath string) error {
-	filePath = helpers.AnonymizeFilepath(filePath)
-	filePath = filepath.Join(outDir, filePath)
+// downloadOne fetches a single file via the apiclient.Client and writes it
+// to disk under outDir. userArg is either a path or a fileId — the client's
+// DownloadFile resolves it and returns the canonical File, which we use for
+// the on-disk name (UserArg must not be used for the filename because it
+// may be a bare fileId with no relationship to the actual file name).
+func downloadOne(ctx context.Context, client apiclient.Client, userArg string) error {
+	result, err := client.DownloadFile(ctx, apiclient.DownloadRequest{
+		DatasetID:       datasetID,
+		UserArg:         userArg,
+		PublicKeyBase64: pubKeyBase64,
+	})
+	if err != nil {
+		return err
+	}
+	defer result.Body.Close() //nolint:errcheck
 
-	exists, err := handleExistingFile(filePath)
+	// Server-provided metadata must not be able to escape the configured
+	// output directory via "../" segments or absolute paths. filepath.IsLocal
+	// is the safety boundary: it rejects "..", absolute paths, and (on
+	// Windows) reserved names. This works correctly even when outDir is
+	// empty (default) or ".", cases the previous prefix-check rejected.
+	anonymized := helpers.AnonymizeFilepath(result.File.FilePath)
+	if !filepath.IsLocal(anonymized) {
+		return fmt.Errorf("refusing to write outside outdir: %s", result.File.FilePath)
+	}
+	od := outDir
+	if od == "" {
+		od = "."
+	}
+	outputPath := filepath.Join(od, anonymized)
+
+	// Clean up any stale .part from a previous failed run before the
+	// existing-file check — otherwise a prior .part could be left behind
+	// when we end up skipping due to ignore-existing.
+	partPath := outputPath + ".part"
+	if _, serr := os.Stat(partPath); serr == nil {
+		if rerr := os.Remove(partPath); rerr != nil {
+			fmt.Printf("Warning: could not remove old partial file %s: %v\n", partPath, rerr)
+		}
+	}
+
+	exists, err := handleExistingFile(outputPath)
 	if err != nil {
 		return err
 	}
@@ -325,17 +304,19 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 		return nil
 	}
 
-	bodyStream, totalSize, err := getBody(uri, token, pubKeyBase64)
-	if err != nil {
-		return err
-	}
-	defer bodyStream.Close()
+	return writeBodyToDisk(result.Body, result.ContentLength, outputPath)
+}
 
-	if err := os.MkdirAll(filepath.Dir(filePath), 0750); err != nil {
+// writeBodyToDisk streams the encrypted response body to destPath, driving
+// an mpb progress bar sized by totalSize (0 = indeterminate spinner). Writes
+// to destPath + ".part" first and renames on success; cleans up the .part
+// on failure.
+func writeBodyToDisk(body io.Reader, totalSize int64, destPath string) error {
+	if err := os.MkdirAll(filepath.Dir(destPath), 0750); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	outFile, err := os.Create(filePath + ".part")
+	outFile, err := os.Create(destPath + ".part")
 	if err != nil {
 		return fmt.Errorf("failed to create partial file: %w", err)
 	}
@@ -349,13 +330,13 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 	}()
 
 	buf := make([]byte, 1024*1024)
-	bufReader := bufio.NewReaderSize(bodyStream, 1024*1024)
+	bufReader := bufio.NewReaderSize(body, 1024*1024)
 
 	p := mpb.New(
 		mpb.WithRefreshRate(150 * time.Millisecond),
 	)
 
-	fmt.Printf("Downloading file to %s\n", filePath)
+	fmt.Printf("Downloading file to %s\n", destPath)
 
 	if totalSize > 0 {
 		if err := downloadWithBar(p, outFile, bufReader, totalSize, buf); err != nil {
@@ -374,7 +355,7 @@ func downloadFile(uri, token, pubKeyBase64, filePath string) error {
 		return fmt.Errorf("failed to close partial file %s: %v", outFile.Name(), err)
 	}
 
-	if err := os.Rename(outFile.Name(), filePath); err != nil { // #nosec G703
+	if err := os.Rename(outFile.Name(), destPath); err != nil { // #nosec G703
 		return fmt.Errorf("failed to rename partial file %s: %v", outFile.Name(), err)
 	}
 
@@ -425,155 +406,6 @@ func handleExistingFile(filePath string) (bool, error) {
 	return false, nil
 }
 
-func getFileIDURL(ctx context.Context, client apiclient.Client, baseURL, dataset, pubKeyBase64, filename string) (string, string, error) {
-	// Preserve legacy behavior: if baseURL is invalid, return "invalid base URL"
-	// without wrapping (TestFileIdUrl/InvalidUrl asserts on the bare string).
-	u, err := url.ParseRequestURI(baseURL)
-	if err != nil || u.Scheme == "" {
-		return "", "", errors.New("invalid base URL")
-	}
-
-	// Forward the caller's pubkey on v1 so the Client-Public-Key header is
-	// emitted on /files listing — matches the original download.getFileIDURL →
-	// GetFilesInfo → getBody wire behavior. V2 ignores LegacyV1PubKey.
-	datasetFiles, err := client.ListFiles(ctx, dataset, apiclient.ListFilesOptions{
-		LegacyV1PubKey: pubKeyBase64,
-	})
-	if err != nil {
-		return "", "", fmt.Errorf("failed to get files, reason: %v", err)
-	}
-
-	var idx int
-	switch {
-	case strings.Contains(filename, "/"):
-		if !strings.HasSuffix(filename, ".c4gh") {
-			filename += ".c4gh"
-		}
-		idx = slices.IndexFunc(
-			datasetFiles,
-			func(f File) bool { return strings.Contains(f.FilePath, filename) },
-		)
-	default:
-		idx = slices.IndexFunc(
-			datasetFiles,
-			func(f File) bool { return strings.Contains(f.FileID, filename) },
-		)
-	}
-
-	if idx == -1 {
-		return "", "", fmt.Errorf("File not found in dataset %s", filename)
-	}
-
-	fileName := helpers.AnonymizeFilepath(datasetFiles[idx].FilePath)
-	fileURL := baseURL + "/s3/" + dataset + "/" + fileName
-
-	return fileURL, fileName, nil
-}
-
-// GetDatasets is retained for backward compatibility with list/ and
-// download_test.go. Deprecated: new code should call apiclient.Client
-// via apiclient.New(...). Removed in #677 when callers finish migrating.
-func GetDatasets(baseURL, token, version string) ([]string, error) {
-	// URL-parse errors are returned unwrapped to preserve legacy behavior
-	// (TestListDatasetsNoUrl asserts on the bare "invalid base URL" string).
-	u, err := url.ParseRequestURI(baseURL)
-	if err != nil || u.Scheme == "" {
-		return nil, errors.New("invalid base URL")
-	}
-
-	c := apiclient.NewV1Client(apiclient.Config{
-		BaseURL: baseURL,
-		Token:   token,
-		Version: version,
-	}, nil)
-
-	datasets, err := c.ListDatasets(context.Background())
-	if err != nil {
-		// Preserve pre-abstraction error shape: transport/status failures were
-		// wrapped as "failed to get datasets, reason: ..."; parse errors
-		// already carry their own "failed to parse ..." prefix from
-		// V1Client.ListDatasets, so pass those through untouched to avoid
-		// double-wrapping.
-		if strings.HasPrefix(err.Error(), "failed to parse") {
-			return nil, err
-		}
-
-		return nil, fmt.Errorf("failed to get datasets, reason: %v", err)
-	}
-
-	return datasets, nil
-}
-
-// GetFilesInfo is retained for backward compatibility. Preserves v1's
-// error-prefix behavior ("failed to get files, reason: ...") that
-// existing tests like TestInvalidUrl rely on. Deprecated: call
-// apiclient.Client.ListFiles instead. Removed in #677.
-func GetFilesInfo(baseURL, dataset, pubKeyBase64, token, version string) ([]File, error) {
-	// URL-parse errors are returned unwrapped to preserve legacy behavior
-	// (tests like TestFileIdUrl/InvalidUrl and TestListDatasetNoUrl rely on
-	// the bare "invalid base URL" string).
-	u, err := url.ParseRequestURI(baseURL)
-	if err != nil || u.Scheme == "" {
-		return nil, errors.New("invalid base URL")
-	}
-
-	c := apiclient.NewV1Client(apiclient.Config{
-		BaseURL: baseURL,
-		Token:   token,
-		Version: version,
-	}, nil)
-	files, err := c.ListFiles(context.Background(), dataset, apiclient.ListFilesOptions{
-		LegacyV1PubKey: pubKeyBase64,
-	})
-	if err != nil {
-		// Same shape discrimination as GetDatasets: parse errors from
-		// V1Client already carry "failed to parse ..." prefixes, so avoid
-		// double-wrapping by passing those through. Transport/status
-		// failures keep the legacy "failed to get files, reason: ..."
-		// wrapper that callers and TestInvalidUrl depend on.
-		if strings.HasPrefix(err.Error(), "failed to parse") {
-			return nil, err
-		}
-
-		return nil, fmt.Errorf("failed to get files, reason: %v", err)
-	}
-
-	return files, nil
-}
-
-// getBody returns a stream of the response body and its size
-func getBody(requestURL, token, pubKeyBase64 string) (io.ReadCloser, int64, error) {
-	req, err := http.NewRequest("GET", requestURL, nil)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to create request, reason: %v", err)
-	}
-
-	req.Header.Add("SDA-Client-Version", appVersion)
-	req.Header.Add("Authorization", "Bearer "+token)
-	req.Header.Add("Content-Type", "application/json")
-	if pubKeyBase64 != "" {
-		req.Header.Add("Client-Public-Key", pubKeyBase64)
-	}
-
-	client := &http.Client{Jar: cookieJar}
-	res, err := client.Do(req) // #nosec G704
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to get response, reason: %v", err)
-	}
-
-	if res.StatusCode != http.StatusOK {
-		defer res.Body.Close()
-		resBody, _ := io.ReadAll(res.Body)
-		if res.StatusCode == http.StatusPreconditionFailed {
-			return nil, 0, errors.New(strings.TrimSpace(string(resBody)))
-		}
-
-		return nil, 0, fmt.Errorf("server returned status %d", res.StatusCode)
-	}
-
-	return res.Body, res.ContentLength, nil
-}
-
 func GetURLsFile(urlsFilePath string) (urlsList []string, err error) {
 	urlsFile, err := os.Open(filepath.Clean(urlsFilePath))
 	if err != nil {
@@ -590,36 +422,6 @@ func GetURLsFile(urlsFilePath string) (urlsList []string, err error) {
 	}
 
 	return urlsList, scanner.Err()
-}
-
-func setupCookieJar(u *url.URL) {
-	if cd, err := os.UserCacheDir(); err != nil {
-		fmt.Fprintln(os.Stderr, "cache dir not set, using current dir")
-		cookiePath, _ = filepath.Abs(".sda_cookie")
-	} else {
-		if err := os.MkdirAll(filepath.Join(cd, "sda-cli"), 0750); err != nil {
-			fmt.Fprintln(os.Stderr, "failed to create cache dir, using current dir")
-			cookiePath, _ = filepath.Abs(".sda_cookie")
-		} else {
-			cookiePath = filepath.Join(cd, "sda-cli/sda_cookie")
-		}
-	}
-	cookieJar = cookiejar.NewPersistentJar(
-		cookiejar.WithFilePath(cookiePath),
-		cookiejar.WithAutoSync(true),
-		cookiejar.WithPublicSuffixList(publicsuffix.List),
-	)
-	if _, err := os.Stat(cookiePath); err == nil {
-		cookieString, err := os.ReadFile(cookiePath)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to read cookie file: %s", err.Error())
-		}
-
-		var parsedCookies []*http.Cookie
-		if err := json.Unmarshal(cookieString, &parsedCookies); err == nil && len(parsedCookies) > 0 {
-			cookieJar.SetCookies(u, parsedCookies)
-		}
-	}
 }
 
 func downloadWithBar(p *mpb.Progress, outFile *os.File, reader io.Reader, totalSize int64, buf []byte) error {

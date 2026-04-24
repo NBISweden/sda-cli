@@ -3,6 +3,7 @@ package apiclient
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -145,4 +146,109 @@ func TestV1Client_DatasetInfo_NotSupported(t *testing.T) {
 	c := NewV1Client(Config{BaseURL: "http://unused", Token: "t"}, nil)
 	_, err := c.DatasetInfo(context.Background(), "TES01")
 	require.ErrorIs(t, err, ErrNotSupportedOnV1)
+}
+
+func TestV1Client_DownloadFile_ByPath(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/metadata/datasets/TES01/files":
+			fmt.Fprint(w, `[{"fileId":"f1","displayFileName":"a.c4gh","filePath":"dir/a.c4gh"}]`)
+		case "/s3/TES01/dir/a.c4gh":
+			assert.Equal(t, "key-b64", r.Header.Get("Client-Public-Key"))
+			w.Header().Set("Content-Length", "11")
+			fmt.Fprint(w, "encrypted..")
+		default:
+			t.Fatalf("unexpected path %q", r.URL.Path)
+		}
+	}))
+	defer ts.Close()
+
+	c := NewV1Client(Config{BaseURL: ts.URL, Token: "t"}, nil)
+	c.SetHTTPClientForTest(ts.Client())
+
+	result, err := c.DownloadFile(context.Background(), DownloadRequest{
+		DatasetID:       "TES01",
+		UserArg:         "dir/a.c4gh",
+		PublicKeyBase64: "key-b64",
+	})
+	require.NoError(t, err)
+	defer result.Body.Close()
+	assert.Equal(t, int64(11), result.ContentLength)
+	b, _ := io.ReadAll(result.Body)
+	assert.Equal(t, "encrypted..", string(b))
+}
+
+func TestV1Client_DownloadFile_ByID(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/metadata/datasets/TES01/files":
+			fmt.Fprint(w, `[{"fileId":"f-xyz","displayFileName":"a.c4gh","filePath":"a.c4gh"}]`)
+		case "/s3/TES01/a.c4gh":
+			w.Header().Set("Content-Length", "5")
+			fmt.Fprint(w, "hello")
+		default:
+			t.Fatalf("unexpected path %q", r.URL.Path)
+		}
+	}))
+	defer ts.Close()
+
+	c := NewV1Client(Config{BaseURL: ts.URL, Token: "t"}, nil)
+	c.SetHTTPClientForTest(ts.Client())
+
+	result, err := c.DownloadFile(context.Background(), DownloadRequest{
+		DatasetID: "TES01", UserArg: "f-xyz", PublicKeyBase64: "key",
+	})
+	require.NoError(t, err)
+	defer result.Body.Close()
+}
+
+// TestV1Client_DownloadFile_StripsUserPrefix guards the v1 /s3 URL against
+// a user-prefixed FilePath: the retired download.getFileIDURL ran
+// AnonymizeFilepath before URL construction, and the v1 server expects the
+// prefix already stripped. Regression here would 404 every v1 download for
+// users whose dataset files carry a "user_<email>/..." prefix.
+func TestV1Client_DownloadFile_StripsUserPrefix(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/metadata/datasets/TES01/files":
+			fmt.Fprint(w, `[{"fileId":"f1","displayFileName":"a.c4gh","filePath":"user_example.com/files/a.c4gh"}]`)
+		case "/s3/TES01/files/a.c4gh":
+			fmt.Fprint(w, "ok")
+		default:
+			t.Fatalf("unexpected path %q — user prefix should have been stripped", r.URL.Path)
+		}
+	}))
+	defer ts.Close()
+
+	c := NewV1Client(Config{BaseURL: ts.URL, Token: "t"}, nil)
+	c.SetHTTPClientForTest(ts.Client())
+
+	result, err := c.DownloadFile(context.Background(), DownloadRequest{
+		DatasetID: "TES01", UserArg: "files/a.c4gh",
+	})
+	require.NoError(t, err)
+	defer result.Body.Close()
+}
+
+// TestV1Client_DownloadFile_WrapsListFailure guards the legacy
+// "failed to get files, reason: ..." error prefix on list-resolution
+// failures inside DownloadFile. Scripts and the download.go shim have
+// asserted on this prefix since before the apiclient abstraction; without
+// the wrap, callers see the bare transport error and string-matching
+// breaks.
+func TestV1Client_DownloadFile_WrapsListFailure(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, "boom")
+	}))
+	defer ts.Close()
+
+	c := NewV1Client(Config{BaseURL: ts.URL, Token: "t"}, nil)
+	c.SetHTTPClientForTest(ts.Client())
+
+	_, err := c.DownloadFile(context.Background(), DownloadRequest{
+		DatasetID: "TES01", UserArg: "anything", PublicKeyBase64: "k",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get files, reason:")
 }

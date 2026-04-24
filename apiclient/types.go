@@ -13,6 +13,9 @@ type File struct {
 	DecryptedFileSize         int    `json:"decryptedFileSize"`
 	DecryptedFileChecksum     string `json:"decryptedFileChecksum"`
 	DecryptedFileChecksumType string `json:"decryptedFileChecksumType"`
+	// DownloadURL is v2-only (server-provided relative URL).
+	// Empty on v1 File values.
+	DownloadURL string `json:"-"`
 }
 
 // Checksum is the v2 checksum element. Included for completeness; v1
