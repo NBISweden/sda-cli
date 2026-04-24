@@ -6,10 +6,12 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 
@@ -36,6 +38,8 @@ type UploadTestSuite struct {
 	publicKeyFilePath  string
 	s3MockHTTPServer   *httptest.Server
 	s3Client           *s3.Client
+	objectPutHeaders   http.Header
+	objectPutHeadersMu sync.Mutex
 }
 
 var configFileFormat = `
@@ -70,12 +74,24 @@ func (s *UploadTestSuite) SetupTest() {
 	uploadCmd.Flag("access-token").Value.Set("")
 	os.Args = []string{"", "upload"}
 
+	s.objectPutHeadersMu.Lock()
+	s.objectPutHeaders = nil
+	s.objectPutHeadersMu.Unlock()
+
 	s.accessToken = s.generateDummyToken()
 	s.tempDir = s.T().TempDir()
 
 	backend := s3mem.New()
 	faker := gofakes3.New(backend)
-	s.s3MockHTTPServer = httptest.NewServer(faker.Server())
+	fakeS3Handler := faker.Server()
+	s.s3MockHTTPServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut && r.URL.Path != "/dummy" {
+			s.objectPutHeadersMu.Lock()
+			s.objectPutHeaders = r.Header.Clone()
+			s.objectPutHeadersMu.Unlock()
+		}
+		fakeS3Handler.ServeHTTP(w, r)
+	}))
 
 	awsConfig, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("dummy", "dummy", s.accessToken)),
@@ -275,6 +291,23 @@ func (s *UploadTestSuite) TestUploadTargetDir() {
 	}
 	assert.Equal(s.T(), aws.ToString(result.Contents[0].Key), fmt.Sprintf("%s/%s", filepath.ToSlash(targetPath), filepath.Base(s.uploadTestFilePath)))
 }
+
+func (s *UploadTestSuite) TestUploadSinglePartDoesNotSendFlexibleChecksumHeaders() {
+	os.Args = []string{"", "upload", s.uploadTestFilePath}
+	uploadCmd.Flag("force-unencrypted").Value.Set("true")
+	assert.NoError(s.T(), uploadCmd.Execute())
+
+	s.objectPutHeadersMu.Lock()
+	headers := s.objectPutHeaders.Clone()
+	s.objectPutHeadersMu.Unlock()
+
+	if assert.NotNil(s.T(), headers, "expected object PUT request headers to be captured") {
+		assert.Empty(s.T(), headers.Values("X-Amz-Sdk-Checksum-Algorithm"))
+		assert.Empty(s.T(), headers.Values("X-Amz-Checksum-Crc32"))
+		assert.Empty(s.T(), headers.Values("X-Amz-Trailer"))
+	}
+}
+
 func (s *UploadTestSuite) TestUploadWithEncryption() {
 	rescuedStdout := os.Stdout
 	stdoutReader, stdoutWriter, _ := os.Pipe()
