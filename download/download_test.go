@@ -1,6 +1,7 @@
 package download
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"errors"
@@ -17,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/NBISweden/sda-cli/apiclient"
 	createkey "github.com/NBISweden/sda-cli/create_key"
 	"github.com/golang-jwt/jwt"
 	"github.com/stretchr/testify/assert"
@@ -92,6 +94,7 @@ func (s *DownloadTestSuite) SetupTest() {
 	downloadCmd.Flag("from-file").Value.Set("false")
 	downloadCmd.Flag("ignore-existing").Value.Set("false")
 	downloadCmd.Flag("overwrite-existing").Value.Set("false")
+	downloadCmd.Flag("api-version").Value.Set("v1")
 	pubKeyBase64 = ""
 
 	s.tempDir = s.T().TempDir()
@@ -146,6 +149,25 @@ func (s *DownloadTestSuite) TestInvalidUrl() {
 		err.Error(),
 		"failed to get files, reason: failed to get response, reason: Get \"https://some/url/metadata/datasets/TES01/files\": dial tcp: lookup some",
 	)
+}
+
+func (s *DownloadTestSuite) TestDownload_APIVersionV2_NotYetImplemented() {
+	// Set everything Download() requires so it reaches the apiclient.New factory.
+	oldDatasetID, oldURL, oldAPIVersion := datasetID, URL, apiVersionFlag
+	datasetID = "TES01"
+	URL = s.httpTestServer.URL
+	apiVersionFlag = "v2"
+	defer func() {
+		datasetID, URL, apiVersionFlag = oldDatasetID, oldURL, oldAPIVersion
+	}()
+
+	oldPubKey := pubKey
+	pubKey = fmt.Sprintf("%s.pub.pem", s.testKeyFile)
+	defer func() { pubKey = oldPubKey }()
+
+	err := Download([]string{"files/file1.c4gh"}, s.configFilePath, "test")
+	require.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "not yet implemented")
 }
 
 func (s *DownloadTestSuite) TestDownloadOneFileWithPublicKey() {
@@ -312,7 +334,13 @@ func (s *DownloadTestSuite) TestFileIdUrl() {
 		},
 	} {
 		s.T().Run(test.testName, func(t *testing.T) {
-			url, _, err := getFileIDURL(test.baseURL, s.accessToken, "", test.datasetID, test.filePath)
+			client := apiclient.NewV1Client(apiclient.Config{
+				BaseURL: test.baseURL,
+				Token:   s.accessToken,
+				Version: "test",
+			}, nil)
+			client.SetHTTPClientForTest(s.httpTestServer.Client())
+			url, _, err := getFileIDURL(context.Background(), client, test.baseURL, test.datasetID, "", test.filePath)
 			assert.Equal(t, test.expectedError, err)
 			assert.Equal(t, test.expectedURL, url)
 		})
@@ -323,6 +351,51 @@ func (s *DownloadTestSuite) TestGetDatasets() {
 	datasets, err := GetDatasets(s.httpTestServer.URL, s.accessToken, "test-version")
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), datasets, []string{"https://doi.example/ty009.sfrrss/600.45asasga"})
+}
+
+// Guards the pre-abstraction error shape: transport/status failures from
+// GetDatasets were wrapped as "failed to get datasets, reason: ...".
+// This test ensures the shim still preserves that prefix after the
+// apiclient refactor.
+func (s *DownloadTestSuite) TestGetDatasets_WrapsTransportError() {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	defer ts.Close()
+
+	_, err := GetDatasets(ts.URL, s.accessToken, "test-version")
+	require.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "failed to get datasets, reason:")
+	assert.Contains(s.T(), err.Error(), "status 403")
+}
+
+// Same parity guard for GetFilesInfo: pre-abstraction, transport/status
+// failures got a "failed to get files, reason: ..." prefix while parse
+// errors kept their own "failed to parse file list JSON, reason: ..."
+// shape. The shim must not double-wrap parse errors.
+func (s *DownloadTestSuite) TestGetFilesInfo_WrapsTransportError() {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	defer ts.Close()
+
+	_, err := GetFilesInfo(ts.URL, "TES01", "", s.accessToken, "test-version")
+	require.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "failed to get files, reason:")
+	assert.Contains(s.T(), err.Error(), "status 403")
+}
+
+func (s *DownloadTestSuite) TestGetFilesInfo_PassesParseErrorThrough() {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, "not json")
+	}))
+	defer ts.Close()
+
+	_, err := GetFilesInfo(ts.URL, "TES01", "", s.accessToken, "test-version")
+	require.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "failed to parse file list")
+	assert.NotContains(s.T(), err.Error(), "failed to get files, reason: failed to parse",
+		"parse errors must not be double-wrapped")
 }
 
 func (s *DownloadTestSuite) TestGetBodyNoPublicKey() {

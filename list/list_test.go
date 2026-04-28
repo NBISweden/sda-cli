@@ -24,6 +24,7 @@ import (
 	"github.com/johannesboyne/gofakes3"
 	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -154,6 +155,7 @@ func (s *ListTestSuite) SetupTest() {
 	listCmd.Flag("dataset").Value.Set("")
 	listCmd.Flag("datasets").Value.Set("false")
 	listCmd.Flag("url").Value.Set("")
+	listCmd.Flag("api-version").Value.Set("v1")
 	listCmd.Root().Flag("config").Value.Set(s.configPath)
 	os.Args = []string{"", "list"}
 }
@@ -238,6 +240,15 @@ func (s *ListTestSuite) TestListDatasetsNoUrl() {
 	listCmd.Flag("url").Value.Set("")
 	err := listCmd.Execute()
 	assert.EqualError(s.T(), err, "invalid base URL")
+}
+
+func (s *ListTestSuite) TestList_APIVersionV2_NotYetImplemented() {
+	listCmd.Flag("datasets").Value.Set("true")
+	listCmd.Flag("url").Value.Set(s.downloadMockHTTPServer.URL)
+	listCmd.Flag("api-version").Value.Set("v2")
+	err := listCmd.Execute()
+	require.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "not yet implemented")
 }
 
 func (s *ListTestSuite) generateDummyToken() string {
