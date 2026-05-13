@@ -245,7 +245,7 @@ func (s *ListTestSuite) TestListDatasetsNoUrl() {
 func (s *ListTestSuite) TestListDatasets_WrapsTransportError() {
 	// v1 list --datasets surfaces HTTP / transport failures with the legacy
 	// "failed to get datasets, reason: ..." prefix that callers of the
-	// pre-apiclient download.GetDatasets shim used to emit.
+	// pre-downloadclient download.GetDatasets shim used to emit.
 	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
@@ -261,7 +261,7 @@ func (s *ListTestSuite) TestListDatasets_WrapsTransportError() {
 func (s *ListTestSuite) TestListDataset_WrapsTransportError() {
 	// v1 list --dataset surfaces HTTP / transport failures with the legacy
 	// "failed to get files, reason: ..." prefix (same contract as
-	// download.GetFilesInfo emitted before apiclient was introduced).
+	// download.GetFilesInfo emitted before downloadclient was introduced).
 	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))

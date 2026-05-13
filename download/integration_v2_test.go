@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/NBISweden/sda-cli/apiclient"
+	"github.com/NBISweden/sda-cli/downloadclient"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,10 +24,10 @@ func TestV2_ListDatasets_Smoke(t *testing.T) {
 	token := os.Getenv("DOWNLOAD_V2_TOKEN")
 	require.NotEmpty(t, token, "DOWNLOAD_V2_TOKEN must be set (curl /tokens on mockauth)")
 
-	client, err := apiclient.New(apiclient.Config{
-		BaseURL: baseURL,
-		Token:   token,
-		Version: "test",
+	client, err := downloadclient.New(downloadclient.Config{
+		BaseURL:       baseURL,
+		Token:         token,
+		ClientVersion: "test",
 	}, "v2")
 	require.NoError(t, err)
 

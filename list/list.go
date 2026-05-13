@@ -120,15 +120,12 @@ func datasetFiles(token string, url string, dataset string, bytesFormat bool) er
 
 	files, err := client.ListFiles(context.Background(), dataset, downloadclient.ListFilesOptions{})
 	if err != nil {
-		// URL-validation errors are returned unwrapped so TestListDatasetNoUrl
-		// still sees the bare "invalid base URL" string; transport / parse /
-		// HTTP errors get the legacy "failed to get files, reason: ..."
-		// prefix that callers of the previous download.GetFilesInfo shim
-		// expected before apiclient was introduced.
-		if err.Error() == "invalid base URL" {
-			return err
-		}
-
+		// Wrap transport / parse / HTTP errors with the legacy "failed to get
+		// files, reason: ..." prefix that callers of the previous
+		// download.GetFilesInfo shim expected before downloadclient was
+		// introduced. Configuration errors (empty/unparseable BaseURL, empty
+		// Token) are caught earlier by downloadclient.New() and never reach
+		// this branch.
 		return fmt.Errorf("failed to get files, reason: %v", err)
 	}
 
@@ -166,14 +163,9 @@ func Datasets(url string, token string) error {
 	ctx := context.Background()
 	datasets, err := client.ListDatasets(ctx)
 	if err != nil {
-		// Same contract as datasetFiles above: bare "invalid base URL"
-		// preserved for TestListDatasetsNoUrl; every other failure gets the
-		// legacy "failed to get datasets, reason: ..." prefix that the
-		// pre-apiclient download.GetDatasets shim used to emit.
-		if err.Error() == "invalid base URL" {
-			return err
-		}
-
+		// Wrap with the legacy "failed to get datasets, reason: ..." prefix
+		// that the pre-downloadclient download.GetDatasets shim used to emit.
+		// Configuration errors are caught earlier by downloadclient.New().
 		return fmt.Errorf("failed to get datasets, reason: %v", err)
 	}
 
@@ -190,7 +182,6 @@ func Datasets(url string, token string) error {
 
 		return nil
 	}
-
 
 	for _, dataset := range datasets {
 		files, err := client.ListFiles(ctx, dataset, downloadclient.ListFilesOptions{})

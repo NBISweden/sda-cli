@@ -7,7 +7,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 )
+
+// maxErrorBodyBytes is the maximum number of bytes from a server error
+// response that getJSON includes in its formatted error. Bodies past this
+// are truncated; #678 caps the read itself with io.LimitReader on the
+// response body to bound memory before truncation.
+const maxErrorBodyBytes = 200
 
 // V2Client talks to the v2 SDA download API
 // (GET /datasets, /datasets/{id}/files, /files/{id}, etc.).
@@ -32,7 +39,11 @@ func NewV2Client(cfg Config) *V2Client {
 // paginate[T] helper arrives in #676. Returning an explicit error when
 // nextPageToken != null prevents silently truncating results.
 func (c *V2Client) ListDatasets(ctx context.Context) ([]string, error) {
-	body, err := c.getJSON(ctx, c.cfg.BaseURL+"/datasets")
+	endpoint, err := url.JoinPath(c.cfg.BaseURL, "datasets")
+	if err != nil {
+		return nil, fmt.Errorf("invalid base URL: %w", err)
+	}
+	body, err := c.getJSON(ctx, endpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -68,8 +79,9 @@ func (c *V2Client) getJSON(ctx context.Context, reqURL string) (io.ReadCloser, e
 	}
 	req.Header.Set("Authorization", "Bearer "+c.cfg.Token)
 	req.Header.Set("Accept", "application/json")
-	if c.cfg.Version != "" {
-		req.Header.Set("User-Agent", "sda-cli/"+c.cfg.Version)
+	if c.cfg.ClientVersion != "" {
+		req.Header.Set("User-Agent", "sda-cli/"+c.cfg.ClientVersion)
+		req.Header.Set("SDA-Client-Version", c.cfg.ClientVersion)
 	}
 
 	resp, err := c.http.Do(req)
@@ -80,8 +92,8 @@ func (c *V2Client) getJSON(ctx context.Context, reqURL string) (io.ReadCloser, e
 		b, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		body := string(b)
-		if len(body) > 200 {
-			body = body[:200]
+		if len(body) > maxErrorBodyBytes {
+			body = body[:maxErrorBodyBytes]
 		}
 
 		return nil, fmt.Errorf("server returned status %d: %s", resp.StatusCode, body)

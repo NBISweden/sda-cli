@@ -51,7 +51,7 @@ func (f v2File) toFile() File {
 	out := File{
 		FileID:            f.FileID,
 		FilePath:          f.FilePath,
-		DecryptedFileSize: int(f.DecryptedSize),
+		DecryptedFileSize: f.DecryptedSize,
 	}
 	for _, c := range f.Checksums {
 		if c.Type == "sha256" {
