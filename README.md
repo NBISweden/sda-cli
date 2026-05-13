@@ -303,7 +303,7 @@ To list datasets or the files within a dataset that the user has access to, use
 the `--datasets` flag and provide the download service URL:
 
 ```bash
-./sda-cli --config <configuration_file> list --datasets (-bytes) --url <download-service-url>
+./sda-cli --config <configuration_file> list --datasets (--bytes) --url <download-service-url>
 ```
 
 where `<download-service-url>` is the URL for the SDA download service. The
