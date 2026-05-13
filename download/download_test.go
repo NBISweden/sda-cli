@@ -18,8 +18,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/NBISweden/sda-cli/apiclient"
 	createkey "github.com/NBISweden/sda-cli/create_key"
+	"github.com/NBISweden/sda-cli/downloadclient"
 	"github.com/golang-jwt/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -152,7 +152,7 @@ func (s *DownloadTestSuite) TestInvalidUrl() {
 }
 
 func (s *DownloadTestSuite) TestDownload_APIVersionV2_NotYetImplemented() {
-	// Set everything Download() requires so it reaches the apiclient.New factory.
+	// Set everything Download() requires so it reaches the downloadclient.New factory.
 	oldDatasetID, oldURL, oldAPIVersion := datasetID, URL, apiVersionFlag
 	datasetID = "TES01"
 	URL = s.httpTestServer.URL
@@ -334,10 +334,10 @@ func (s *DownloadTestSuite) TestFileIdUrl() {
 		},
 	} {
 		s.T().Run(test.testName, func(t *testing.T) {
-			client := apiclient.NewV1Client(apiclient.Config{
-				BaseURL: test.baseURL,
-				Token:   s.accessToken,
-				Version: "test",
+			client := downloadclient.NewV1Client(downloadclient.Config{
+				BaseURL:       test.baseURL,
+				Token:         s.accessToken,
+				ClientVersion: "test",
 			}, nil)
 			client.SetHTTPClientForTest(s.httpTestServer.Client())
 			url, _, err := getFileIDURL(context.Background(), client, test.baseURL, test.datasetID, "", test.filePath)
@@ -356,7 +356,7 @@ func (s *DownloadTestSuite) TestGetDatasets() {
 // Guards the pre-abstraction error shape: transport/status failures from
 // GetDatasets were wrapped as "failed to get datasets, reason: ...".
 // This test ensures the shim still preserves that prefix after the
-// apiclient refactor.
+// downloadclient refactor.
 func (s *DownloadTestSuite) TestGetDatasets_WrapsTransportError() {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusForbidden)

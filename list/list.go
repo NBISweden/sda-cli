@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/NBISweden/sda-cli/apiclient"
 	rootcmd "github.com/NBISweden/sda-cli/cmd"
+	"github.com/NBISweden/sda-cli/downloadclient"
 	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/dustin/go-humanize"
 	"github.com/inhies/go-bytesize"
@@ -109,23 +109,23 @@ func list(configPath string, prefix string) error {
 }
 
 func datasetFiles(token string, url string, dataset string, bytesFormat bool) error {
-	client, err := apiclient.New(apiclient.Config{
-		BaseURL: url,
-		Token:   token,
-		Version: rootcmd.Version,
+	client, err := downloadclient.New(downloadclient.Config{
+		BaseURL:       url,
+		Token:         token,
+		ClientVersion: rootcmd.Version,
 	}, apiVersionFlag)
 	if err != nil {
 		return err
 	}
 
-	files, err := client.ListFiles(context.Background(), dataset, apiclient.ListFilesOptions{})
+	files, err := client.ListFiles(context.Background(), dataset, downloadclient.ListFilesOptions{})
 	if err != nil {
 		return err
 	}
 
 	fileIDWidth, sizeWidth := 20, 10 // Set minimum column widths, so that header matches the rest of the table
 	fmt.Printf("%-*s \t %-*s \t %s\n", fileIDWidth, "FileID", sizeWidth, "Size", "Path")
-	datasetSize := 0
+	datasetSize := int64(0)
 
 	for _, file := range files {
 		datasetSize += file.DecryptedFileSize
@@ -136,19 +136,19 @@ func datasetFiles(token string, url string, dataset string, bytesFormat bool) er
 	return nil
 }
 
-func formatFileSizeOutput(size int, bytesFormat bool) string {
+func formatFileSizeOutput(size int64, bytesFormat bool) string {
 	if !bytesFormat {
 		return humanize.Bytes(uint64(size))
 	}
 
-	return strconv.Itoa(size)
+	return strconv.FormatInt(size, 10)
 }
 
 func Datasets(url string, token string) error {
-	client, err := apiclient.New(apiclient.Config{
-		BaseURL: url,
-		Token:   token,
-		Version: rootcmd.Version,
+	client, err := downloadclient.New(downloadclient.Config{
+		BaseURL:       url,
+		Token:         token,
+		ClientVersion: rootcmd.Version,
 	}, apiVersionFlag)
 	if err != nil {
 		return err
@@ -162,15 +162,15 @@ func Datasets(url string, token string) error {
 
 	// NOTE: v1 has no DatasetInfo endpoint, so we call ListFiles per dataset
 	// to compute file count and size. #676 of issue #663 switches v2 to
-	// apiclient.Client.DatasetInfo.
+	// downloadclient.Client.DatasetInfo.
 	for _, dataset := range datasets {
-		files, err := client.ListFiles(ctx, dataset, apiclient.ListFilesOptions{})
+		files, err := client.ListFiles(ctx, dataset, downloadclient.ListFilesOptions{})
 		if err != nil {
 			return err
 		}
 		fileIDWidth := 40 // fileIdwith=40 ensures header matches rest of the table
 		fmt.Printf("%-*s \t %s \t %s\n", fileIDWidth, "DatasetID", "Files", "Size")
-		datasetSize := 0
+		datasetSize := int64(0)
 		noOfFiles := 0
 		for _, file := range files {
 			datasetSize += file.DecryptedFileSize

@@ -1,4 +1,4 @@
-package apiclient
+package downloadclient
 
 import (
 	"context"
@@ -49,7 +49,7 @@ func (c *V1Client) SetHTTPClientForTest(h *http.Client) {
 }
 
 // resolveCookiePath mirrors download.setupCookieJar's path resolution
-// EXACTLY so apiclient and legacy callers share the same on-disk jar.
+// EXACTLY so downloadclient and legacy callers share the same on-disk jar.
 // Do not add per-host suffixes or /tmp fallbacks.
 func resolveCookiePath() string {
 	cd, err := os.UserCacheDir()
@@ -167,7 +167,7 @@ func (c *V1Client) getBody(ctx context.Context, requestURL, pubKeyBase64 string)
 		return nil, 0, fmt.Errorf("failed to create request, reason: %v", err)
 	}
 
-	req.Header.Add("SDA-Client-Version", c.cfg.Version)
+	req.Header.Add("SDA-Client-Version", c.cfg.ClientVersion)
 	req.Header.Add("Authorization", "Bearer "+c.cfg.Token)
 	req.Header.Add("Content-Type", "application/json")
 	if pubKeyBase64 != "" {

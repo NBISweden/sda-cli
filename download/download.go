@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/NBISweden/sda-cli/apiclient"
 	rootcmd "github.com/NBISweden/sda-cli/cmd"
+	"github.com/NBISweden/sda-cli/downloadclient"
 	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/spf13/cobra"
 	"github.com/vbauerster/mpb/v8"
@@ -77,10 +77,10 @@ var cookieJar *cookiejar.PersistentJar
 var cookiePath string
 var appVersion string
 
-// File is the file metadata type. Canonical definition lives in apiclient.
+// File is the file metadata type. Canonical definition lives in downloadclient.
 // Alias preserves source compat for existing callers (list/, tests). Removed
-// in #677 when callers reference apiclient.File directly.
-type File = apiclient.File
+// in #677 when callers reference downloadclient.File directly.
+type File = downloadclient.File
 
 // Download function downloads files from the SDA by using the
 // download's service APIs
@@ -94,7 +94,7 @@ func Download(args []string, configPath, version string) error {
 	// Fail fast on an unsupported --api-version before we touch the
 	// filesystem via setupCookieJar. Cheap check; avoids creating
 	// ${UserCacheDir}/sda-cli/ when the command is about to error out.
-	if err := apiclient.ValidateVersion(apiVersionFlag); err != nil {
+	if err := downloadclient.ValidateVersion(apiVersionFlag); err != nil {
 		return err
 	}
 
@@ -150,12 +150,12 @@ func Download(args []string, configPath, version string) error {
 	// calls and the legacy /s3 transfer path see the same in-memory
 	// cookie state. Two independent AutoSync:ed jars on the same on-disk
 	// file would race and clobber each other (fixed here; removed in
-	// #677 when downloadFile also moves onto apiclient.Client).
-	client, err := apiclient.New(apiclient.Config{
-		BaseURL: URL,
-		Token:   config.AccessToken,
-		Version: version,
-	}, apiVersionFlag, apiclient.WithV1CookieJar(cookieJar))
+	// #677 when downloadFile also moves onto downloadclient.Client).
+	client, err := downloadclient.New(downloadclient.Config{
+		BaseURL:       URL,
+		Token:         config.AccessToken,
+		ClientVersion: version,
+	}, apiVersionFlag, downloadclient.WithV1CookieJar(cookieJar))
 	if err != nil {
 		return err
 	}
@@ -189,9 +189,9 @@ func Download(args []string, configPath, version string) error {
 	return nil
 }
 
-func datasetCase(ctx context.Context, client apiclient.Client, token string) error {
+func datasetCase(ctx context.Context, client downloadclient.Client, token string) error {
 	fmt.Println("Downloading all files in the dataset")
-	files, err := client.ListFiles(ctx, datasetID, apiclient.ListFilesOptions{})
+	files, err := client.ListFiles(ctx, datasetID, downloadclient.ListFilesOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get files, reason: %v", err)
 	}
@@ -209,9 +209,9 @@ func datasetCase(ctx context.Context, client apiclient.Client, token string) err
 	return nil
 }
 
-func recursiveCase(ctx context.Context, client apiclient.Client, args []string, token string) error {
+func recursiveCase(ctx context.Context, client downloadclient.Client, args []string, token string) error {
 	fmt.Println("Downloading content of the path(s)")
-	files, err := client.ListFiles(ctx, datasetID, apiclient.ListFilesOptions{})
+	files, err := client.ListFiles(ctx, datasetID, downloadclient.ListFilesOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get files, reason: %v", err)
 	}
@@ -256,7 +256,7 @@ func recursiveCase(ctx context.Context, client apiclient.Client, args []string, 
 	return nil
 }
 
-func fileCase(ctx context.Context, client apiclient.Client, args []string, token string, fileList bool) error {
+func fileCase(ctx context.Context, client downloadclient.Client, args []string, token string, fileList bool) error {
 	var files []string
 	if fileList {
 		fmt.Println("Downloading files from file list")
@@ -416,7 +416,7 @@ func handleExistingFile(filePath string) (bool, error) {
 	return false, nil
 }
 
-func getFileIDURL(ctx context.Context, client apiclient.Client, baseURL, dataset, pubKeyBase64, filename string) (string, string, error) {
+func getFileIDURL(ctx context.Context, client downloadclient.Client, baseURL, dataset, pubKeyBase64, filename string) (string, string, error) {
 	// Preserve legacy behavior: if baseURL is invalid, return "invalid base URL"
 	// without wrapping (TestFileIdUrl/InvalidUrl asserts on the bare string).
 	u, err := url.ParseRequestURI(baseURL)
@@ -427,7 +427,7 @@ func getFileIDURL(ctx context.Context, client apiclient.Client, baseURL, dataset
 	// Forward the caller's pubkey on v1 so the Client-Public-Key header is
 	// emitted on /files listing — matches the original download.getFileIDURL →
 	// GetFilesInfo → getBody wire behavior. V2 ignores LegacyV1PubKey.
-	datasetFiles, err := client.ListFiles(ctx, dataset, apiclient.ListFilesOptions{
+	datasetFiles, err := client.ListFiles(ctx, dataset, downloadclient.ListFilesOptions{
 		LegacyV1PubKey: pubKeyBase64,
 	})
 	if err != nil {
@@ -462,8 +462,8 @@ func getFileIDURL(ctx context.Context, client apiclient.Client, baseURL, dataset
 }
 
 // GetDatasets is retained for backward compatibility with list/ and
-// download_test.go. Deprecated: new code should call apiclient.Client
-// via apiclient.New(...). Removed in #677 when callers finish migrating.
+// download_test.go. Deprecated: new code should call downloadclient.Client
+// via downloadclient.New(...). Removed in #677 when callers finish migrating.
 func GetDatasets(baseURL, token, version string) ([]string, error) {
 	// URL-parse errors are returned unwrapped to preserve legacy behavior
 	// (TestListDatasetsNoUrl asserts on the bare "invalid base URL" string).
@@ -472,10 +472,10 @@ func GetDatasets(baseURL, token, version string) ([]string, error) {
 		return nil, errors.New("invalid base URL")
 	}
 
-	c := apiclient.NewV1Client(apiclient.Config{
-		BaseURL: baseURL,
-		Token:   token,
-		Version: version,
+	c := downloadclient.NewV1Client(downloadclient.Config{
+		BaseURL:       baseURL,
+		Token:         token,
+		ClientVersion: version,
 	}, nil)
 
 	datasets, err := c.ListDatasets(context.Background())
@@ -498,7 +498,7 @@ func GetDatasets(baseURL, token, version string) ([]string, error) {
 // GetFilesInfo is retained for backward compatibility. Preserves v1's
 // error-prefix behavior ("failed to get files, reason: ...") that
 // existing tests like TestInvalidUrl rely on. Deprecated: call
-// apiclient.Client.ListFiles instead. Removed in #677.
+// downloadclient.Client.ListFiles instead. Removed in #677.
 func GetFilesInfo(baseURL, dataset, pubKeyBase64, token, version string) ([]File, error) {
 	// URL-parse errors are returned unwrapped to preserve legacy behavior
 	// (tests like TestFileIdUrl/InvalidUrl and TestListDatasetNoUrl rely on
@@ -508,12 +508,12 @@ func GetFilesInfo(baseURL, dataset, pubKeyBase64, token, version string) ([]File
 		return nil, errors.New("invalid base URL")
 	}
 
-	c := apiclient.NewV1Client(apiclient.Config{
-		BaseURL: baseURL,
-		Token:   token,
-		Version: version,
+	c := downloadclient.NewV1Client(downloadclient.Config{
+		BaseURL:       baseURL,
+		Token:         token,
+		ClientVersion: version,
 	}, nil)
-	files, err := c.ListFiles(context.Background(), dataset, apiclient.ListFilesOptions{
+	files, err := c.ListFiles(context.Background(), dataset, downloadclient.ListFilesOptions{
 		LegacyV1PubKey: pubKeyBase64,
 	})
 	if err != nil {

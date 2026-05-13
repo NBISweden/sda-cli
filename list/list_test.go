@@ -232,14 +232,14 @@ func (s *ListTestSuite) TestListDatasetNoUrl() {
 	listCmd.Flag("dataset").Value.Set("TES01")
 	listCmd.Flag("url").Value.Set("")
 	err := listCmd.Execute()
-	assert.EqualError(s.T(), err, "invalid base URL")
+	assert.EqualError(s.T(), err, "Config.BaseURL is required")
 }
 
 func (s *ListTestSuite) TestListDatasetsNoUrl() {
 	listCmd.Flag("datasets").Value.Set("true")
 	listCmd.Flag("url").Value.Set("")
 	err := listCmd.Execute()
-	assert.EqualError(s.T(), err, "invalid base URL")
+	assert.EqualError(s.T(), err, "Config.BaseURL is required")
 }
 
 func (s *ListTestSuite) TestList_APIVersionV2_NotYetImplemented() {

@@ -1,4 +1,4 @@
-package apiclient
+package downloadclient
 
 import (
 	"context"
@@ -20,7 +20,7 @@ func TestV1Client_ListDatasets(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c := NewV1Client(Config{BaseURL: ts.URL, Token: "test-token", Version: "test"}, nil)
+	c := NewV1Client(Config{BaseURL: ts.URL, Token: "test-token", ClientVersion: "test"}, nil)
 	c.http = ts.Client() // inject to bypass ensureJar
 
 	got, err := c.ListDatasets(context.Background())
@@ -92,7 +92,7 @@ func TestV1Client_ListFiles(t *testing.T) {
 	require.Len(t, got, 2)
 	assert.Equal(t, "f1", got[0].FileID)
 	assert.Equal(t, "dir/a.c4gh", got[0].FilePath)
-	assert.Equal(t, 100, got[0].DecryptedFileSize)
+	assert.Equal(t, int64(100), got[0].DecryptedFileSize)
 }
 
 // Guards the §5 "zero user-visible behavior change" guarantee: pre-abstraction the

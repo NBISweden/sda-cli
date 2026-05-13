@@ -1,4 +1,4 @@
-package apiclient
+package downloadclient
 
 import "errors"
 
