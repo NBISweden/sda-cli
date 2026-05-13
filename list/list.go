@@ -141,7 +141,11 @@ func Datasets(url string, token string) error {
 	const datasetIDWidth = 40
 	const filesWidth = 6
 	const sizeWidth = 10
-	fmt.Printf("%-*s \t %-*s \t %-*s\n", datasetIDWidth, "DatasetID", filesWidth, "Files", sizeWidth, "Size")
+	header := fmt.Sprintf("%-*s  %-*s  %-*s", datasetIDWidth, "DatasetID", filesWidth, "Files", sizeWidth, "Size")
+	fmt.Println("")
+	fmt.Println(strings.Repeat("=", len(header)))
+	fmt.Println(header)
+	fmt.Println(strings.Repeat("-", len(header)))
 	for _, dataset := range datasets {
 		files, err := download.GetFilesInfo(url, dataset, "", token, rootcmd.Version)
 		if err != nil {
@@ -153,7 +157,7 @@ func Datasets(url string, token string) error {
 			datasetSize += file.DecryptedFileSize
 			noOfFiles++
 		}
-		fmt.Printf("%-*s \t %-*d \t %-*s\n", datasetIDWidth, dataset, filesWidth, noOfFiles, sizeWidth, formatFileSizeOutput(datasetSize, bytesFormat))
+		fmt.Printf("%-*s  %-*d  %-*s\n", datasetIDWidth, dataset, filesWidth, noOfFiles, sizeWidth, formatFileSizeOutput(datasetSize, bytesFormat))
 	}
 
 	return nil
