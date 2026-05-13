@@ -262,8 +262,6 @@ func (s *EncryptTestSuite) TestStream() {
 
 	fs, err := Stream(file, [][32]byte{s.pubKeyData})
 	assert.NoError(s.T(), err, "failed to create encryption stream")
-	// make sure that no data is being read in order to save on memory
-	assert.Equal(s.T(), hex.EncodeToString(md5hash.Sum(nil)), hex.EncodeToString(fs.UnencryptedMD5.Sum(nil)))
 
 	enc, err := io.ReadAll(fs.Reader)
 	assert.NoError(s.T(), err, "failed to read from encryption stream")
@@ -276,8 +274,6 @@ func (s *EncryptTestSuite) TestStream() {
 	_ = fs.Reader.Close()
 }
 func (s *EncryptTestSuite) TestStreamLargeFile() {
-	md5hash := md5.New()
-
 	file, err := os.Open(s.largeFileToEncrypt.Name()) // #nosec G703
 	assert.NoError(s.T(), err, "opening file failed unexpectedly")
 	info, _ := file.Stat()
@@ -285,8 +281,6 @@ func (s *EncryptTestSuite) TestStreamLargeFile() {
 
 	fs, err := Stream(file, [][32]byte{s.pubKeyData})
 	assert.NoError(s.T(), err, "failed to create encryption stream")
-	// make sure that no data is being read in order to save on memory
-	assert.Equal(s.T(), hex.EncodeToString(md5hash.Sum(nil)), hex.EncodeToString(fs.UnencryptedMD5.Sum(nil)))
 
 	enc, err := io.ReadAll(fs.Reader)
 	assert.NoError(s.T(), err, "failed to read from encryption stream")

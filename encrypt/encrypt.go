@@ -615,6 +615,11 @@ func Stream(file *os.File, pubKeyList [][32]byte) (FileStream, error) {
 	return fs, nil
 }
 
+// FileStream is the output of Stream. The four hash fields are written
+// concurrently by a background goroutine as it copies the source file
+// through crypt4GHWriter. hash.Hash is not safe for concurrent use, so
+// callers must fully drain Reader (read until io.EOF) before calling
+// Sum on any of the hashes.
 type FileStream struct {
 	EncryptedMD5      hash.Hash
 	EncryptedSha256   hash.Hash
