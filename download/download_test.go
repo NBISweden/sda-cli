@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/NBISweden/sda-cli/downloadclient"
 	createkey "github.com/NBISweden/sda-cli/create_key"
+	"github.com/NBISweden/sda-cli/downloadclient"
 	"github.com/golang-jwt/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -418,9 +418,9 @@ func (s *DownloadTestSuite) TestDownloadConflictingFlags() {
 // bookkeeping that's less ergonomic to reset between four sub-cases).
 func (s *DownloadTestSuite) downloadOneWithClient(userArg string) error {
 	client := downloadclient.NewV1Client(downloadclient.Config{
-		BaseURL: s.httpTestServer.URL,
-		Token:   s.accessToken,
-		Version: "test",
+		BaseURL:       s.httpTestServer.URL,
+		Token:         s.accessToken,
+		ClientVersion: "test",
 	}, nil)
 	client.SetHTTPClientForTest(s.httpTestServer.Client())
 

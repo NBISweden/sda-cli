@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/NBISweden/sda-cli/downloadclient"
 	rootcmd "github.com/NBISweden/sda-cli/cmd"
+	"github.com/NBISweden/sda-cli/downloadclient"
 	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/spf13/cobra"
 	"github.com/vbauerster/mpb/v8"

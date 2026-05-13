@@ -174,6 +174,7 @@ func (c *V2Client) DownloadFile(ctx context.Context, req DownloadRequest) (Downl
 	httpReq.Header.Set("X-C4GH-Public-Key", req.PublicKeyBase64)
 	if c.cfg.ClientVersion != "" {
 		httpReq.Header.Set("User-Agent", "sda-cli/"+c.cfg.ClientVersion)
+		httpReq.Header.Set("SDA-Client-Version", c.cfg.ClientVersion)
 	}
 
 	resp, err := c.http.Do(httpReq) // #nosec G704
@@ -183,14 +184,14 @@ func (c *V2Client) DownloadFile(ctx context.Context, req DownloadRequest) (Downl
 	// Partial-Content without a Range request is a server bug; accepting it
 	// would rename a truncated .part as a complete file.
 	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(io.LimitReader(resp.Body, 201))
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes+1))
 		_ = resp.Body.Close()
 		if resp.StatusCode == http.StatusForbidden {
 			return DownloadResult{}, fmt.Errorf("dataset/file does not exist or access denied: %s", req.UserArg)
 		}
 		body := string(b)
-		if len(body) > 200 {
-			body = body[:200]
+		if len(body) > maxErrorBodyBytes {
+			body = body[:maxErrorBodyBytes]
 		}
 
 		return DownloadResult{}, fmt.Errorf("server returned status %d: %s", resp.StatusCode, body)

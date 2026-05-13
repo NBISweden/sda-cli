@@ -92,7 +92,7 @@ func TestV2_DownloadFile_EndToEnd(t *testing.T) {
 	pubKeyBase64 := os.Getenv("DOWNLOAD_V2_PUBKEY_B64")
 	require.NotEmpty(t, pubKeyBase64, "DOWNLOAD_V2_PUBKEY_B64 must be set")
 
-	result, err := client.DownloadFile(context.Background(), apiclient.DownloadRequest{
+	result, err := client.DownloadFile(context.Background(), downloadclient.DownloadRequest{
 		DatasetID:       "EGAD00000000001",
 		UserArg:         "test-file.c4gh",
 		PublicKeyBase64: pubKeyBase64,
