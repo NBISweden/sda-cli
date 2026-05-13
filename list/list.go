@@ -138,20 +138,22 @@ func Datasets(url string, token string) error {
 		return err
 	}
 
+	const datasetIDWidth = 40
+	const filesWidth = 6
+	const sizeWidth = 10
+	fmt.Printf("%-*s \t %-*s \t %-*s\n", datasetIDWidth, "DatasetID", filesWidth, "Files", sizeWidth, "Size")
 	for _, dataset := range datasets {
 		files, err := download.GetFilesInfo(url, dataset, "", token, rootcmd.Version)
 		if err != nil {
 			return err
 		}
-		fileIDWidth := 40 // fileIdwith=40 ensures header matches rest of the table
-		fmt.Printf("%-*s \t %s \t %s\n", fileIDWidth, "DatasetID", "Files", "Size")
 		datasetSize := 0
 		noOfFiles := 0
 		for _, file := range files {
 			datasetSize += file.DecryptedFileSize
 			noOfFiles++
 		}
-		fmt.Printf("%s \t %d \t %s\n", dataset, noOfFiles, formatFileSizeOutput(datasetSize, bytesFormat))
+		fmt.Printf("%-*s \t %-*d \t %-*s\n", datasetIDWidth, dataset, filesWidth, noOfFiles, sizeWidth, formatFileSizeOutput(datasetSize, bytesFormat))
 	}
 
 	return nil
