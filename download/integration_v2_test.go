@@ -12,12 +12,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// buildIntegrationClient constructs a v2 apiclient.Client pointed at the
+// buildIntegrationClient constructs a v2 downloadclient.Client pointed at the
 // dev stack. Requires:
 //   - dev-tools/download-v2-dev/ stack is up (make dev-download-v2-up)
 //   - DOWNLOAD_V2_URL env var (default http://localhost:8085)
 //   - DOWNLOAD_V2_TOKEN env var (dev token from mockauth)
-func buildIntegrationClient(t *testing.T) apiclient.Client {
+func buildIntegrationClient(t *testing.T) downloadclient.Client {
 	t.Helper()
 	baseURL := os.Getenv("DOWNLOAD_V2_URL")
 	if baseURL == "" {
@@ -27,17 +27,12 @@ func buildIntegrationClient(t *testing.T) apiclient.Client {
 	require.NotEmpty(t, token, "DOWNLOAD_V2_TOKEN must be set (curl /tokens on mockauth)")
 
 	client, err := downloadclient.New(downloadclient.Config{
-<<<<<<< HEAD
 		BaseURL:       baseURL,
 		Token:         token,
 		ClientVersion: "test",
-=======
-		BaseURL: baseURL,
-		Token:   token,
-		Version: "test",
->>>>>>> 478f1e5 (feat(list): use v2 DatasetInfo + PathPrefix on v2)
 	}, "v2")
 	require.NoError(t, err)
+
 	return client
 }
 
@@ -52,7 +47,7 @@ func TestV2_ListDatasets_Smoke(t *testing.T) {
 
 func TestV2_ListFiles_Smoke(t *testing.T) {
 	client := buildIntegrationClient(t)
-	files, err := client.ListFiles(context.Background(), "EGAD00000000001", apiclient.ListFilesOptions{})
+	files, err := client.ListFiles(context.Background(), "EGAD00000000001", downloadclient.ListFilesOptions{})
 	require.NoError(t, err)
 	assert.NotEmpty(t, files, "seeded dataset should have at least one file")
 }
@@ -60,7 +55,7 @@ func TestV2_ListFiles_Smoke(t *testing.T) {
 func TestV2_ListFiles_ExactPath_Smoke(t *testing.T) {
 	client := buildIntegrationClient(t)
 	// Seeded file is "test-file.c4gh"; confirm exact match.
-	files, err := client.ListFiles(context.Background(), "EGAD00000000001", apiclient.ListFilesOptions{
+	files, err := client.ListFiles(context.Background(), "EGAD00000000001", downloadclient.ListFilesOptions{
 		ExactPath: "test-file.c4gh",
 	})
 	require.NoError(t, err)
@@ -70,7 +65,7 @@ func TestV2_ListFiles_ExactPath_Smoke(t *testing.T) {
 
 func TestV2_ListFiles_PathPrefix_NoMatch(t *testing.T) {
 	client := buildIntegrationClient(t)
-	files, err := client.ListFiles(context.Background(), "EGAD00000000001", apiclient.ListFilesOptions{
+	files, err := client.ListFiles(context.Background(), "EGAD00000000001", downloadclient.ListFilesOptions{
 		PathPrefix: "nonexistent/",
 	})
 	require.NoError(t, err) // 200 with empty array is the contract

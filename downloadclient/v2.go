@@ -43,6 +43,7 @@ func (c *V2Client) ListDatasets(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid base URL: %w", err)
 	}
+
 	return paginate(ctx, func(ctx context.Context, pageToken *string) ([]string, *string, error) {
 		u := endpoint
 		if pageToken != nil {
@@ -73,8 +74,13 @@ func (c *V2Client) ListFiles(ctx context.Context, datasetID string, opts ListFil
 		return nil, errors.New("ListFilesOptions.ExactPath and .PathPrefix are mutually exclusive")
 	}
 
+	endpoint, err := url.JoinPath(c.cfg.BaseURL, "datasets", url.PathEscape(datasetID), "files")
+	if err != nil {
+		return nil, fmt.Errorf("invalid base URL: %w", err)
+	}
+
 	return paginate(ctx, func(ctx context.Context, pageToken *string) ([]File, *string, error) {
-		u := c.cfg.BaseURL + "/datasets/" + url.PathEscape(datasetID) + "/files"
+		u := endpoint
 		q := url.Values{}
 		if opts.ExactPath != "" {
 			q.Set("filePath", opts.ExactPath)
@@ -110,7 +116,10 @@ func (c *V2Client) ListFiles(ctx context.Context, datasetID string, opts ListFil
 // DatasetInfo implements Client. Calls GET /datasets/{id} and returns the
 // v2-only dataset metadata (file count + total decrypted size).
 func (c *V2Client) DatasetInfo(ctx context.Context, datasetID string) (DatasetInfo, error) {
-	u := c.cfg.BaseURL + "/datasets/" + url.PathEscape(datasetID)
+	u, err := url.JoinPath(c.cfg.BaseURL, "datasets", url.PathEscape(datasetID))
+	if err != nil {
+		return DatasetInfo{}, fmt.Errorf("invalid base URL: %w", err)
+	}
 	body, err := c.getJSON(ctx, u)
 	if err != nil {
 		return DatasetInfo{}, err
@@ -147,12 +156,13 @@ func (c *V2Client) getJSON(ctx context.Context, reqURL string) (io.ReadCloser, e
 		return nil, fmt.Errorf("http request: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		// Cap the read at 201 bytes: we only surface up to 200 bytes of
-		// the body in the error and a hostile or misconfigured server
-		// could otherwise stream a large payload into memory just to be
-		// truncated. The remainder is intentionally not drained; a bogus
-		// error body isn't worth keeping the connection in the pool.
-		b, _ := io.ReadAll(io.LimitReader(resp.Body, 201))
+		// Cap the read at maxErrorBodyBytes+1: we only surface up to
+		// maxErrorBodyBytes of the body in the error and a hostile or
+		// misconfigured server could otherwise stream a large payload
+		// into memory just to be truncated. The remainder is intentionally
+		// not drained; a bogus error body isn't worth keeping the
+		// connection in the pool.
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes+1))
 		_ = resp.Body.Close()
 		body := string(b)
 		if len(body) > maxErrorBodyBytes {
