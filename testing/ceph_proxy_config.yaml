@@ -7,13 +7,13 @@ broker:
   exchange: sda
   routingKey: inbox
   ssl: False
-db:
+database:
   host: postgres
   port: 5432
   user: postgres
   password: rootpasswd
-  database: sda
-  sslmode: disable
+  name: sda
+  ssl_mode: disable
 s3inbox:
   endpoint: http://ceph-octopus:8100
   type: s3

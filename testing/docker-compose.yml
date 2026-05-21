@@ -107,12 +107,12 @@ services:
     restart: always
     environment:
       - LOG_LEVEL=info
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=postgres
-      - DB_PASSWORD=rootpasswd
-      - DB_DATABASE=sda
-      - DB_SSLMODE=disable
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=rootpasswd
+      - DATABASE_DATABASE=sda
+      - DATABASE_SSL_MODE=disable
       - BROKER_HOST=rabbitmq
       - BROKER_USER=test
       - BROKER_PASSWORD=test
