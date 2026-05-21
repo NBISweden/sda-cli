@@ -2,12 +2,13 @@
 package list
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
 
 	rootcmd "github.com/NBISweden/sda-cli/cmd"
-	"github.com/NBISweden/sda-cli/download"
+	"github.com/NBISweden/sda-cli/downloadclient"
 	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/dustin/go-humanize"
 	"github.com/inhies/go-bytesize"
@@ -19,6 +20,7 @@ var datasets bool
 var url string
 var prefix string
 var bytesFormat bool
+var apiVersionFlag string
 
 var listCmd = &cobra.Command{
 	Use:   "list [flags] [args]",
@@ -59,6 +61,7 @@ func init() {
 	listCmd.Flags().StringVar(&dataset, "dataset", "", "List all files in the specified dataset, including dataset size")
 	listCmd.Flags().BoolVar(&datasets, "datasets", false, "List all datasets available in the user's folder")
 	listCmd.Flags().StringVar(&url, "url", "", "Specify the SDA download server URL")
+	listCmd.Flags().StringVar(&apiVersionFlag, "api-version", "v1", "SDA download API version to use (v1 or v2)")
 }
 
 func list(configPath string, prefix string) error {
@@ -106,14 +109,23 @@ func list(configPath string, prefix string) error {
 }
 
 func datasetFiles(token string, url string, dataset string, bytesFormat bool) error {
-	files, err := download.GetFilesInfo(url, dataset, "", token, rootcmd.Version)
+	client, err := downloadclient.New(downloadclient.Config{
+		BaseURL:       url,
+		Token:         token,
+		ClientVersion: rootcmd.Version,
+	}, apiVersionFlag)
+	if err != nil {
+		return err
+	}
+
+	files, err := client.ListFiles(context.Background(), dataset, downloadclient.ListFilesOptions{})
 	if err != nil {
 		return err
 	}
 
 	fileIDWidth, sizeWidth := 20, 10 // Set minimum column widths, so that header matches the rest of the table
 	fmt.Printf("%-*s \t %-*s \t %s\n", fileIDWidth, "FileID", sizeWidth, "Size", "Path")
-	datasetSize := 0
+	datasetSize := int64(0)
 
 	for _, file := range files {
 		datasetSize += file.DecryptedFileSize
@@ -124,28 +136,41 @@ func datasetFiles(token string, url string, dataset string, bytesFormat bool) er
 	return nil
 }
 
-func formatFileSizeOutput(size int, bytesFormat bool) string {
+func formatFileSizeOutput(size int64, bytesFormat bool) string {
 	if !bytesFormat {
 		return humanize.Bytes(uint64(size))
 	}
 
-	return strconv.Itoa(size)
+	return strconv.FormatInt(size, 10)
 }
 
 func Datasets(url string, token string) error {
-	datasets, err := download.GetDatasets(url, token, rootcmd.Version)
+	client, err := downloadclient.New(downloadclient.Config{
+		BaseURL:       url,
+		Token:         token,
+		ClientVersion: rootcmd.Version,
+	}, apiVersionFlag)
 	if err != nil {
 		return err
 	}
 
+	ctx := context.Background()
+	datasets, err := client.ListDatasets(ctx)
+	if err != nil {
+		return err
+	}
+
+	// NOTE: v1 has no DatasetInfo endpoint, so we call ListFiles per dataset
+	// to compute file count and size. #676 of issue #663 switches v2 to
+	// downloadclient.Client.DatasetInfo.
 	for _, dataset := range datasets {
-		files, err := download.GetFilesInfo(url, dataset, "", token, rootcmd.Version)
+		files, err := client.ListFiles(ctx, dataset, downloadclient.ListFilesOptions{})
 		if err != nil {
 			return err
 		}
 		fileIDWidth := 40 // fileIdwith=40 ensures header matches rest of the table
 		fmt.Printf("%-*s \t %s \t %s\n", fileIDWidth, "DatasetID", "Files", "Size")
-		datasetSize := 0
+		datasetSize := int64(0)
 		noOfFiles := 0
 		for _, file := range files {
 			datasetSize += file.DecryptedFileSize
