@@ -15,7 +15,7 @@ type File struct {
 	DecryptedFileChecksumType string `json:"decryptedFileChecksumType"`
 	// downloadURL is v2-only (server-provided relative URL).
 	// Empty on v1 File values.
-	downloadURL string `json:"-"`
+	downloadURL string
 }
 
 // Checksum is the v2 checksum element. Included for completeness; v1
