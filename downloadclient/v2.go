@@ -113,7 +113,7 @@ func (c *V2Client) ListFiles(ctx context.Context, datasetID string, opts ListFil
 }
 
 // DownloadFile implements Client. Resolves req.UserArg (either a file path
-// or a fileId) via resolveFile, then follows the server-provided DownloadURL
+// or a fileId) via resolveFile, then follows the server-provided downloadURL
 // with the X-C4GH-Public-Key header. Returns the resolved File so callers
 // can use its canonical FilePath for the on-disk name (a userArg that was
 // a bare fileId is not usable as a filename). 403 responses (from either
@@ -142,11 +142,11 @@ func (c *V2Client) DownloadFile(ctx context.Context, req DownloadRequest) (Downl
 	if target.FileID == "" {
 		return DownloadResult{}, fmt.Errorf("dataset/file does not exist or access denied: %s", req.UserArg)
 	}
-	if target.DownloadURL == "" {
+	if target.downloadURL == "" {
 		return DownloadResult{}, fmt.Errorf("server returned empty downloadUrl for %s", req.UserArg)
 	}
 
-	// Resolve the server-provided DownloadURL against BaseURL so we tolerate
+	// Resolve the server-provided downloadURL against BaseURL so we tolerate
 	// both relative paths (e.g. "/files/f1") and the absolute URLs a server
 	// might return for pre-signed storage redirects. Naive concatenation
 	// breaks on absolute URLs and on trailing/leading-slash mismatches.
@@ -154,9 +154,9 @@ func (c *V2Client) DownloadFile(ctx context.Context, req DownloadRequest) (Downl
 	if err != nil {
 		return DownloadResult{}, fmt.Errorf("invalid base URL %q: %w", c.cfg.BaseURL, err)
 	}
-	ref, err := url.Parse(target.DownloadURL)
+	ref, err := url.Parse(target.downloadURL)
 	if err != nil {
-		return DownloadResult{}, fmt.Errorf("server returned invalid downloadUrl %q: %w", target.DownloadURL, err)
+		return DownloadResult{}, fmt.Errorf("server returned invalid downloadUrl %q: %w", target.downloadURL, err)
 	}
 	resolved := base.ResolveReference(ref)
 
@@ -201,7 +201,7 @@ func (c *V2Client) DownloadFile(ctx context.Context, req DownloadRequest) (Downl
 }
 
 // resolveFile converts UserArg (path or fileId) into an downloadclient.File so
-// callers can use its DownloadURL. Uses the exact filePath filter for paths;
+// callers can use its downloadURL. Uses the exact filePath filter for paths;
 // for bare ids, falls back to list + match (v2 has no exact-id filter).
 // Returns a zero File (FileID == "") if not found.
 func (c *V2Client) resolveFile(ctx context.Context, datasetID, userArg string) (File, error) {

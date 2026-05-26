@@ -52,7 +52,7 @@ func (f v2File) toFile() File {
 		FileID:            f.FileID,
 		FilePath:          f.FilePath,
 		DecryptedFileSize: f.DecryptedSize,
-		DownloadURL:       f.DownloadURL,
+		downloadURL:       f.DownloadURL,
 	}
 	for _, c := range f.Checksums {
 		if c.Type == "sha256" {
