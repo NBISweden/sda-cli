@@ -109,11 +109,9 @@ func formatProblemDetails(status int, pd ProblemDetails, bodySample string) stri
 	}
 }
 
-// truncate returns s truncated to at most n bytes. Shared with v2.go's
-// non-2xx fallback so message shape is identical everywhere.
 func truncate(s string, n int) string {
 	if len(s) > n {
-		return s[:n]
+		return s[:n] + " [truncated]"
 	}
 
 	return s
