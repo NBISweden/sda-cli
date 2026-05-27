@@ -12,7 +12,7 @@ import (
 type Config struct {
 	BaseURL       string // e.g. "https://download.example.org"
 	Token         string // bearer token (raw, no "Bearer " prefix)
-	ClientVersion string // sda-cli version (e.g. v1.2.3); SDA-Client-Version on v1, User-Agent "sda-cli/<version>" on v2
+	ClientVersion string // sda-cli version (e.g. v1.2.3); sent as both SDA-Client-Version and User-Agent on v1 and v2
 }
 
 // DownloadRequest describes one file to fetch.

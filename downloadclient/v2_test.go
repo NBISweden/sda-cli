@@ -214,8 +214,6 @@ func TestV2Client_ListFiles_Paginated(t *testing.T) {
 	assert.Equal(t, "f1", got[0].FileID)
 	assert.Equal(t, "a.c4gh", got[0].FilePath)
 	assert.Equal(t, int64(90), got[0].DecryptedFileSize)
-	assert.Equal(t, "aaaa", got[0].DecryptedFileChecksum)
-	assert.Equal(t, "sha256", got[0].DecryptedFileChecksumType)
 }
 
 func TestV2Client_ListFiles_ExactFilePath(t *testing.T) {

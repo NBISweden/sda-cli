@@ -146,10 +146,10 @@ func (c *V2Client) DownloadFile(ctx context.Context, req DownloadRequest) (Downl
 		return DownloadResult{}, fmt.Errorf("server returned empty downloadUrl for %s", req.UserArg)
 	}
 
-	// Resolve the server-provided downloadURL against BaseURL so we tolerate
-	// both relative paths (e.g. "/files/f1") and the absolute URLs a server
-	// might return for pre-signed storage redirects. Naive concatenation
-	// breaks on absolute URLs and on trailing/leading-slash mismatches.
+	// Resolve the server-provided downloadURL against BaseURL.
+	// The swagger specifies downloadUrl as a relative path (e.g. "/files/f1"),
+	// but we use ResolveReference rather than string concat to handle
+	// trailing/leading-slash mismatches cleanly.
 	base, err := url.Parse(c.cfg.BaseURL)
 	if err != nil {
 		return DownloadResult{}, fmt.Errorf("invalid base URL %q: %w", c.cfg.BaseURL, err)
@@ -164,13 +164,7 @@ func (c *V2Client) DownloadFile(ctx context.Context, req DownloadRequest) (Downl
 	if err != nil {
 		return DownloadResult{}, err
 	}
-	// Authorization is only safe on the BaseURL host. If the server
-	// redirects to a different origin (e.g. a pre-signed S3 URL) the
-	// presigned signature is self-authenticating and leaking the bearer
-	// token to that host is both unnecessary and risky.
-	if resolved.Host == base.Host {
-		httpReq.Header.Set("Authorization", "Bearer "+c.cfg.Token)
-	}
+	httpReq.Header.Set("Authorization", "Bearer "+c.cfg.Token)
 	httpReq.Header.Set("X-C4GH-Public-Key", req.PublicKeyBase64)
 	if c.cfg.ClientVersion != "" {
 		httpReq.Header.Set("User-Agent", "sda-cli/"+c.cfg.ClientVersion)
