@@ -7,6 +7,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"unicode/utf8"
 )
 
 // ErrNotSupportedOnV1 indicates the caller requested a feature unavailable
@@ -110,9 +111,12 @@ func formatProblemDetails(status int, pd ProblemDetails, bodySample string) stri
 }
 
 func truncate(s string, n int) string {
-	if len(s) > n {
-		return s[:n] + " [truncated]"
+	if len(s) <= n {
+		return s
+	}
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
 	}
 
-	return s
+	return s[:n] + " [truncated]"
 }
