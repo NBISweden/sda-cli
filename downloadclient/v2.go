@@ -130,10 +130,9 @@ func (c *V2Client) DownloadFile(ctx context.Context, req DownloadRequest) (Downl
 	if err != nil {
 		// Flatten 403 from the list-resolution step to preserve the server's
 		// existence-leakage contract — a forbidden dataset/file must look
-		// identical to a missing one. getJSON formats non-2xx errors as
-		// "server returned status N: ...", so substring-match on "status 403"
-		// until #678 replaces the error surface with typed Problem Details.
-		if strings.Contains(err.Error(), "status 403") {
+		// identical to a missing one.
+		var apiErr *APIError
+		if errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusForbidden {
 			return DownloadResult{}, fmt.Errorf("dataset/file does not exist or access denied: %s", req.UserArg)
 		}
 
@@ -178,17 +177,12 @@ func (c *V2Client) DownloadFile(ctx context.Context, req DownloadRequest) (Downl
 	// Partial-Content without a Range request is a server bug; accepting it
 	// would rename a truncated .part as a complete file.
 	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes+1))
-		_ = resp.Body.Close()
+		err := parseErrorResponse(resp)
 		if resp.StatusCode == http.StatusForbidden {
 			return DownloadResult{}, fmt.Errorf("dataset/file does not exist or access denied: %s", req.UserArg)
 		}
-		body := string(b)
-		if len(body) > maxErrorBodyBytes {
-			body = body[:maxErrorBodyBytes]
-		}
 
-		return DownloadResult{}, fmt.Errorf("server returned status %d: %s", resp.StatusCode, body)
+		return DownloadResult{}, err
 	}
 
 	return DownloadResult{File: target, Body: resp.Body, ContentLength: resp.ContentLength}, nil
@@ -250,7 +244,8 @@ func (c *V2Client) DatasetInfo(ctx context.Context, datasetID string) (DatasetIn
 }
 
 // getJSON performs an authenticated GET returning the response body.
-// #678 replaces error wrapping with RFC 9457 Problem Details parsing.
+// Non-2xx responses are converted to *APIError via parseErrorResponse so
+// callers can do typed status-code checks with errors.As.
 func (c *V2Client) getJSON(ctx context.Context, reqURL string) (io.ReadCloser, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
@@ -268,20 +263,7 @@ func (c *V2Client) getJSON(ctx context.Context, reqURL string) (io.ReadCloser, e
 		return nil, fmt.Errorf("http request: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		// Cap the read at maxErrorBodyBytes+1: we only surface up to
-		// maxErrorBodyBytes of the body in the error and a hostile or
-		// misconfigured server could otherwise stream a large payload
-		// into memory just to be truncated. The remainder is intentionally
-		// not drained; a bogus error body isn't worth keeping the
-		// connection in the pool.
-		b, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes+1))
-		_ = resp.Body.Close()
-		body := string(b)
-		if len(body) > maxErrorBodyBytes {
-			body = body[:maxErrorBodyBytes]
-		}
-
-		return nil, fmt.Errorf("server returned status %d: %s", resp.StatusCode, body)
+		return nil, parseErrorResponse(resp)
 	}
 
 	return resp.Body, nil
