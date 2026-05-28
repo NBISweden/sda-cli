@@ -1,11 +1,6 @@
 package downloadclient
 
-// v2File is the v2 server's FileInfo wire shape. Differs from downloadclient.File:
-//   - Scalar DecryptedFileSize → DecryptedSize (int64 here vs int in v1)
-//   - DecryptedFileChecksum/Type → Checksums array
-//   - New DownloadURL (server-provided; clients must not construct /files/{id})
-//   - Drops v1-only fields (DisplayFileName, etc.)
-//
+// v2File is the v2 server's FileInfo wire shape.
 // Conversion to the shared File type happens at the V2Client boundary.
 type v2File struct {
 	FileID        string     `json:"fileId"`
@@ -43,28 +38,11 @@ type datasetInfoResponse struct {
 	Size      int64  `json:"size"`
 }
 
-// toFile converts a v2File into the shared downloadclient.File.
-// Maps the Checksums array to the legacy scalar fields:
-// prefer sha256 if present, else first entry.
-// DisplayFileName is not populated (v2 doesn't return it).
 func (f v2File) toFile() File {
-	out := File{
+	return File{
 		FileID:            f.FileID,
 		FilePath:          f.FilePath,
 		DecryptedFileSize: f.DecryptedSize,
+		downloadURL:       f.DownloadURL,
 	}
-	for _, c := range f.Checksums {
-		if c.Type == "sha256" {
-			out.DecryptedFileChecksum = c.Checksum
-			out.DecryptedFileChecksumType = c.Type
-
-			return out
-		}
-	}
-	if len(f.Checksums) > 0 {
-		out.DecryptedFileChecksum = f.Checksums[0].Checksum
-		out.DecryptedFileChecksumType = f.Checksums[0].Type
-	}
-
-	return out
 }

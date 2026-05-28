@@ -2,17 +2,15 @@
 // and shared types. v1 and v2 implementations live in v1.go and v2.go.
 package downloadclient
 
-// File is the shared metadata type for a dataset file. Fields match v1's
-// wire shape. v2 has additional fields (checksums array, downloadUrl)
-// that are handled inside V2Client's conversion layer and surfaced
-// through this same type where applicable (see #675/#677).
+// File is the shared metadata type for a dataset file.
 type File struct {
-	FileID                    string `json:"fileId"`
-	DisplayFileName           string `json:"displayFileName"`
-	FilePath                  string `json:"filePath"`
-	DecryptedFileSize         int64  `json:"decryptedFileSize"`
-	DecryptedFileChecksum     string `json:"decryptedFileChecksum"`
-	DecryptedFileChecksumType string `json:"decryptedFileChecksumType"`
+	FileID            string `json:"fileId"`
+	DisplayFileName   string `json:"displayFileName"`
+	FilePath          string `json:"filePath"`
+	DecryptedFileSize int64  `json:"decryptedFileSize"`
+	// downloadURL is v2-only (server-provided relative URL).
+	// Empty on v1 File values.
+	downloadURL string
 }
 
 // Checksum is the v2 checksum element. Included for completeness; v1

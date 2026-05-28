@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 // maxErrorBodyBytes is the maximum number of bytes from a server error
@@ -18,8 +19,6 @@ const maxErrorBodyBytes = 200
 
 // V2Client talks to the v2 SDA download API
 // (GET /datasets, /datasets/{id}/files, /files/{id}, etc.).
-// Methods fill in across #675, #676, #677. Until then, unimplemented
-// methods return a clear "not implemented until #N" error.
 type V2Client struct {
 	cfg  Config
 	http *http.Client
@@ -111,6 +110,119 @@ func (c *V2Client) ListFiles(ctx context.Context, datasetID string, opts ListFil
 
 		return out, resp.NextPageToken, nil
 	})
+}
+
+// DownloadFile implements Client. Resolves req.UserArg (either a file path
+// or a fileId) via resolveFile, then follows the server-provided downloadURL
+// with the X-C4GH-Public-Key header. Returns the resolved File so callers
+// can use its canonical FilePath for the on-disk name (a userArg that was
+// a bare fileId is not usable as a filename). 403 responses (from either
+// the list resolution step or the download GET) are flattened to an
+// ambiguous "does not exist or access denied" error to preserve the
+// server's existence-leakage contract. Caller is responsible for closing
+// the body.
+func (c *V2Client) DownloadFile(ctx context.Context, req DownloadRequest) (DownloadResult, error) {
+	if req.PublicKeyBase64 == "" {
+		return DownloadResult{}, errors.New("v2 downloads require --pubkey (X-C4GH-Public-Key header)")
+	}
+
+	target, err := c.resolveFile(ctx, req.DatasetID, req.UserArg)
+	if err != nil {
+		// Flatten 403 from the list-resolution step to preserve the server's
+		// existence-leakage contract — a forbidden dataset/file must look
+		// identical to a missing one. getJSON formats non-2xx errors as
+		// "server returned status N: ...", so substring-match on "status 403"
+		// until #678 replaces the error surface with typed Problem Details.
+		if strings.Contains(err.Error(), "status 403") {
+			return DownloadResult{}, fmt.Errorf("dataset/file does not exist or access denied: %s", req.UserArg)
+		}
+
+		return DownloadResult{}, err
+	}
+	if target.FileID == "" {
+		return DownloadResult{}, fmt.Errorf("dataset/file does not exist or access denied: %s", req.UserArg)
+	}
+	if target.downloadURL == "" {
+		return DownloadResult{}, fmt.Errorf("server returned empty downloadUrl for %s", req.UserArg)
+	}
+
+	// Resolve the server-provided downloadURL against BaseURL.
+	// The swagger specifies downloadUrl as a relative path (e.g. "/files/f1"),
+	// but we use ResolveReference rather than string concat to handle
+	// trailing/leading-slash mismatches cleanly.
+	base, err := url.Parse(c.cfg.BaseURL)
+	if err != nil {
+		return DownloadResult{}, fmt.Errorf("invalid base URL %q: %w", c.cfg.BaseURL, err)
+	}
+	ref, err := url.Parse(target.downloadURL)
+	if err != nil {
+		return DownloadResult{}, fmt.Errorf("server returned invalid downloadUrl %q: %w", target.downloadURL, err)
+	}
+	resolved := base.ResolveReference(ref)
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, resolved.String(), nil)
+	if err != nil {
+		return DownloadResult{}, err
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+c.cfg.Token)
+	httpReq.Header.Set("X-C4GH-Public-Key", req.PublicKeyBase64)
+	if c.cfg.ClientVersion != "" {
+		httpReq.Header.Set("User-Agent", "sda-cli/"+c.cfg.ClientVersion)
+		httpReq.Header.Set("SDA-Client-Version", c.cfg.ClientVersion)
+	}
+
+	resp, err := c.http.Do(httpReq) // #nosec G704
+	if err != nil {
+		return DownloadResult{}, fmt.Errorf("http request: %w", err)
+	}
+	// Partial-Content without a Range request is a server bug; accepting it
+	// would rename a truncated .part as a complete file.
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes+1))
+		_ = resp.Body.Close()
+		if resp.StatusCode == http.StatusForbidden {
+			return DownloadResult{}, fmt.Errorf("dataset/file does not exist or access denied: %s", req.UserArg)
+		}
+		body := string(b)
+		if len(body) > maxErrorBodyBytes {
+			body = body[:maxErrorBodyBytes]
+		}
+
+		return DownloadResult{}, fmt.Errorf("server returned status %d: %s", resp.StatusCode, body)
+	}
+
+	return DownloadResult{File: target, Body: resp.Body, ContentLength: resp.ContentLength}, nil
+}
+
+// resolveFile converts UserArg (path or fileId) into an downloadclient.File so
+// callers can use its downloadURL. Uses the exact filePath filter for paths;
+// for bare ids, falls back to list + match (v2 has no exact-id filter).
+// Returns a zero File (FileID == "") if not found.
+func (c *V2Client) resolveFile(ctx context.Context, datasetID, userArg string) (File, error) {
+	isPath := strings.Contains(userArg, "/") || strings.HasSuffix(userArg, ".c4gh")
+	if isPath {
+		files, err := c.ListFiles(ctx, datasetID, ListFilesOptions{ExactPath: userArg})
+		if err != nil {
+			return File{}, err
+		}
+		if len(files) == 0 {
+			return File{}, nil
+		}
+
+		return files[0], nil
+	}
+	// Bare id: list + match. v2 has no exact-id filter.
+	files, err := c.ListFiles(ctx, datasetID, ListFilesOptions{})
+	if err != nil {
+		return File{}, err
+	}
+	for _, f := range files {
+		if f.FileID == userArg {
+			return f, nil
+		}
+	}
+
+	return File{}, nil
 }
 
 // DatasetInfo implements Client. Calls GET /datasets/{id} and returns the
