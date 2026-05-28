@@ -1,0 +1,76 @@
+name: integration-v2
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  v2-integration:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout sda-cli
+        uses: actions/checkout@v4
+        with:
+          path: sda-cli
+
+      - name: Checkout sensitive-data-archive (pinned)
+        uses: actions/checkout@v4
+        with:
+          repository: neicnordic/sensitive-data-archive
+          ref: 608878fa453770fcb3962bf0239366905c125982  # bump in docs/v2-dev-stack-pin.md when the contract changes
+          path: sensitive-data-archive
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: sda-cli/go.mod
+
+      - name: Boot v2 dev stack
+        working-directory: sensitive-data-archive
+        run: |
+          make build-all
+          PR_NUMBER=$(date +%F) make dev-download-v2-up
+
+      - name: Wait for services
+        run: |
+          for i in {1..120}; do
+            if curl -sf http://localhost:8085/health/ready \
+               && curl -sf http://localhost:8000/tokens > /dev/null; then
+              echo "download service and mockauth ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "services did not come up in 240s"
+          exit 1
+
+      - name: Fetch dev token
+        id: token
+        run: |
+          TOKEN=$(curl -s http://localhost:8000/tokens | jq -r '.[0]')
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "failed to fetch dev token"
+            exit 1
+          fi
+          echo "::add-mask::$TOKEN"
+          echo "TOKEN=$TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Run v2 integration tests
+        working-directory: sda-cli
+        env:
+          DOWNLOAD_V2_URL: http://localhost:8085
+          DOWNLOAD_V2_TOKEN: ${{ steps.token.outputs.TOKEN }}
+        run: |
+          go test -tags=integration -v ./...
+
+      - name: Dump all service logs on failure
+        if: failure()
+        working-directory: sensitive-data-archive
+        run: |
+          docker compose --project-name download-v2-dev logs || true
+
+      - name: Tear down (always)
+        if: always()
+        working-directory: sensitive-data-archive
+        run: PR_NUMBER=$(date +%F) make dev-download-v2-down || true

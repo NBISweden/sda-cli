@@ -120,7 +120,13 @@ func datasetFiles(token string, url string, dataset string, bytesFormat bool) er
 
 	files, err := client.ListFiles(context.Background(), dataset, downloadclient.ListFilesOptions{})
 	if err != nil {
-		return err
+		// Wrap transport / parse / HTTP errors with the legacy "failed to get
+		// files, reason: ..." prefix that callers of the previous
+		// download.GetFilesInfo shim expected before downloadclient was
+		// introduced. Configuration errors (empty/unparseable BaseURL, empty
+		// Token) are caught earlier by downloadclient.New() and never reach
+		// this branch.
+		return fmt.Errorf("failed to get files, reason: %v", err)
 	}
 
 	fileIDWidth, sizeWidth := 20, 10 // Set minimum column widths, so that header matches the rest of the table
@@ -157,16 +163,32 @@ func Datasets(url string, token string) error {
 	ctx := context.Background()
 	datasets, err := client.ListDatasets(ctx)
 	if err != nil {
-		return err
+		// Wrap with the legacy "failed to get datasets, reason: ..." prefix
+		// that the pre-downloadclient download.GetDatasets shim used to emit.
+		// Configuration errors are caught earlier by downloadclient.New().
+		return fmt.Errorf("failed to get datasets, reason: %v", err)
 	}
 
-	// NOTE: v1 has no DatasetInfo endpoint, so we call ListFiles per dataset
-	// to compute file count and size. #676 of issue #663 switches v2 to
-	// downloadclient.Client.DatasetInfo.
+	// v2 has a dedicated DatasetInfo endpoint; until #676 wires it up, print
+	// just the dataset IDs. v1 has no DatasetInfo endpoint, so the v1 branch
+	// falls back to calling ListFiles per dataset to compute file count and
+	// size; that per-dataset enrichment returns for v2 in #676.
+	if apiVersionFlag == "v2" {
+		fileIDWidth := 40
+		fmt.Printf("%-*s\n", fileIDWidth, "DatasetID")
+		for _, dataset := range datasets {
+			fmt.Println(dataset)
+		}
+
+		return nil
+	}
+
 	for _, dataset := range datasets {
 		files, err := client.ListFiles(ctx, dataset, downloadclient.ListFilesOptions{})
 		if err != nil {
-			return err
+			// URL was already validated by ListDatasets above, so any failure
+			// here is transport/parse/HTTP and takes the legacy wrap prefix.
+			return fmt.Errorf("failed to get files, reason: %v", err)
 		}
 		fileIDWidth := 40 // fileIdwith=40 ensures header matches rest of the table
 		fmt.Printf("%-*s \t %s \t %s\n", fileIDWidth, "DatasetID", "Files", "Size")
