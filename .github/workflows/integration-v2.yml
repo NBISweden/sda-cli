@@ -10,19 +10,19 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout sda-cli
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: sda-cli
 
       - name: Checkout sensitive-data-archive (pinned)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: neicnordic/sensitive-data-archive
           ref: 608878fa453770fcb3962bf0239366905c125982  # bump in docs/v2-dev-stack-pin.md when the contract changes
           path: sensitive-data-archive
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: sda-cli/go.mod
 
