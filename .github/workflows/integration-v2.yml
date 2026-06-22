@@ -10,12 +10,12 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout sda-cli
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           path: sda-cli
 
       - name: Checkout sensitive-data-archive (pinned)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: neicnordic/sensitive-data-archive
           ref: 608878fa453770fcb3962bf0239366905c125982  # bump in docs/v2-dev-stack-pin.md when the contract changes
