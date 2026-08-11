@@ -9,6 +9,14 @@ else
     exit 1
 fi
 
+size=$(wc -c < data_file.c4gh | awk '{print $1}')
+output=$(./sda-cli --config testing/s3cmd.conf list --bytes)
+if echo "$output" | grep -Eq "^${size}[[:space:]]+data_file\\.c4gh"; then
+    echo "Successfully listed files in bytes format"
+else
+    echo "Failed to list files in bytes format"
+    exit 1
+fi
 
 # Check listing files in a dataset
 output=$(./sda-cli --config testing/s3cmd-download.conf list --dataset https://doi.example/ty009.sfrrss/600.45asasga --url http://localhost:8080)

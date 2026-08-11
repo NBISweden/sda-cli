@@ -11,7 +11,6 @@ import (
 	"github.com/NBISweden/sda-cli/downloadclient"
 	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/dustin/go-humanize"
-	"github.com/inhies/go-bytesize"
 	"github.com/spf13/cobra"
 )
 
@@ -106,7 +105,7 @@ func list(configPath string, prefix string) error {
 
 	for i := range result {
 		file := *result[i].Key
-		fmt.Printf("%s \t %s \n", bytesize.New(float64((*result[i].Size))), file[strings.Index(file, "/")+1:])
+		fmt.Printf("%s \t %s \n", formatFileSizeOutput(*result[i].Size, bytesFormat), file[strings.Index(file, "/")+1:])
 	}
 
 	return nil
