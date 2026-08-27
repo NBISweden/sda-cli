@@ -194,6 +194,22 @@ func (s *ListTestSuite) TestListFiles() {
 	assert.Contains(s.T(), string(listError), expectedHostBase)
 }
 
+func (s *ListTestSuite) TestListFilesBytesFormat() {
+	rescueStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	listCmd.Flag("bytes").Value.Set("true")
+	err := listCmd.Execute()
+	assert.NoError(s.T(), err)
+
+	_ = w.Close()
+	os.Stdout = rescueStdout
+	listOutput, _ := io.ReadAll(r)
+	_ = r.Close()
+	assert.Contains(s.T(), string(listOutput), fmt.Sprintf("%d \t testfile", len("test content")))
+}
+
 func (s *ListTestSuite) TestListDatasets() {
 	rescueStdout := os.Stdout
 	r, w, _ := os.Pipe()
