@@ -328,7 +328,7 @@ sizes in bytes.
 
 The SDA download service exposes a v1 and a v2 API. `list --datasets`,
 `list --dataset` and `download` accept `--api-version v1|v2` to select
-which one to use. The default is `v1`; any other value is rejected.
+which one to use. The only accepted values are `v1` and `v2`; any other value is rejected. The default is `v1`.
 
 ```bash
 ./sda-cli --config <configuration_file> list --datasets --api-version v2 --url <download-service-url>
@@ -344,7 +344,7 @@ Differences on v2, compared to the default v1 behavior:
   `<prefix>` as a directory boundary (a trailing `/` is added if missing).
   On v1 the `<prefix>` argument is ignored together with `--dataset`; use
   `list <prefix>` for flat prefix matching on the S3 path instead.
-- `download --recursive` filters files server-side by path prefix,
+- `download --recursive` filters files server-side by path prefix on v2,
   instead of listing all files and filtering client-side.
 - `download` requires `--pubkey`; on v1 it is optional.
 - Server errors are structured (RFC 9457 Problem Details), and the CLI
