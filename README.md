@@ -324,6 +324,32 @@ This command returns a list of files within the specified dataset, including
 file IDs, sizes, and paths. The `--bytes` flag is optional and displays file
 sizes in bytes.
 
+### Download API version
+
+The SDA download service exposes a v1 and a v2 API. `list --datasets`,
+`list --dataset` and `download` accept `--api-version v1|v2` to select
+which one to use. The only accepted values are `v1` and `v2`; any other value is rejected. The default is `v1`.
+
+```bash
+./sda-cli --config <configuration_file> list --datasets --api-version v2 --url <download-service-url>
+```
+
+```bash
+./sda-cli --config <configuration_file> download --pubkey <public-key-file> --dataset-id <datasetID> --api-version v2 --url <download-service-url> <filepath>
+```
+
+Differences on v2, compared to the default v1 behavior:
+
+- `list --dataset <datasetID> <prefix>` filters server-side and treats
+  `<prefix>` as a directory boundary (a trailing `/` is added if missing).
+  On v1 the `<prefix>` argument is ignored together with `--dataset`; use
+  `list <prefix>` for flat prefix matching on the S3 path instead.
+- `download --recursive` filters files server-side by path prefix on v2,
+  instead of listing all files and filtering client-side.
+- `download` requires `--pubkey`; on v1 it is optional.
+- Server errors are structured (RFC 9457 Problem Details), and the CLI
+  shows the parsed error message to the user.
+
 ## Download
 
 Before using the `download` functionality, ensure you have downloaded the configuration file `s3cmd-download.conf`.
@@ -332,6 +358,9 @@ Depending on the setup of the FEGA/BP services, files may be downloaded either
 encrypted or unencrypted. By default, only encrypted files can be downloaded.
 
 Downloaded files are encrypted server-side using the [public key](#create-crypt4gh-key-pair) specified with the `--pubkey` flag.
+
+Both `download` and `list` accept an `--api-version` flag; see
+[Download API version](#download-api-version).
 
 The following options are available for downloading files:
 
