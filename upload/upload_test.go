@@ -482,11 +482,11 @@ func (suite *UploadTestSuite) generateDummyToken() string {
 	return accessToken
 }
 
-func (suite *UploadTestSuite) TestUploadUnencryptedFileAborts() {
-	expectedErr := fmt.Sprintf("input file %s is not encrypted. All files must be encrypted unless using -encrypt-with-key", suite.uploadTestFilePath)
-	assert.EqualError(suite.T(), Upload([]string{"upload", suite.uploadTestFilePath}, suite.configFilePath), expectedErr)
+func (s *UploadTestSuite) TestUploadUnencryptedFileAborts() {
+	expectedErr := fmt.Sprintf("input file %s is not encrypted. All files must be encrypted unless using -encrypt-with-key", s.uploadTestFilePath)
+	assert.EqualError(s.T(), Upload([]string{"upload", s.uploadTestFilePath}, s.configFilePath), expectedErr)
 }
 
-func (suite *UploadTestSuite) TestForceUnencryptedFlagRemoved() {
-	assert.Nil(suite.T(), Args.Lookup("force-unencrypted"))
+func (s *UploadTestSuite) TestForceUnencryptedFlagRemoved() {
+	assert.Nil(s.T(), Args.Lookup("force-unencrypted"))
 }
