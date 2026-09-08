@@ -29,7 +29,6 @@ import (
 var accessToken string
 var continueUpload bool
 var encryptWithKey string
-var forceUnencrypted bool
 var forceOverwrite bool
 var recursiveUpload bool
 var targetDirectory string
@@ -41,7 +40,6 @@ var uploadCmd = &cobra.Command{
 Important:
   - Files must be encrypted (Crypt4GH standard) unless the '--encrypt-with-key' flag is set.
   - When using the '--encrypt-with-key' flag, ensure that only unencrypted files are provided.
-  - Use the '--force-unencrypted' flag with caution to upload unencrypted files explicitly.
 	`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		configPath := cmd.Root().Flag("config").Value.String()
@@ -60,7 +58,6 @@ func init() {
 	uploadCmd.Flags().BoolVar(&continueUpload, "continue", false, "Skip already uploaded files and continue with uploading the rest. Useful for resuming and upload from a previous breakpoint")
 	uploadCmd.Flags().StringVar(&encryptWithKey, "encrypt-with-key", "", "Encrypt files using the specified public key before upload. The key file may contain multiple concatenated public keys. Only unencrypted files should be provided when this flag is used.")
 	uploadCmd.Flags().BoolVar(&forceOverwrite, "force-overwrite", false, "Overwrite existing files in the target directory without confirmation")
-	uploadCmd.Flags().BoolVar(&forceUnencrypted, "force-unencrypted", false, "Allow uploading unencrypted files (use with caution)")
 	uploadCmd.Flags().BoolVarP(&recursiveUpload, "recursive", "r", false, "Upload directories recursively. Without this flag, directories will be skipped")
 	uploadCmd.Flags().StringVar(&targetDirectory, "target-directory", "", "Specifies the target directory for uploaded files or folders. Defaults to the user's base directory if not set")
 }
@@ -83,7 +80,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 	}
 
 	// Loop through the list of files and check if they are encrypted
-	// If we run into an unencrypted file and the flag force-unencrypted is not set, we stop the upload
+	// If we run into an unencrypted file, we stop uploading and return an error
 	for _, filename := range files {
 		if encryptWithKey != "" {
 			continue
@@ -101,13 +98,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		}
 		_ = f.Close()
 		if string(magicWord) != "crypt4gh" {
-			fmt.Fprintf(os.Stderr, "input file %s is not encrypted\n", filename)
-			if !forceUnencrypted {
-				fmt.Println("Quitting...")
-
-				return errors.New("unencrypted file found")
-			}
-			fmt.Fprint(os.Stderr, "force-unencrypted flag provided, continuing...\n")
+			return fmt.Errorf("input file %s is not encrypted. All files must be encrypted unless using --encrypt-with-key", filename)
 		}
 	}
 
