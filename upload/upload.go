@@ -30,42 +30,38 @@ import (
 var Usage = `
 Usage: %s -config <config-file> upload [OPTIONS] [file(s) | folder(s)]
 
-Upload files or directories to the Sensitive Data Archive (SDA). 
+Upload files or directories to the Sensitive Data Archive (SDA).
 
 Important:
   - Files must be encrypted (Crypt4GH standard) unless the '-encrypt-with-key' flag is set.
   - When using the '-encrypt-with-key' flag, ensure that only unencrypted files are provided.
-  - Use the '-force-unencrypted' flag with caution to upload unencrypted files explicitly.
 
 Global options:
-  -config <config-file>       	   Path to the configuration file. 
+  -config <config-file>       	   Path to the configuration file.
 
 Options:
-  -accessToken <access-token>      Access token for the SDA inbox service. This is optional 
-                                   if already set in the config file or as the 'ACCESSTOKEN' 
+  -accessToken <access-token>      Access token for the SDA inbox service. This is optional
+                                   if already set in the config file or as the 'ACCESSTOKEN'
                                    environment variable.
   -continue                        Skip already uploaded files and continue with uploading the rest.
                                    Useful for resuming an upload from a previous breakpoint.
   -encrypt-with-key <public-key-file>
-                                   Encrypt files using the specified public key before upload. 
-                                   The key file may contain multiple concatenated public keys. 
+                                   Encrypt files using the specified public key before upload.
+                                   The key file may contain multiple concatenated public keys.
                                    Only unencrypted files should be provided when this flag is used.
   -force-overwrite                 Overwrite existing files in the target directory without confirmation.
-  -force-unencrypted               Allow uploading unencrypted files (use with caution).
-  -r                               Upload directories recursively. Without this flag, directories 
+  -r                               Upload directories recursively. Without this flag, directories
                                    will be skipped.
-  -targetDir <upload-directory>    Specify the target directory for uploaded files or folders. 
+  -targetDir <upload-directory>    Specify the target directory for uploaded files or folders.
                                    Defaults to the user's base directory if not set.
 
 Arguments:
-  [file(s) | folder(s)]            List of files or directories to upload. Directories are 
+  [file(s) | folder(s)]            List of files or directories to upload. Directories are
                                    skipped unless the '-r' flag is provided.`
 
 // Args is a flagset that needs to be exported so that it can be written to the
 // main program help
 var Args = flag.NewFlagSet("upload", flag.ContinueOnError)
-
-var forceUnencrypted = Args.Bool("force-unencrypted", false, "Force uploading unencrypted files.")
 
 var dirUpload = Args.Bool("r", false, "Upload directories recursively.")
 
@@ -103,7 +99,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 	}
 
 	// Loop through the list of files and check if they are encrypted
-	// If we run into an unencrypted file and the flag force-unencrypted is not set, we stop the upload
+	// If we run into an unencrypted file, we stop uploading
 	for _, filename := range files {
 		if *pubKeyPath != "" {
 			continue
@@ -121,13 +117,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		}
 		_ = f.Close()
 		if string(magicWord) != "crypt4gh" {
-			fmt.Fprintf(os.Stderr, "input file %s is not encrypted\n", filename)
-			if !*forceUnencrypted {
-				fmt.Println("Quitting...")
-
-				return errors.New("unencrypted file found")
-			}
-			fmt.Fprintf(os.Stderr, "force-unencrypted flag provided, continuing...\n")
+			return fmt.Errorf("input file %s is not encrypted. All files must be encrypted unless using -encrypt-with-key", filename)
 		}
 	}
 

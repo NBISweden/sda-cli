@@ -129,8 +129,6 @@ func getPositional(args []string) ([]string, []string) {
 		"--r",
 		"--force-overwrite",
 		"-force-overwrite",
-		"--force-unencrypted",
-		"-force-unencrypted",
 		"--dataset",
 		"--datasets",
 		"--recursive",
