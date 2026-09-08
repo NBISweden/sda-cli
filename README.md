@@ -475,10 +475,10 @@ To decrypt multiple files at once, list them separated by spaces, like this:
 
 ## Download files using htsget
 
-You can download a (partial) file using the htsget server. 
+You can download a (partial) file using the htsget server.
 
 ```bash
-./sda-cli -config <configuration_file> htsget -dataset <datasetID> -filename <filepath> -reference <reference-number> -host <htsget-hostname> -pubkey <public-key-file> 
+./sda-cli -config <configuration_file> htsget -dataset <datasetID> -filename <filepath> -reference <reference-number> -host <htsget-hostname> -pubkey <public-key-file>
 ```
 
 where `<configuration_file>` refers to the configuration file downloaded in the
@@ -555,14 +555,3 @@ project.
 This will open a link where the user can log in.
 After login is complete, a configuration file named `.sda-cli-session` will be
 created in the tool's directory.
-
-## Features for testing
-
-### Upload unencrypted files
-
-By default, `sda-cli` allows uploading only encrypted files. To override this
-restriction, use the `-force-unencrypted` flag. For example:
-
-```bash
-./sda-cli -config <configuration_file> upload -force-unencrypted <unencrypted_file_1> <unencrypted_file_2>
-```
