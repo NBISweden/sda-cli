@@ -716,3 +716,49 @@ func (s *HelperTests) TestListFiles() {
 	_, err = ListFiles(*testConfig, "")
 	assert.ErrorContains(s.T(), err, "failed to list objects")
 }
+
+func (s *HelperTests) TestIsCrypt4GHFile() {
+	// Create a crypt4gh encrypted file
+	c4ghFile, err := os.CreateTemp(s.tempDir, "testc4gh-")
+	if err != nil {
+		s.FailNow("failed to create temp c4gh test file", err)
+	}
+	defer os.Remove(c4ghFile.Name()) //nolint:errcheck
+
+	err = os.WriteFile(c4ghFile.Name(), []byte("crypt4gh_header_payload"), 0600) // #nosec G703
+	if err != nil {
+		s.FailNow("failed to write to c4gh test file", err)
+	}
+
+	// Create a file smaller than 8 bytes
+	shortFile, err := os.CreateTemp(s.tempDir, "shortfile-")
+	if err != nil {
+		s.FailNow("failed to create temp short test file", err)
+	}
+	defer os.Remove(shortFile.Name()) //nolint:errcheck
+
+	err = os.WriteFile(shortFile.Name(), []byte("tiny"), 0600) // #nosec G703
+	if err != nil {
+		s.FailNow("failed to write to short test file", err)
+	}
+
+	// 1. Valid Crypt4GH file returns true, nil
+	isC4GH, err := IsCrypt4GHFile(c4ghFile.Name())
+	assert.NoError(s.T(), err)
+	assert.True(s.T(), isC4GH)
+
+	// 2. Unencrypted file (s.testFile containing "content") returns false, nil
+	isC4GH, err = IsCrypt4GHFile(s.testFile.Name())
+	assert.NoError(s.T(), err)
+	assert.False(s.T(), isC4GH)
+
+	// 3. Short file (< 8 bytes) returns false, nil without EOF error
+	isC4GH, err = IsCrypt4GHFile(shortFile.Name())
+	assert.NoError(s.T(), err)
+	assert.False(s.T(), isC4GH)
+
+	// 4. Non-existent file returns error
+	isC4GH, err = IsCrypt4GHFile(filepath.Join(s.tempDir, "non-existent.file"))
+	assert.Error(s.T(), err)
+	assert.False(s.T(), isC4GH)
+}
