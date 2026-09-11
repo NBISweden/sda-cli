@@ -180,6 +180,19 @@ func (s *UploadTestSuite) TestUploadTargetDirFlagAfterFileName() {
 	uploadCmd.Flag("target-directory").Value.Set("somedir")
 	uploadCmd.Flag("encrypt-with-key").Value.Set(s.publicKeyFilePath)
 	assert.NoError(s.T(), uploadCmd.Execute())
+
+	// Verify the object was actually uploaded into target-directory in S3
+	result, err := s.s3Client.ListObjects(context.TODO(), &s3.ListObjectsInput{
+		Bucket: aws.String("dummy"),
+	})
+	if err != nil {
+		s.FailNow("failed to list objects from s3", err)
+	}
+
+	expectedKey := fmt.Sprintf("%s/%s.c4gh", "somedir", filepath.Base(s.uploadTestFilePath))
+	if assert.NotEmpty(s.T(), result.Contents, "expected object to be uploaded to s3") {
+		assert.Equal(s.T(), expectedKey, aws.ToString(result.Contents[0].Key))
+	}
 }
 
 // Test uploadFiles function without files
