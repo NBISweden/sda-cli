@@ -241,10 +241,6 @@ func (s *UploadTestSuite) TestUploadRecursive() {
 	stdoutReader, stdoutWriter, _ := os.Pipe()
 	os.Stdout = stdoutWriter
 
-	rescuedStderr := os.Stderr
-	stderrReader, stderrWriter, _ := os.Pipe()
-	os.Stderr = stderrWriter
-
 	os.Args = []string{"", "upload", s.filesToUploadDir}
 	uploadCmd.Flag("recursive").Value.Set("true")
 	uploadCmd.Flag("encrypt-with-key").Value.Set(s.publicKeyFilePath)
@@ -255,10 +251,6 @@ func (s *UploadTestSuite) TestUploadRecursive() {
 	os.Stdout = rescuedStdout
 	uploadStdout, _ := io.ReadAll(stdoutReader)
 	_ = stdoutReader.Close()
-
-	_ = stderrWriter.Close()
-	os.Stderr = rescuedStderr
-	_ = stderrReader.Close()
 
 	msg := fmt.Sprintf("file uploaded to %s/dummy/%s/%s.c4gh", s.s3MockHTTPServer.URL, filepath.Base(s.filesToUploadDir), filepath.Base(s.uploadTestFilePath))
 	assert.Contains(s.T(), string(uploadStdout), msg)
