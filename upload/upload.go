@@ -86,18 +86,12 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 			continue
 		}
 
-		f, err := os.Open(path.Clean(filename))
+		isEncrypted, err := helpers.IsCrypt4GHFile(filename)
 		if err != nil {
 			return err
 		}
-		// Check if the file is encrypted and warn if not
-		// Extracting the first 8 bytes of the header - crypt4gh
-		magicWord := make([]byte, 8)
-		if _, err := f.Read(magicWord); err != nil {
-			fmt.Fprintf(os.Stderr, "error reading input file %s, reason: %v\n", filename, err)
-		}
-		_ = f.Close()
-		if string(magicWord) != "crypt4gh" {
+
+		if !isEncrypted {
 			return fmt.Errorf("input file %s is not encrypted. All files must be encrypted unless using --encrypt-with-key", filename)
 		}
 	}
@@ -168,18 +162,12 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		fs := encrypt.FileStream{}
 		switch {
 		case encryptWithKey != "":
-			magicWord := make([]byte, 8)
-			_, err := f.Read(magicWord)
+			isEncrypted, err := helpers.IsCrypt4GHFile(filename)
 			if err != nil {
 				return err
 			}
-			if string(magicWord) == "crypt4gh" {
-				return fmt.Errorf("aborting, file %s is already encrypted", f.Name())
-			}
-
-			_, err = f.Seek(0, 0)
-			if err != nil {
-				return err
+			if isEncrypted {
+				return fmt.Errorf("aborting, file %s is already encrypted", filename)
 			}
 
 			var pubKeyList [][32]byte
