@@ -529,6 +529,15 @@ func (s *UploadTestSuite) TestUploadUnencryptedFileAborts() {
 	err := uploadCmd.Execute()
 	assert.Error(s.T(), err)
 	assert.ErrorContains(s.T(), err, "is not encrypted")
+
+	// Ensure that no files were uploaded to S3 before aborting
+	result, err := s.s3Client.ListObjects(context.TODO(), &s3.ListObjectsInput{
+		Bucket: aws.String("dummy"),
+	})
+	if err != nil {
+		s.FailNow("failed to list objects from s3", err)
+	}
+	assert.Empty(s.T(), result.Contents, "expected s3 bucket to be empty after aborted upload")
 }
 
 func (s *UploadTestSuite) TestForceUnencryptedFlagRemoved() {
