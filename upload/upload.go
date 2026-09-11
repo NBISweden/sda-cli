@@ -124,7 +124,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		// create progress bar instance
 		p := mpb.New()
 
-		f, err := os.Open(path.Clean(filename))
+		f, err := os.Open(filepath.Clean(filename))
 		if err != nil {
 			return err
 		}
