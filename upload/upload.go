@@ -142,7 +142,7 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 				return fmt.Errorf("listing uploaded files: %s", err.Error())
 			}
 
-			fileExists := len(listResult) > 0 && aws.ToString(listResult[0].Key) == filepath.Clean(config.AccessKey+"/"+listPrefix)
+			fileExists := len(listResult) > 0 && aws.ToString(listResult[0].Key) == path.Clean(config.AccessKey+"/"+listPrefix)
 			if fileExists && !continueUpload {
 				return fmt.Errorf("file %s is already uploaded", filepath.Base(filename))
 			}
