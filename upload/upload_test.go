@@ -241,27 +241,51 @@ func (s *UploadTestSuite) TestUploadRecursive() {
 	stdoutReader, stdoutWriter, _ := os.Pipe()
 	os.Stdout = stdoutWriter
 
-	os.Args = []string{"", "upload", s.filesToUploadDir}
-	uploadCmd.Flag("recursive").Value.Set("true")
-	uploadCmd.Flag("encrypt-with-key").Value.Set(s.publicKeyFilePath)
+	// Create a temp directory containing multiple already-encrypted files
+	encDir, err := os.MkdirTemp(s.tempDir, "enc_upload_dir")
+	if err != nil {
+		s.FailNow("failed to create temp dir for encrypted files", err)
+	}
 
-	assert.NoError(s.T(), uploadCmd.Execute(), s.configFilePath)
+	encFile1, err := os.CreateTemp(encDir, "file1_*.c4gh")
+	if err != nil {
+		s.FailNow("failed to create first test encrypted file", err)
+	}
+	_ = os.WriteFile(encFile1.Name(), []byte("crypt4gh file 1 payload"), 0600)
+	_ = encFile1.Close()
+
+	encFile2, err := os.CreateTemp(encDir, "file2_*.c4gh")
+	if err != nil {
+		s.FailNow("failed to create second test encrypted file", err)
+	}
+	_ = os.WriteFile(encFile2.Name(), []byte("crypt4gh file 2 payload"), 0600)
+	_ = encFile2.Close()
+
+	os.Args = []string{"", "upload", encDir}
+	uploadCmd.Flag("recursive").Value.Set("true")
+	// Do NOT set --encrypt-with-key here to test the default fs.Reader = f path
+
+	assert.NoError(s.T(), uploadCmd.Execute())
 
 	_ = stdoutWriter.Close()
 	os.Stdout = rescuedStdout
 	uploadStdout, _ := io.ReadAll(stdoutReader)
 	_ = stdoutReader.Close()
 
-	msg := fmt.Sprintf("file uploaded to %s/dummy/%s/%s.c4gh", s.s3MockHTTPServer.URL, filepath.Base(s.filesToUploadDir), filepath.Base(s.uploadTestFilePath))
-	assert.Contains(s.T(), string(uploadStdout), msg)
+	// Verify both files were logged as uploaded
+	msg1 := fmt.Sprintf("file uploaded to %s/dummy/%s/%s", s.s3MockHTTPServer.URL, filepath.Base(encDir), filepath.Base(encFile1.Name()))
+	msg2 := fmt.Sprintf("file uploaded to %s/dummy/%s/%s", s.s3MockHTTPServer.URL, filepath.Base(encDir), filepath.Base(encFile2.Name()))
+	assert.Contains(s.T(), string(uploadStdout), msg1)
+	assert.Contains(s.T(), string(uploadStdout), msg2)
 
+	// Verify both objects exist in S3
 	result, err := s.s3Client.ListObjects(context.TODO(), &s3.ListObjectsInput{
 		Bucket: aws.String("dummy"),
 	})
 	if err != nil {
 		s.FailNow("failed to list objects from s3", err)
 	}
-	assert.Equal(s.T(), aws.ToString(result.Contents[0].Key), fmt.Sprintf("%s/%s.c4gh", filepath.Base(s.filesToUploadDir), filepath.Base(s.uploadTestFilePath)))
+	assert.Len(s.T(), result.Contents, 2)
 }
 
 func (s *UploadTestSuite) TestUploadTargetDir() {
