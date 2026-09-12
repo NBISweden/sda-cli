@@ -10,14 +10,14 @@ services:
       interval: 5s
       timeout: 20s
       retries: 3
-    image: minio/minio:RELEASE.2021-02-14T04-01-33Z
+    image: quay.io/minio/minio:RELEASE.2021-02-14T04-01-33Z
     ports:
       - "9000:9000"
     volumes:
       - data:/data
   createbucket:
     container_name: buckets
-    image: minio/mc:RELEASE.2021-02-14T04-28-06Z
+    image: quay.io/minio/mc:RELEASE.2021-02-14T04-28-06Z
     depends_on:
       - s3_backend
     entrypoint: >
