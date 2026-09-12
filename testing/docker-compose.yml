@@ -25,9 +25,9 @@ services:
       /bin/sleep 30;
       /usr/bin/mc config host add s3 http://s3:9000 ElixirID 987654321;
       /usr/bin/mc rm -r --force s3/test;
-      /usr/bin/mc mb s3/test;
-      /usr/bin/mc mb s3/download;
-      /usr/bin/mc mb s3/archive;
+      /usr/bin/mc mb --ignore-existing s3/test;
+      /usr/bin/mc mb --ignore-existing s3/download;
+      /usr/bin/mc mb --ignore-existing s3/archive;
       /usr/bin/mc anonymous set public s3/download;
       "
   rabbitmq:
