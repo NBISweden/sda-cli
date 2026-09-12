@@ -266,23 +266,12 @@ func checkFiles(files []helpers.EncryptionFileSet) error {
 		}
 
 		// Check if the input file is already encrypted
-		unEncryptedFile, err := os.Open(file.Unencrypted)
-		if err != nil {
-			return err
-		}
-		defer func() { // revive:disable:defer
-			if err := unEncryptedFile.Close(); err != nil {
-				fmt.Fprintf(os.Stderr, "Error closing file: %v\n", err)
-			}
-		}()
-
-		// Extracting the first 8 bytes of the header - crypt4gh
-		magicWord := make([]byte, 8)
-		_, err = unEncryptedFile.Read(magicWord)
+		isEncrypted, err := helpers.IsCrypt4GHFile(file.Unencrypted)
 		if err != nil {
 			return fmt.Errorf("error reading input file %s, reason: %v", file.Unencrypted, err)
 		}
-		if string(magicWord) == "crypt4gh" {
+
+		if isEncrypted {
 			return fmt.Errorf("input file %s is already encrypted(.c4gh)", file.Unencrypted)
 		}
 	}

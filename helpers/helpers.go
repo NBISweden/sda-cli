@@ -536,3 +536,23 @@ func paginateListV2(svc *s3.Client, params *s3.ListObjectsV2Input) ([]types.Obje
 func PrintHostBase(hostBase string) {
 	fmt.Fprintf(os.Stderr, "Remote server (host_base): %s\n", hostBase)
 }
+
+// IsCrypt4GHFile checks if the specified file begins with the crypt4gh magic header.
+func IsCrypt4GHFile(filePath string) (bool, error) {
+	f, err := os.Open(filepath.Clean(filePath))
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+
+	magicWord := make([]byte, 8)
+	if _, err := io.ReadFull(f, magicWord); err != nil {
+		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+			return false, nil // File is smaller than 8 bytes, so it cannot be a valid crypt4gh file
+		}
+
+		return false, fmt.Errorf("error reading header of %s: %w", filePath, err)
+	}
+
+	return string(magicWord) == "crypt4gh", nil
+}
