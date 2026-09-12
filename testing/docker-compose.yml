@@ -28,7 +28,7 @@ services:
       /usr/bin/mc mb s3/test;
       /usr/bin/mc mb s3/download;
       /usr/bin/mc mb s3/archive;
-      /usr/bin/mc policy set public s3/download;
+      /usr/bin/mc anonymous set public s3/download;
       "
   rabbitmq:
     image: ghcr.io/neicnordic/sensitive-data-archive:${TAG}-rabbitmq
