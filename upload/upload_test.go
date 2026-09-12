@@ -173,12 +173,16 @@ func (s *UploadTestSuite) TestUploadFlagAsTargetDir() {
 	assert.EqualError(s.T(), uploadCmd.Execute(), "-r is not a valid target directory")
 }
 
-// Test passing target dir flag at the end
+// Test passing target dir flag after the file name
 func (s *UploadTestSuite) TestUploadTargetDirFlagAfterFileName() {
-	os.Args = []string{"", "upload", s.uploadTestFilePath}
-	uploadCmd.Flag("recursive").Value.Set("true")
-	uploadCmd.Flag("target-directory").Value.Set("somedir")
-	uploadCmd.Flag("encrypt-with-key").Value.Set(s.publicKeyFilePath)
+	os.Args = []string{
+		"",
+		"upload",
+		s.uploadTestFilePath,
+		"--recursive",
+		"--target-directory", "somedir",
+		"--encrypt-with-key", s.publicKeyFilePath,
+	}
 	assert.NoError(s.T(), uploadCmd.Execute())
 
 	// Verify the object was actually uploaded into target-directory in S3
