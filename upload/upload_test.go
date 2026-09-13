@@ -489,5 +489,6 @@ func (s *UploadTestSuite) TestUploadUnencryptedFileAborts() {
 }
 
 func (s *UploadTestSuite) TestForceUnencryptedFlagRemoved() {
-	assert.Nil(s.T(), Args.Lookup("force-unencrypted"))
+	err := Upload([]string{"upload", "-force-unencrypted", s.uploadTestFilePath}, s.configFilePath)
+	assert.ErrorContains(s.T(), err, "flag provided but not defined")
 }
