@@ -62,3 +62,6 @@ linters:
         disabled: true
       - name: unused-receiver # disable for now
         disabled: true
+
+issues:
+  new-from-rev: origin/release/v0.2.1
