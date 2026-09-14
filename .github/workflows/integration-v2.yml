@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: neicnordic/sensitive-data-archive
-          ref: 608878fa453770fcb3962bf0239366905c125982  # bump in docs/v2-dev-stack-pin.md when the contract changes
+          ref: bb2a098fbf466b3346cbfa0e9fee38b9a12f24de  # bump in docs/v2-dev-stack-pin.md when the contract changes
           path: sensitive-data-archive
 
       - name: Set up Go
