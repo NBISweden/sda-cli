@@ -44,6 +44,9 @@ chmod 444 c4gh.sec.pem
 source "$(pwd)/create_ceph_config.sh"
 
 # Set a stable tag compatible with sda-cli v0.2.1
+# We pinned v3.0.10 here because it represents the latest verified release
+# compatible with sda-cli v0.2.1 in this backport context, avoiding unexpected
+# regressions from later changes present on main.
 latest_tag="v3.0.10"
 
 # check which compose syntax to use (useful for running locally)
