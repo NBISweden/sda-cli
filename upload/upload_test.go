@@ -59,10 +59,9 @@ func TestUploadTestSuite(t *testing.T) {
 	suite.Run(t, new(UploadTestSuite))
 }
 
-func (suite *UploadTestSuite) SetupTest() {
+func (s *UploadTestSuite) SetupTest() {
 	// Reset flag values from any previous test invocation
 	Args = flag.NewFlagSet("upload", flag.ContinueOnError)
-	forceUnencrypted = Args.Bool("force-unencrypted", false, "Force uploading unencrypted files.")
 	dirUpload = Args.Bool("r", false, "Upload directories recursively.")
 	targetDir = Args.String("targetDir", "",
 		"Upload files or folders into this directory.  If flag is omitted,\n"+
@@ -78,24 +77,24 @@ func (suite *UploadTestSuite) SetupTest() {
 	_ = os.Unsetenv("ACCESSTOKEN")
 	*accessToken = ""
 
-	suite.accessToken = suite.generateDummyToken()
-	suite.tempDir = suite.T().TempDir()
+	s.accessToken = s.generateDummyToken()
+	s.tempDir = s.T().TempDir()
 
 	// Create a fake s3 backend
 	backend := s3mem.New()
 	faker := gofakes3.New(backend)
-	suite.s3MockHTTPServer = httptest.NewServer(faker.Server())
+	s.s3MockHTTPServer = httptest.NewServer(faker.Server())
 
 	// Configure S3 client
 	awsConfig, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("dummy", "dummy", suite.accessToken)),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("dummy", "dummy", s.accessToken)),
 		config.WithRegion("eu-central-1"),
-		config.WithBaseEndpoint(suite.s3MockHTTPServer.URL),
+		config.WithBaseEndpoint(s.s3MockHTTPServer.URL),
 	)
 	if err != nil {
-		suite.FailNow("failed to create aws config", err)
+		s.FailNow("failed to create aws config", err)
 	}
-	suite.s3Client = s3.NewFromConfig(awsConfig, func(o *s3.Options) {
+	s.s3Client = s3.NewFromConfig(awsConfig, func(o *s3.Options) {
 		o.UsePathStyle = true
 		o.EndpointOptions.DisableHTTPS = true
 	})
@@ -103,47 +102,47 @@ func (suite *UploadTestSuite) SetupTest() {
 	cparams := &s3.CreateBucketInput{
 		Bucket: aws.String("dummy"),
 	}
-	if _, err := suite.s3Client.CreateBucket(context.TODO(), cparams); err != nil {
-		suite.FailNow("failed to create s3 bucket", err)
+	if _, err := s.s3Client.CreateBucket(context.TODO(), cparams); err != nil {
+		s.FailNow("failed to create s3 bucket", err)
 	}
 
-	suite.configFilePath = filepath.Join(suite.tempDir, "s3cmd.conf")
-	if err := os.WriteFile(suite.configFilePath, fmt.Appendf([]byte{}, configFileFormat, suite.accessToken, suite.s3MockHTTPServer.URL), 0600); err != nil {
-		suite.FailNow("failed to write s3cmd config file")
+	s.configFilePath = filepath.Join(s.tempDir, "s3cmd.conf")
+	if err := os.WriteFile(s.configFilePath, fmt.Appendf([]byte{}, configFileFormat, s.accessToken, s.s3MockHTTPServer.URL), 0600); err != nil {
+		s.FailNow("failed to write s3cmd config file")
 	}
-	suite.filesToUploadDir, err = os.MkdirTemp(suite.tempDir, "upload_files")
+	s.filesToUploadDir, err = os.MkdirTemp(s.tempDir, "upload_files")
 	if err != nil {
-		suite.FailNow("failed to create files to upload temp dir", err)
+		s.FailNow("failed to create files to upload temp dir", err)
 	}
-	uploadTestFile, err := os.CreateTemp(suite.filesToUploadDir, "upload_test_file")
+	uploadTestFile, err := os.CreateTemp(s.filesToUploadDir, "upload_test_file")
 	if err != nil {
-		suite.FailNow("failed to create test upload file")
+		s.FailNow("failed to create test upload file")
 	}
 	if _, err := uploadTestFile.Write([]byte("test content")); err != nil {
-		suite.FailNow("failed to write to test upload file")
+		s.FailNow("failed to write to test upload file")
 	}
 	_ = uploadTestFile.Close()
-	suite.uploadTestFilePath = uploadTestFile.Name()
+	s.uploadTestFilePath = uploadTestFile.Name()
 
 	// Generate a crypt4gh pub key
 	pubKeyData, _, err := keys.GenerateKeyPair()
 	if err != nil {
-		suite.FailNow("Couldn't generate key pair", err)
+		s.FailNow("Couldn't generate key pair", err)
 	}
 	// Write the keys to temporary files
-	publicKey, err := os.CreateTemp(suite.tempDir, "pubkey-")
+	publicKey, err := os.CreateTemp(s.tempDir, "pubkey-")
 	if err != nil {
-		suite.FailNow("Cannot create temporary public key file", err)
+		s.FailNow("Cannot create temporary public key file", err)
 	}
 	if err := keys.WriteCrypt4GHX25519PublicKey(publicKey, pubKeyData); err != nil {
-		suite.FailNow("failed to write temporary public key file, %v", err)
+		s.FailNow("failed to write temporary public key file, %v", err)
 	}
 	_ = publicKey.Close()
-	suite.publicKeyFilePath = publicKey.Name()
+	s.publicKeyFilePath = publicKey.Name()
 }
 
-func (suite *UploadTestSuite) TearDownTest() {
-	suite.s3MockHTTPServer.Close()
+func (s *UploadTestSuite) TearDownTest() {
+	s.s3MockHTTPServer.Close()
 	// Remove hash files created by Encrypt
 	_ = os.Remove("checksum_encrypted.md5")
 	_ = os.Remove("checksum_unencrypted.md5")
@@ -152,73 +151,73 @@ func (suite *UploadTestSuite) TearDownTest() {
 }
 
 // Test calling upload without passing any files or target dir
-func (suite *UploadTestSuite) TestUploadNoFiles() {
-	assert.EqualError(suite.T(), Upload([]string{"upload"}, suite.configFilePath), "no files to upload")
+func (s *UploadTestSuite) TestUploadNoFiles() {
+	assert.EqualError(s.T(), Upload([]string{"upload"}, s.configFilePath), "no files to upload")
 }
 
 // Test handling of mistakenly passing a filename as an upload folder
-func (suite *UploadTestSuite) TestUploadFileNameAsTargetDir() {
-	assert.EqualError(suite.T(), Upload([]string{"upload", "-targetDir", suite.configFilePath}, suite.configFilePath), fmt.Sprintf("%s is not a valid target directory", suite.configFilePath))
+func (s *UploadTestSuite) TestUploadFileNameAsTargetDir() {
+	assert.EqualError(s.T(), Upload([]string{"upload", "-targetDir", s.configFilePath}, s.configFilePath), fmt.Sprintf("%s is not a valid target directory", s.configFilePath))
 }
 
 // Test handling of mistakenly passing a flag as an upload folder
-func (suite *UploadTestSuite) TestUploadFlagAsTargetDir() {
-	assert.EqualError(suite.T(), Upload([]string{"upload", "-targetDir", "-r"}, suite.configFilePath), "-r is not a valid target directory")
+func (s *UploadTestSuite) TestUploadFlagAsTargetDir() {
+	assert.EqualError(s.T(), Upload([]string{"upload", "-targetDir", "-r"}, s.configFilePath), "-r is not a valid target directory")
 }
 
 // Test passing target dir flag at the end
-func (suite *UploadTestSuite) TestUploadTargetDirFlagAfterFileName() {
-	assert.EqualError(suite.T(), Upload([]string{"upload", "-r", suite.uploadTestFilePath, "-targetDir", "somedir"}, suite.configFilePath), "unencrypted file found")
+func (s *UploadTestSuite) TestUploadTargetDirFlagAfterFileName() {
+	assert.EqualError(s.T(), Upload([]string{"upload", "-r", s.uploadTestFilePath, "-targetDir", "somedir"}, s.configFilePath), fmt.Sprintf("input file %s is not encrypted. All files must be encrypted unless using -encrypt-with-key", s.uploadTestFilePath))
 }
 
 // Test passing target dir flag at the end with out value
-func (suite *UploadTestSuite) TestUploadTargetDirFlagNoValueAfterFileName() {
-	assert.EqualError(suite.T(), Upload([]string{"upload", suite.uploadTestFilePath, "-targetDir"}, suite.configFilePath), fmt.Sprintf("%s is not a valid target directory", suite.uploadTestFilePath))
+func (s *UploadTestSuite) TestUploadTargetDirFlagNoValueAfterFileName() {
+	assert.EqualError(s.T(), Upload([]string{"upload", s.uploadTestFilePath, "-targetDir"}, s.configFilePath), fmt.Sprintf("%s is not a valid target directory", s.uploadTestFilePath))
 }
 
 // Test uploadFiles function without files
-func (suite *UploadTestSuite) TestUploadFilesNoFiles() {
-	loadedConfig, _ := helpers.LoadConfigFile(suite.configFilePath)
-	assert.EqualError(suite.T(), uploadFiles([]string{}, []string{}, "", loadedConfig), "no files to upload")
+func (s *UploadTestSuite) TestUploadFilesNoFiles() {
+	loadedConfig, _ := helpers.LoadConfigFile(s.configFilePath)
+	assert.EqualError(s.T(), uploadFiles([]string{}, []string{}, "", loadedConfig), "no files to upload")
 }
 
-func (suite *UploadTestSuite) TestCreateFilePathsFileAsInput() {
-	_, _, err := createFilePaths(suite.uploadTestFilePath)
-	assert.ErrorContains(suite.T(), err, "is not a directory")
+func (s *UploadTestSuite) TestCreateFilePathsFileAsInput() {
+	_, _, err := createFilePaths(s.uploadTestFilePath)
+	assert.ErrorContains(s.T(), err, "is not a directory")
 }
 
-func (suite *UploadTestSuite) TestCreateFilePaths() {
-	absolutePaths, relativePaths, err := createFilePaths(suite.tempDir)
-	assert.NoError(suite.T(), err)
+func (s *UploadTestSuite) TestCreateFilePaths() {
+	absolutePaths, relativePaths, err := createFilePaths(s.tempDir)
+	assert.NoError(s.T(), err)
 
 	expectedAbsolutePaths := []string{
-		suite.publicKeyFilePath,
-		suite.uploadTestFilePath,
-		suite.configFilePath,
+		s.publicKeyFilePath,
+		s.uploadTestFilePath,
+		s.configFilePath,
 	}
-	suite.ElementsMatch(expectedAbsolutePaths, absolutePaths)
+	s.ElementsMatch(expectedAbsolutePaths, absolutePaths)
 
-	uploadTestFileDir, uploadTestFileName := filepath.Split(suite.uploadTestFilePath)
-	_, publicKeyfileName := filepath.Split(suite.publicKeyFilePath)
-	_, configFileName := filepath.Split(suite.configFilePath)
+	uploadTestFileDir, uploadTestFileName := filepath.Split(s.uploadTestFilePath)
+	_, publicKeyfileName := filepath.Split(s.publicKeyFilePath)
+	_, configFileName := filepath.Split(s.configFilePath)
 	expectedRelativePaths := []string{
-		filepath.ToSlash(filepath.Join(filepath.Base(suite.tempDir), publicKeyfileName)),
-		filepath.ToSlash(filepath.Join(filepath.Base(suite.tempDir), filepath.Base(uploadTestFileDir), uploadTestFileName)),
-		filepath.ToSlash(filepath.Join(filepath.Base(suite.tempDir), configFileName)),
+		filepath.ToSlash(filepath.Join(filepath.Base(s.tempDir), publicKeyfileName)),
+		filepath.ToSlash(filepath.Join(filepath.Base(s.tempDir), filepath.Base(uploadTestFileDir), uploadTestFileName)),
+		filepath.ToSlash(filepath.Join(filepath.Base(s.tempDir), configFileName)),
 	}
-	suite.ElementsMatch(expectedRelativePaths, relativePaths)
+	s.ElementsMatch(expectedRelativePaths, relativePaths)
 }
-func (suite *UploadTestSuite) TestCreateFilePathsDirNotExists() {
+func (s *UploadTestSuite) TestCreateFilePathsDirNotExists() {
 	// Input is invalid
 	msg := "no such file or directory"
 	if runtime.GOOS == "windows" {
 		msg = "The system cannot find the file specified."
 	}
 	_, _, err := createFilePaths("nonexistent")
-	assert.ErrorContains(suite.T(), err, msg)
+	assert.ErrorContains(s.T(), err, msg)
 }
 
-func (suite *UploadTestSuite) TestUploadRecursive() {
+func (s *UploadTestSuite) TestUploadRecursive() {
 	rescuedStdout := os.Stdout
 	stdoutReader, stdoutWriter, _ := os.Pipe()
 	os.Stdout = stdoutWriter
@@ -228,7 +227,7 @@ func (suite *UploadTestSuite) TestUploadRecursive() {
 	os.Stderr = stderrWriter
 
 	// Test recursive upload
-	assert.NoError(suite.T(), Upload([]string{"upload", "--force-unencrypted", "-r", suite.filesToUploadDir}, suite.configFilePath))
+	assert.NoError(s.T(), Upload([]string{"upload", "--encrypt-with-key", s.publicKeyFilePath, "-r", s.filesToUploadDir}, s.configFilePath))
 
 	_ = stdoutWriter.Close()
 	os.Stdout = rescuedStdout
@@ -241,31 +240,31 @@ func (suite *UploadTestSuite) TestUploadRecursive() {
 	_ = stderrReader.Close()
 
 	// Check logs that file was uploaded
-	msg := fmt.Sprintf("file uploaded to %s/dummy/%s/%s", suite.s3MockHTTPServer.URL, filepath.Base(suite.filesToUploadDir), filepath.Base(suite.uploadTestFilePath))
-	assert.Contains(suite.T(), string(uploadStdout), msg)
+	msg := fmt.Sprintf("file uploaded to %s/dummy/%s/%s.c4gh", s.s3MockHTTPServer.URL, filepath.Base(s.filesToUploadDir), filepath.Base(s.uploadTestFilePath))
+	assert.Contains(s.T(), string(uploadStdout), msg)
 
 	// Check in the logs for a warning that the file was unencrypted
-	warnMsg := fmt.Sprintf("input file %s is not encrypted", filepath.Clean(suite.uploadTestFilePath))
-	assert.Contains(suite.T(), string(uploadStderr), warnMsg)
+	warnMsg := fmt.Sprintf("input file %s is not encrypted", filepath.Clean(s.uploadTestFilePath))
+	assert.NotContains(s.T(), string(uploadStderr), warnMsg)
 
 	// Check that file showed up in the s3 bucket correctly
-	result, err := suite.s3Client.ListObjects(context.TODO(), &s3.ListObjectsInput{
+	result, err := s.s3Client.ListObjects(context.TODO(), &s3.ListObjectsInput{
 		Bucket: aws.String("dummy"),
 	})
 	if err != nil {
-		suite.FailNow("failed to list objects from s3", err)
+		s.FailNow("failed to list objects from s3", err)
 	}
-	assert.Equal(suite.T(), aws.ToString(result.Contents[0].Key), fmt.Sprintf("%s/%s", filepath.Base(suite.filesToUploadDir), filepath.Base(suite.uploadTestFilePath)))
+	assert.Equal(s.T(), aws.ToString(result.Contents[0].Key), fmt.Sprintf("%s/%s.c4gh", filepath.Base(s.filesToUploadDir), filepath.Base(s.uploadTestFilePath)))
 }
 
-func (suite *UploadTestSuite) TestUploadTargetDir() {
+func (s *UploadTestSuite) TestUploadTargetDir() {
 	rescuedStdout := os.Stdout
 	stdoutReader, stdoutWriter, _ := os.Pipe()
 	os.Stdout = stdoutWriter
 
 	// Test upload to a different folder
 	targetPath := filepath.Join("a", "b", "c")
-	assert.NoError(suite.T(), Upload([]string{"upload", "--force-unencrypted", suite.uploadTestFilePath, "-targetDir", targetPath}, suite.configFilePath))
+	assert.NoError(s.T(), Upload([]string{"upload", "--encrypt-with-key", s.publicKeyFilePath, s.uploadTestFilePath, "-targetDir", targetPath}, s.configFilePath))
 
 	_ = stdoutWriter.Close()
 	os.Stdout = rescuedStdout
@@ -273,19 +272,19 @@ func (suite *UploadTestSuite) TestUploadTargetDir() {
 	_ = stdoutReader.Close()
 
 	// Check logs that file was uploaded
-	msg := fmt.Sprintf("file uploaded to %s/dummy/%s/%s", suite.s3MockHTTPServer.URL, filepath.ToSlash(targetPath), filepath.Base(suite.uploadTestFilePath))
-	assert.Contains(suite.T(), string(uploadStdout), msg)
+	msg := fmt.Sprintf("file uploaded to %s/dummy/%s/%s.c4gh", s.s3MockHTTPServer.URL, filepath.ToSlash(targetPath), filepath.Base(s.uploadTestFilePath))
+	assert.Contains(s.T(), string(uploadStdout), msg)
 
 	// Check that file showed up in the s3 bucket correctly
-	result, err := suite.s3Client.ListObjects(context.TODO(), &s3.ListObjectsInput{
+	result, err := s.s3Client.ListObjects(context.TODO(), &s3.ListObjectsInput{
 		Bucket: aws.String("dummy"),
 	})
 	if err != nil {
-		suite.FailNow("failed to list objects from s3", err)
+		s.FailNow("failed to list objects from s3", err)
 	}
-	assert.Equal(suite.T(), aws.ToString(result.Contents[0].Key), fmt.Sprintf("%s/%s", filepath.ToSlash(targetPath), filepath.Base(suite.uploadTestFilePath)))
+	assert.Equal(s.T(), aws.ToString(result.Contents[0].Key), fmt.Sprintf("%s/%s.c4gh", filepath.ToSlash(targetPath), filepath.Base(s.uploadTestFilePath)))
 }
-func (suite *UploadTestSuite) TestUploadWithEncryption() {
+func (s *UploadTestSuite) TestUploadWithEncryption() {
 	rescuedStdout := os.Stdout
 	stdoutReader, stdoutWriter, _ := os.Pipe()
 	os.Stdout = stdoutWriter
@@ -294,7 +293,7 @@ func (suite *UploadTestSuite) TestUploadWithEncryption() {
 	stderrReader, stderrWriter, _ := os.Pipe()
 	os.Stderr = stderrWriter
 
-	assert.NoError(suite.T(), Upload([]string{"upload", "--encrypt-with-key", suite.publicKeyFilePath, suite.uploadTestFilePath, "-targetDir", "someDir"}, suite.configFilePath))
+	assert.NoError(s.T(), Upload([]string{"upload", "--encrypt-with-key", s.publicKeyFilePath, s.uploadTestFilePath, "-targetDir", "someDir"}, s.configFilePath))
 
 	_ = stdoutWriter.Close()
 	os.Stdout = rescuedStdout
@@ -307,22 +306,22 @@ func (suite *UploadTestSuite) TestUploadWithEncryption() {
 	_ = stderrReader.Close()
 
 	// Check logs that encrypted file was uploaded
-	msg := fmt.Sprintf("file uploaded to %s/dummy/someDir/%s.c4gh", suite.s3MockHTTPServer.URL, filepath.Base(suite.uploadTestFilePath))
-	assert.Contains(suite.T(), string(uploadStdout), msg)
+	msg := fmt.Sprintf("file uploaded to %s/dummy/someDir/%s.c4gh", s.s3MockHTTPServer.URL, filepath.Base(s.uploadTestFilePath))
+	assert.Contains(s.T(), string(uploadStdout), msg)
 
 	// Check that file showed up in the s3 bucket correctly
-	result, err := suite.s3Client.ListObjects(context.TODO(), &s3.ListObjectsInput{
+	result, err := s.s3Client.ListObjects(context.TODO(), &s3.ListObjectsInput{
 		Bucket: aws.String("dummy"),
 	})
 	if err != nil {
-		suite.FailNow("failed to list objects from s3", err)
+		s.FailNow("failed to list objects from s3", err)
 	}
-	assert.Equal(suite.T(), aws.ToString(result.Contents[0].Key), "someDir/"+filepath.Base(suite.uploadTestFilePath)+".c4gh")
+	assert.Equal(s.T(), aws.ToString(result.Contents[0].Key), "someDir/"+filepath.Base(s.uploadTestFilePath)+".c4gh")
 	// Check that the respective unencrypted file was not uploaded
-	assert.NotContains(suite.T(), string(uploadStderr), fmt.Sprintf("Uploading %s with", suite.uploadTestFilePath))
+	assert.NotContains(s.T(), string(uploadStderr), fmt.Sprintf("Uploading %s with", s.uploadTestFilePath))
 }
 
-func (suite *UploadTestSuite) TestUploadWithEncryptionRecursive() {
+func (s *UploadTestSuite) TestUploadWithEncryptionRecursive() {
 	rescuedStdout := os.Stdout
 	stdoutReader, stdoutWriter, _ := os.Pipe()
 	os.Stdout = stdoutWriter
@@ -331,7 +330,7 @@ func (suite *UploadTestSuite) TestUploadWithEncryptionRecursive() {
 	stderrReader, stderrWriter, _ := os.Pipe()
 	os.Stderr = stderrWriter
 
-	assert.NoError(suite.T(), Upload([]string{"upload", "--force-unencrypted", "-r", suite.filesToUploadDir}, suite.configFilePath))
+	assert.NoError(s.T(), Upload([]string{"upload", "--encrypt-with-key", s.publicKeyFilePath, "-r", s.filesToUploadDir}, s.configFilePath))
 
 	_ = stdoutWriter.Close()
 	os.Stdout = rescuedStdout
@@ -344,53 +343,54 @@ func (suite *UploadTestSuite) TestUploadWithEncryptionRecursive() {
 	_ = stderrReader.Close()
 
 	// check if the host_base is in the output
-	expectedHostBase := "Remote server (host_base): " + suite.s3MockHTTPServer.URL
-	assert.NotContains(suite.T(), string(uploadStdout), expectedHostBase)
-	assert.Contains(suite.T(), string(uploadStderr), expectedHostBase)
+	expectedHostBase := "Remote server (host_base): " + s.s3MockHTTPServer.URL
+	assert.NotContains(s.T(), string(uploadStdout), expectedHostBase)
+	assert.Contains(s.T(), string(uploadStderr), expectedHostBase)
 }
 
-func (suite *UploadTestSuite) TestUploadWithEncryptionFileAlreadyExists() {
+func (s *UploadTestSuite) TestUploadWithEncryptionFileAlreadyExists() {
 	// Check that trying to encrypt already encrypted files returns error and aborts
-	encFile, err := os.CreateTemp(suite.tempDir, "encFile")
+	encFile, err := os.CreateTemp(s.tempDir, "encFile")
 	if err != nil {
-		suite.FailNow("failed to create test file", err)
+		s.FailNow("failed to create test file", err)
 	}
 	if err := os.WriteFile(encFile.Name(), []byte("crypt4gh"), 0600); err != nil {
-		suite.FailNow("failed to write to test file", err)
+		s.FailNow("failed to write to test file", err)
 	}
 	_ = encFile.Close()
 
-	assert.ErrorContains(suite.T(), Upload([]string{"upload", "--encrypt-with-key", suite.publicKeyFilePath, encFile.Name()}, suite.configFilePath), "is already encrypted")
+	assert.ErrorContains(s.T(), Upload([]string{"upload", "--encrypt-with-key", s.publicKeyFilePath, encFile.Name()}, s.configFilePath), "is already encrypted")
 }
-func (suite *UploadTestSuite) TestUploadWithEncryptionInvalidPublicKey() {
-	assert.EqualError(suite.T(), Upload([]string{"upload", "--encrypt-with-key", suite.uploadTestFilePath}, suite.configFilePath), "no files to upload")
+func (s *UploadTestSuite) TestUploadWithEncryptionInvalidPublicKey() {
+	assert.EqualError(s.T(), Upload([]string{"upload", "--encrypt-with-key", s.uploadTestFilePath}, s.configFilePath), "no files to upload")
 }
-func (suite *UploadTestSuite) TestUploadInvalidAccessTokenInConfigFile() {
-	if err := os.WriteFile(suite.configFilePath, fmt.Appendf([]byte{}, configFileFormat, "", suite.s3MockHTTPServer.URL), 0600); err != nil {
-		suite.FailNow("failed to write s3cmd config file")
+func (s *UploadTestSuite) TestUploadInvalidAccessTokenInConfigFile() {
+	if err := os.WriteFile(s.configFilePath, fmt.Appendf([]byte{}, configFileFormat, "", s.s3MockHTTPServer.URL), 0600); err != nil {
+		s.FailNow("failed to write s3cmd config file")
 	}
-	assert.EqualError(suite.T(), Upload([]string{"upload", suite.uploadTestFilePath}, suite.configFilePath), "no access token supplied")
+	assert.EqualError(s.T(), Upload([]string{"upload", s.uploadTestFilePath}, s.configFilePath), "no access token supplied")
 }
-func (suite *UploadTestSuite) TestUploadInvalidAccessTokenInEnvVariable() {
+func (s *UploadTestSuite) TestUploadInvalidAccessTokenInEnvVariable() {
 	_ = os.Setenv("ACCESSTOKEN", "BadToken")
 	// Supplying an accesstoken as a ENV overrules the one in the config file
-	assert.EqualError(suite.T(), Upload([]string{"upload", suite.uploadTestFilePath}, suite.configFilePath), "could not parse token, reason: token contains an invalid number of segments")
+	assert.EqualError(s.T(), Upload([]string{"upload", s.uploadTestFilePath}, s.configFilePath), "could not parse token, reason: token contains an invalid number of segments")
 }
 
-func (suite *UploadTestSuite) TestUploadValidAccessTokenInEnvVariable() {
-	_ = os.Setenv("ACCESSTOKEN", suite.accessToken)
-	assert.NoError(suite.T(), Upload([]string{"upload", "--force-unencrypted", suite.uploadTestFilePath}, suite.configFilePath))
-
+func (s *UploadTestSuite) TestUploadValidAccessTokenInEnvVariable() {
+	_ = os.Setenv("ACCESSTOKEN", s.accessToken)
+	assert.NoError(s.T(), Upload([]string{"upload", "--encrypt-with-key", s.publicKeyFilePath, s.uploadTestFilePath}, s.configFilePath))
 }
-func (suite *UploadTestSuite) TestUploadInvalidAccessTokenInFlag() {
+
+func (s *UploadTestSuite) TestUploadInvalidAccessTokenInFlag() {
 	// Supplying an accesstoken as a parameter overrules the one in the config file
-	assert.EqualError(suite.T(), Upload([]string{"upload", "-accessToken", "BadToken", suite.uploadTestFilePath}, suite.configFilePath), "could not parse token, reason: token contains an invalid number of segments")
-}
-func (suite *UploadTestSuite) TestUploadValidAccessTokenInFlag() {
-	assert.NoError(suite.T(), Upload([]string{"upload", "--force-unencrypted", "-accessToken", suite.accessToken, suite.uploadTestFilePath}, suite.configFilePath))
+	assert.EqualError(s.T(), Upload([]string{"upload", "-accessToken", "BadToken", s.uploadTestFilePath}, s.configFilePath), "could not parse token, reason: token contains an invalid number of segments")
 }
 
-func (suite *UploadTestSuite) TestRecursiveToDifferentTarget() {
+func (s *UploadTestSuite) TestUploadValidAccessTokenInFlag() {
+	assert.NoError(s.T(), Upload([]string{"upload", "--encrypt-with-key", s.publicKeyFilePath, "-accessToken", s.accessToken, s.uploadTestFilePath}, s.configFilePath))
+}
+
+func (s *UploadTestSuite) TestRecursiveToDifferentTarget() {
 	ctx := context.TODO()
 
 	rescuedStdout := os.Stdout
@@ -399,7 +399,7 @@ func (suite *UploadTestSuite) TestRecursiveToDifferentTarget() {
 
 	// Test recursive upload to a different folder
 	targetPath := filepath.Join("a", "b", "c")
-	assert.NoError(suite.T(), Upload([]string{"upload", "--force-unencrypted", "-r", suite.filesToUploadDir, "-targetDir", targetPath}, suite.configFilePath))
+	assert.NoError(s.T(), Upload([]string{"upload", "--encrypt-with-key", s.publicKeyFilePath, "-r", s.filesToUploadDir, "-targetDir", targetPath}, s.configFilePath))
 
 	_ = stdoutWriter.Close()
 	os.Stdout = rescuedStdout
@@ -407,21 +407,20 @@ func (suite *UploadTestSuite) TestRecursiveToDifferentTarget() {
 	_ = stdoutReader.Close()
 
 	// Check logs that file was uploaded
-	msg := fmt.Sprintf("file uploaded to %s/dummy/%s", suite.s3MockHTTPServer.URL, filepath.ToSlash(filepath.Join(targetPath, filepath.Base(suite.filesToUploadDir), filepath.Base(suite.uploadTestFilePath))))
-	assert.Contains(suite.T(), string(uploadStdout), msg)
+	msg := fmt.Sprintf("file uploaded to %s/dummy/%s", s.s3MockHTTPServer.URL, filepath.ToSlash(filepath.Join(targetPath, filepath.Base(s.filesToUploadDir), filepath.Base(s.uploadTestFilePath)+".c4gh")))
+	assert.Contains(s.T(), string(uploadStdout), msg)
 
 	// Check that file showed up in the s3 bucket correctly
-	result, err := suite.s3Client.ListObjects(ctx, &s3.ListObjectsInput{
+	result, err := s.s3Client.ListObjects(ctx, &s3.ListObjectsInput{
 		Bucket: aws.String("dummy"),
 	})
 	if err != nil {
-		suite.FailNow("failed to list obects from s3", err)
+		s.FailNow("failed to list obects from s3", err)
 	}
-	assert.Equal(suite.T(), filepath.ToSlash(filepath.Join(targetPath, filepath.Base(suite.filesToUploadDir), filepath.Base(suite.uploadTestFilePath))), aws.ToString(result.Contents[0].Key))
-
+	assert.Equal(s.T(), filepath.ToSlash(filepath.Join(targetPath, filepath.Base(s.filesToUploadDir), filepath.Base(s.uploadTestFilePath)+".c4gh")), aws.ToString(result.Contents[0].Key))
 }
 
-func (suite *UploadTestSuite) TestUploadInvalidCharactersInDirectoryName() {
+func (s *UploadTestSuite) TestUploadInvalidCharactersInDirectoryName() {
 	// Check that target dir names with invalid characters will not be accepted
 	badchars := ":*?"
 	// backslash is only allowed on windows
@@ -431,15 +430,16 @@ func (suite *UploadTestSuite) TestUploadInvalidCharactersInDirectoryName() {
 	for _, badc := range badchars {
 		badchar := string(badc)
 		targetDir := "test" + badchar + "dir"
-		err := Upload([]string{"upload", "--force-unencrypted", "-targetDir", targetDir, "-r", suite.uploadTestFilePath}, suite.configFilePath)
-		assert.Error(suite.T(), err)
-		assert.Equal(suite.T(), targetDir+" is not a valid target directory", err.Error())
+		err := Upload([]string{"upload", "-targetDir", targetDir, "-r", s.uploadTestFilePath}, s.configFilePath)
+		assert.Error(s.T(), err)
+		assert.Equal(s.T(), targetDir+" is not a valid target directory", err.Error())
 	}
 }
-func (suite *UploadTestSuite) TestUploadInvalidCharactersInFileName() {
+
+func (s *UploadTestSuite) TestUploadInvalidCharactersInFileName() {
 	// Filenames with :\?* can not be created on windows, skip the following tests
 	if runtime.GOOS == "windows" {
-		suite.T().Skip("Skipping. Cannot create filenames with invalid characters on windows")
+		s.T().Skip("Skipping. Cannot create filenames with invalid characters on windows")
 	}
 
 	// Test that no files with invalid characters can be uploaded
@@ -447,25 +447,25 @@ func (suite *UploadTestSuite) TestUploadInvalidCharactersInFileName() {
 		badchar := string(badc)
 		testfilepath := "test" + badchar + "file"
 
-		testfile, err := os.Create(filepath.Join(suite.tempDir, testfilepath))
+		testfile, err := os.Create(filepath.Join(s.tempDir, testfilepath))
 		if err != nil {
-			suite.FailNow("failed to create test file", err)
+			s.FailNow("failed to create test file", err)
 		}
 		err = os.WriteFile(testfile.Name(), []byte("content"), 0600)
 		if err != nil {
-			suite.FailNow("failed to write to test file", err)
+			s.FailNow("failed to write to test file", err)
 		}
 
-		err = Upload([]string{"upload", "--force-unencrypted", "-r", testfile.Name()}, suite.configFilePath)
-		assert.Error(suite.T(), err)
-		assert.Equal(suite.T(), fmt.Sprintf("filepath %v contains disallowed characters: %+v", testfilepath, badchar), err.Error())
+		err = Upload([]string{"upload", "-r", testfile.Name()}, s.configFilePath)
+		assert.Error(s.T(), err)
+		assert.Equal(s.T(), fmt.Sprintf("filepath %v contains disallowed characters: %+v", testfilepath, badchar), err.Error())
 	}
 }
 
-func (suite *UploadTestSuite) generateDummyToken() string {
+func (s *UploadTestSuite) generateDummyToken() string {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		suite.FailNow("failed to generate key", err)
+		s.FailNow("failed to generate key", err)
 	}
 
 	// Create the Claims
@@ -477,8 +477,18 @@ func (suite *UploadTestSuite) generateDummyToken() string {
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	accessToken, err := token.SignedString(privateKey)
 	if err != nil {
-		suite.FailNow("failed to sign token", err)
+		s.FailNow("failed to sign token", err)
 	}
 
 	return accessToken
+}
+
+func (s *UploadTestSuite) TestUploadUnencryptedFileAborts() {
+	expectedErr := fmt.Sprintf("input file %s is not encrypted. All files must be encrypted unless using -encrypt-with-key", s.uploadTestFilePath)
+	assert.EqualError(s.T(), Upload([]string{"upload", s.uploadTestFilePath}, s.configFilePath), expectedErr)
+}
+
+func (s *UploadTestSuite) TestForceUnencryptedFlagRemoved() {
+	err := Upload([]string{"upload", "-force-unencrypted", s.uploadTestFilePath}, s.configFilePath)
+	assert.ErrorContains(s.T(), err, "flag provided but not defined")
 }

@@ -43,8 +43,11 @@ chmod 444 c4gh.sec.pem
 # shellcheck source=/dev/null
 source "$(pwd)/create_ceph_config.sh"
 
-# get latest image tag for s3inbox
-latest_tag=$(curl -s https://api.github.com/repos/neicnordic/sensitive-data-archive/tags | jq -r '.[0].name')
+# Set a stable tag compatible with sda-cli v0.2.1
+# We pinned v3.0.10 here because it represents the latest verified release
+# compatible with sda-cli v0.2.1 in this backport context, avoiding unexpected
+# regressions from later changes present on main.
+latest_tag="v3.0.10"
 
 # check which compose syntax to use (useful for running locally)
 if command -v docker-compose >/dev/null 2>&1; then
@@ -90,12 +93,13 @@ until docker ps -f name="proxy" --format "{{.Status}}" | grep "Up "; do
 done
 
 RETRY_TIMES=0
-until docker logs buckets | grep "Access permission for"; do
+until docker logs buckets 2>&1 | grep -q "Access permission for"; do
     echo "waiting for buckets to be created"
     RETRY_TIMES=$((RETRY_TIMES + 1))
     if [ "$RETRY_TIMES" -eq 30 ]; then
         # Time out
-        docker logs "buckets"
+        docker logs "s3"
+        docker logs "buckets" || true
         exit 1
     fi
     sleep 10
