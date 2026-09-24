@@ -119,9 +119,8 @@ services:
       - BROKER_PORT=5672
       - BROKER_VHOST=sda
       - BROKER_EXCHANGE=sda
-      - BROKER_ROUTINGKEY=inbox
       - BROKER_SSL=False
-      - SERVER_JWTPUBKEYPATH=/keys/
+      - SERVER_JWT_PUB_KEY_PATH=/keys/
       - LOG_FORMAT=json
     volumes:
       - ./keys/:/keys/
