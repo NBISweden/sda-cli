@@ -18,7 +18,6 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/neicnordic/crypt4gh/keys"
 	"github.com/spf13/cobra"
@@ -119,6 +118,8 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 	// Create an uploader with the session and default options
 	uploader := transfermanager.New(s3Client, func(o *transfermanager.Options) {
 		o.PartSizeBytes = config.MultipartChunkSizeMb * 1024 * 1024
+		// Preserve RequestChecksumCalculationWhenRequired for S3-compatible inboxes.
+		o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
 	})
 	for k, filename := range files {
 		// create progress bar instance
@@ -209,9 +210,6 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 			Bucket:          aws.String(config.AccessKey),
 			Key:             aws.String(path.Join(targetDir, outFiles[k])),
 			ContentEncoding: aws.String(config.Encoding),
-		}, func(o *transfermanager.Options) {
-			// Preserve RequestChecksumCalculationWhenRequired for S3-compatible inboxes.
-			o.ChecksumAlgorithm = types.ChecksumAlgorithm("")
 		})
 		// Print the progress bar. Second check is to filter out some junk from the output
 		if result != nil && result.VersionID != nil {
