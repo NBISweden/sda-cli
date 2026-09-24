@@ -205,8 +205,13 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		)
 
 		// Upload the file to S3.
+		rc, err := bar.ProxyReader(fs.Reader)
+		if err != nil {
+			return err
+		}
+
 		result, err := uploader.UploadObject(ctx, &transfermanager.UploadObjectInput{
-			Body:            bar.ProxyReader(fs.Reader),
+			Body:            rc,
 			Bucket:          aws.String(config.AccessKey),
 			Key:             aws.String(path.Join(targetDir, outFiles[k])),
 			ContentEncoding: aws.String(config.Encoding),
