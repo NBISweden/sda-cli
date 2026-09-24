@@ -123,7 +123,7 @@ func (s *HtsgetTestSuite) SetupTest() {
 
 	s.configPath = filepath.Join(s.tempDir, "s3cmd.conf")
 	htsgetCmd.Root().Flag("config").Value.Set(s.configPath)
-
+	//nolint: revive
 	if err := os.WriteFile(s.configPath, []byte(fmt.Sprintf(`
 access_token = %[1]s
 host_base = http://127.0.0.1:8000
