@@ -1,6 +1,6 @@
 module github.com/NBISweden/sda-cli
 
-go 1.25.7
+go 1.27.1
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.42.0
@@ -11,7 +11,6 @@ require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/hashicorp/go-version v1.9.0
-	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
 	github.com/johannesboyne/gofakes3 v0.0.0-20220627085814-c3ac35da23b2
 	github.com/manifoldco/promptui v0.9.0
 	github.com/neicnordic/crypt4gh v1.15.0
