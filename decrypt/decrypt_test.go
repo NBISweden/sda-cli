@@ -149,6 +149,7 @@ func (s *DecryptTestSuite) TestDecryptWithWrongPrivateKey() {
 
 func (s *DecryptTestSuite) TestDecryptWithMalformedPrivateKey() {
 	malformedKeyFile := fmt.Sprintf("%s/malformed_key.sec.pem", s.tempDir)
+	//nolint: revive
 	if err := os.WriteFile(malformedKeyFile, []byte(`
 -----BEGIN CRYPT4GH ENCRYPTED PRIVATE KEY-----
 MalformedKey

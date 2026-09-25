@@ -5,7 +5,6 @@ broker:
   password: test
   vhost: sda
   exchange: sda
-  routingKey: inbox
   ssl: False
 database:
   host: postgres
@@ -14,15 +13,17 @@ database:
   password: rootpasswd
   name: sda
   ssl_mode: disable
+routing_key: inbox
 s3inbox:
   endpoint: http://ceph-octopus:8100
-  type: s3
-  accessKey: 
-  secretKey: 
+  accessKey:
+  secretKey:
   bucket: test
   region: us-east-1
+  access_key: 
+  secret_key: 
 log:
   format: json
   level: debug
 server:
-  jwtpubkeypath: /keys/
+  jwt_pub_key_path: /keys/
