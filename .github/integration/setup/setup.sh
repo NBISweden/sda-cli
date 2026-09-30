@@ -39,10 +39,6 @@ EOF
 
 chmod 444 c4gh.sec.pem
 
-# start the ceph container
-# shellcheck source=/dev/null
-source "$(pwd)/create_ceph_config.sh"
-
 # get latest image tag for s3inbox
 latest_tag=$(curl -s https://api.github.com/repos/neicnordic/sensitive-data-archive/tags | jq -r '.[0].name')
 
@@ -52,18 +48,6 @@ if command -v docker-compose >/dev/null 2>&1; then
 else
     TAG=$latest_tag docker compose up -d --no-recreate
 fi
-
-RETRY_TIMES=0
-until docker ps -f name="ceph_proxy" --format "{{.Status}}" | grep "Up"; do
-    echo "waiting for ceph proxy to become ready"
-    RETRY_TIMES=$((RETRY_TIMES + 1))
-    if [ "$RETRY_TIMES" -eq 30 ]; then
-        # Time out
-        docker logs "ceph_proxy"
-        exit 1
-    fi
-    sleep 10
-done
 
 RETRY_TIMES=0
 until docker ps -f name="s3" --format "{{.Status}}" | grep "healthy"; do
@@ -77,6 +61,10 @@ until docker ps -f name="s3" --format "{{.Status}}" | grep "healthy"; do
     sleep 10
 done
 
+s3cmd -c directS3 mb s3://archive
+s3cmd -c directS3 mb s3://download
+s3cmd -c directS3 mb s3://test
+
 RETRY_TIMES=0
 until docker ps -f name="proxy" --format "{{.Status}}" | grep "Up "; do
     echo "waiting for proxy to become ready"
@@ -84,18 +72,6 @@ until docker ps -f name="proxy" --format "{{.Status}}" | grep "Up "; do
     if [ "$RETRY_TIMES" -eq 30 ]; then
         # Time out
         docker logs "proxy"
-        exit 1
-    fi
-    sleep 10
-done
-
-RETRY_TIMES=0
-until docker logs buckets | grep "Access permission for"; do
-    echo "waiting for buckets to be created"
-    RETRY_TIMES=$((RETRY_TIMES + 1))
-    if [ "$RETRY_TIMES" -eq 30 ]; then
-        # Time out
-        docker logs "buckets"
         exit 1
     fi
     sleep 10

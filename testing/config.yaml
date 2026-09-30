@@ -14,7 +14,6 @@ s3inbox:
   secret_key: "987654321"
   bucket: "test"
   region: "us-east-1"
-  ready_path: "/minio/health/ready"
 
 c4gh:
   privateKeys:
