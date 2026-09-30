@@ -1,35 +1,11 @@
 services:
   s3_backend:
-    command: server /data
+    extends:
+      file: ceph-rgw.yml
+      service: ceph
     container_name: s3
-    environment:
-      - MINIO_ACCESS_KEY=ElixirID
-      - MINIO_SECRET_KEY=987654321
-    healthcheck:
-      test: ["CMD", "curl", "-fkq", "http://localhost:9000/minio/health/live"]
-      interval: 5s
-      timeout: 20s
-      retries: 3
-    image: quay.io/minio/minio:RELEASE.2024-10-29T16-01-48Z
     ports:
       - "9000:9000"
-    volumes:
-      - data:/data
-  createbucket:
-    container_name: buckets
-    image: quay.io/minio/mc:RELEASE.2024-10-29T15-34-59Z
-    depends_on:
-      - s3_backend
-    entrypoint: >
-      /bin/sh -c "
-      /bin/sleep 30;
-      /usr/bin/mc config host add s3 http://s3:9000 ElixirID 987654321;
-      /usr/bin/mc rm -r --force s3/test;
-      /usr/bin/mc mb --ignore-existing s3/test;
-      /usr/bin/mc mb --ignore-existing s3/download;
-      /usr/bin/mc mb --ignore-existing s3/archive;
-      /usr/bin/mc anonymous set public s3/download;
-      "
   rabbitmq:
     image: ghcr.io/neicnordic/sensitive-data-archive:${TAG}-rabbitmq
     container_name: rabbitmq
@@ -45,54 +21,6 @@ services:
       interval: 5s
       timeout: 120s
       retries: 10
-  ceph:
-    container_name: ceph-octopus
-    environment:
-      - "RGW_NAME=ceph-octopus"
-      - "RGW_FRONTEND_PORT=8100"
-      - "SREE_PORT=5100"
-      - "RGW_CIVETWEB_PORT=5100"
-      - "DEBUG=verbose"
-      - "CEPH_DEMO_UID=nano"
-      - "EXPOSED_IP=127.0.0.1"
-      - "MON_IP=127.0.0.1"
-      - "CEPH_PUBLIC_NETWORK=0.0.0.0/0"
-      - "CEPH_DAEMON=demo"
-      - "DEMO_DAEMONS=mon,mgr,osd,rgw"
-      - "SREE_VERSION=v0.1"
-      - "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      - "CEPH_VERSION=octopus"
-      - "CEPH_POINT_RELEASE="
-      - "CEPH_DEVEL=false"
-      - "CEPH_REF=octopus"
-      - "OSD_FLAVOR=default"
-    healthcheck:
-      test: ["CMD", "stat", "/nano_user_details"]
-      interval: 5s
-      timeout: 20s
-      retries: 3
-    image: ceph/daemon:v5.0.1-stable-5.0-octopus-centos-8-x86_64
-    ports:
-      - "5100:5100"
-      - "8100:8100"
-  ceph_proxy:
-    image: "ghcr.io/neicnordic/sensitive-data-archive:${TAG}"
-    command: [ sda-s3inbox ]
-    container_name: ceph_proxy
-    depends_on:
-      ceph:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-    restart: always
-    volumes:
-      - ./keys/:/keys/
-      - ./ceph_proxy_config.yaml:/config.yaml
-    ports:
-      - "8800:8000"
-      - "8801:8001"
   s3_proxy:
     image: "ghcr.io/neicnordic/sensitive-data-archive:${TAG}"
     command: [ sda-s3inbox ]
@@ -119,9 +47,8 @@ services:
       - BROKER_PORT=5672
       - BROKER_VHOST=sda
       - BROKER_EXCHANGE=sda
-      - BROKER_ROUTINGKEY=inbox
       - BROKER_SSL=False
-      - SERVER_JWTPUBKEYPATH=/keys/
+      - SERVER_JWT_PUB_KEY_PATH=/keys/
       - LOG_FORMAT=json
     volumes:
       - ./keys/:/keys/

@@ -454,7 +454,11 @@ func encrypt(filename, outFilename string, pubKeyList [][32]byte, privateKey [32
 	)
 
 	// Encrypt the data
-	_, err = io.Copy(crypt4GHWriter, bar.ProxyReader(inFile))
+	rc, err := bar.ProxyReader(inFile)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(crypt4GHWriter, rc)
 	if err != nil {
 		return err
 	}

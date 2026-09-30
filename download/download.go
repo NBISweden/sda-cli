@@ -434,7 +434,10 @@ func downloadWithBar(p *mpb.Progress, outFile *os.File, reader io.Reader, totalS
 		),
 	)
 
-	proxyReader := bar.ProxyReader(reader)
+	proxyReader, err := bar.ProxyReader(reader)
+	if err != nil {
+		return fmt.Errorf("unexpected error: %w", err)
+	}
 	if _, err := io.CopyBuffer(outFile, proxyReader, buf); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
