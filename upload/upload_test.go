@@ -11,10 +11,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/NBISweden/sda-cli/encrypt"
 	"github.com/NBISweden/sda-cli/helpers"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -570,4 +572,52 @@ func (s *UploadTestSuite) TestUploadUnencryptedFileAborts() {
 
 func (s *UploadTestSuite) TestForceUnencryptedFlagRemoved() {
 	assert.Nil(s.T(), uploadCmd.Flags().Lookup("force-unencrypted"))
+}
+
+// closeTrackingReader wraps an io.ReadCloser and records how many times
+// Close was called, so tests can verify a stream is released on error
+// paths without needing to drain it.
+type closeTrackingReader struct {
+	io.ReadCloser
+	closeCalls int
+}
+
+func (c *closeTrackingReader) Close() error {
+	c.closeCalls++
+
+	return c.ReadCloser.Close()
+}
+
+func TestResolvePartSizeMbIncreasesChunkSize(t *testing.T) {
+	// A file needing more than 9500 default-sized (50 MiB) parts should get
+	// a larger chunk size without an error, and without closing the reader.
+	reader := &closeTrackingReader{ReadCloser: io.NopCloser(strings.NewReader(""))}
+	fs := encrypt.FileStream{Reader: reader}
+
+	const mib = int64(1024 * 1024)
+	uploadSize := 9500*50*mib + 1
+
+	chunkMb, err := resolvePartSizeMb(&fs, uploadSize, 50)
+
+	assert.NoError(t, err)
+	assert.Equal(t, int64(51), chunkMb)
+	assert.Equal(t, 0, reader.closeCalls)
+}
+
+func TestResolvePartSizeMbTooLarge(t *testing.T) {
+	// A file that would need a chunk size above S3's 5 GiB part-size limit
+	// at any chunk size must fail, and the stream's reader (which, for
+	// encrypted uploads, drives a background encryption goroutine) must be
+	// closed so that goroutine is released instead of leaking forever.
+	reader := &closeTrackingReader{ReadCloser: io.NopCloser(strings.NewReader(""))}
+	fs := encrypt.FileStream{Reader: reader}
+
+	const mib = int64(1024 * 1024)
+	uploadSize := helpers.MaxUploadParts*helpers.MaxPartSizeMb*mib + 1
+
+	chunkMb, err := resolvePartSizeMb(&fs, uploadSize, 50)
+
+	assert.Error(t, err)
+	assert.Equal(t, int64(0), chunkMb)
+	assert.Equal(t, 1, reader.closeCalls, "reader should be closed exactly once to release the encryption goroutine")
 }

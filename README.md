@@ -159,6 +159,7 @@ separated by spaces, as shown below:
 
 - By default, files are uploaded to the user's base directory in the archive. This can be modified using the `--target-directory` flag, see below.
 - If the input contains unencrypted files, the process will exit early.
+- For very large files, `multipart_chunk_size_mb` from the S3 configuration is automatically increased so the (encrypted) file fits within at most 9500 parts. The configured value is never decreased.
 
 ### Upload folders
 

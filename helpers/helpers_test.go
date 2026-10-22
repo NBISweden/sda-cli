@@ -762,3 +762,34 @@ func (s *HelperTests) TestIsCrypt4GHFile() {
 	assert.Error(s.T(), err)
 	assert.False(s.T(), isC4GH)
 }
+
+func TestAdjustChunkSizeMb(t *testing.T) {
+	const mib = int64(1024 * 1024)
+	tests := []struct {
+		name    string
+		size    int64
+		cfg     int64
+		want    int64
+		wantErr bool
+	}{
+		{"small file keeps default", 10 * mib, 50, 50, false},
+		{"exact limit keeps default", MaxUploadParts * 50 * mib, 50, 50, false},
+		{"one byte over", MaxUploadParts*50*mib + 1, 50, 51, false},
+		{"1 TiB", 1024 * 1024 * mib, 50, 111, false},
+		{"configured larger is kept", 1024 * 1024 * mib, 200, 200, false},
+		{"too large", MaxUploadParts * MaxPartSizeMb * mib * 2, 50, 0, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := AdjustChunkSizeMb(tt.size, tt.cfg)
+			if tt.wantErr {
+				assert.Error(t, err)
+
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+			assert.LessOrEqual(t, (tt.size+got*mib-1)/(got*mib), int64(MaxUploadParts))
+		})
+	}
+}
