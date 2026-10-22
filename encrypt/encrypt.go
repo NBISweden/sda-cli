@@ -579,10 +579,13 @@ func Stream(file *os.File, pubKeyList [][32]byte) (FileStream, error) {
 	encryptedSha256 := sha256.New()
 	encryptedWriter := io.MultiWriter(encryptedData, encryptedMD5, encryptedSha256)
 
-	crypt4GHWriter, err := streaming.NewCrypt4GHWriter(encryptedWriter, *privateKey, pubKeyList, nil)
+	counter := &countingWriter{w: encryptedWriter}
+	crypt4GHWriter, err := streaming.NewCrypt4GHWriter(counter, *privateKey, pubKeyList, nil)
 	if err != nil {
 		return FileStream{}, err
 	}
+	// The header is written on creation, so we record its size immediately.
+	headerSize := counter.n
 	go func() {
 		_, err := io.Copy(crypt4GHWriter, unencryptedReader)
 		if err != nil {
@@ -600,6 +603,7 @@ func Stream(file *os.File, pubKeyList [][32]byte) (FileStream, error) {
 	fs := FileStream{
 		EncryptedMD5:      encryptedMD5,
 		EncryptedSha256:   encryptedSha256,
+		HeaderSize:        headerSize,
 		Reader:            encryptedData.ReadCloser(),
 		UnencryptedMD5:    unencryptedMD5,
 		UnencryptedSha256: unencryptedSha256,
@@ -616,7 +620,30 @@ func Stream(file *os.File, pubKeyList [][32]byte) (FileStream, error) {
 type FileStream struct {
 	EncryptedMD5      hash.Hash
 	EncryptedSha256   hash.Hash
+	HeaderSize        int64 // size of the Crypt4GH header in bytes
 	Reader            io.ReadCloser
 	UnencryptedMD5    hash.Hash
 	UnencryptedSha256 hash.Hash
+}
+
+type countingWriter struct {
+	w io.Writer
+	n int64
+}
+
+func (c *countingWriter) Write(p []byte) (int, error) {
+	n, err := c.w.Write(p)
+	c.n += int64(n)
+
+	return n, err
+}
+
+// EncryptedSize returns the exact size of a Crypt4GH file with the given
+// header size and unencrypted data size.
+func EncryptedSize(headerSize, size int64) int64 {
+	const blockSize, blockOverhead = 65536, 28
+	// An empty file still produces one (empty) data block
+	blocks := max((size+blockSize-1)/blockSize, 1)
+
+	return headerSize + size + blocks*blockOverhead
 }

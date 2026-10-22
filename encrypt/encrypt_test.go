@@ -534,3 +534,38 @@ func (s *EncryptTestSuite) TestReadPublicKeyFile() {
 		})
 	}
 }
+
+func TestStreamEncryptedSize(t *testing.T) {
+	var pubKeys [][32]byte
+	for range 3 {
+		pub, _, err := keys.GenerateKeyPair()
+		assert.NoError(t, err)
+		pubKeys = append(pubKeys, pub)
+	}
+	// Test encrypted size for different numbers of keys
+	for numKeys := 1; numKeys <= len(pubKeys); numKeys++ {
+		recipients := pubKeys[:numKeys]
+		wantHeaderSize := int64(124 + 108*(numKeys-1))
+
+		// Test for different plaintext sizes
+		for _, size := range []int{0, 1, 65535, 65536, 65537, 200000} {
+			f, err := os.CreateTemp(t.TempDir(), "plain")
+			assert.NoError(t, err)
+			_, err = f.Write(make([]byte, size))
+			assert.NoError(t, err)
+			_, err = f.Seek(0, io.SeekStart)
+			assert.NoError(t, err)
+
+			// Check the header size
+			fs, err := Stream(f, recipients)
+			assert.NoError(t, err)
+			assert.Equal(t, wantHeaderSize, fs.HeaderSize)
+
+			// Check the size of the whole encrypted output
+			out, err := io.ReadAll(fs.Reader)
+			assert.NoError(t, err)
+			assert.Equal(t, int64(len(out)), EncryptedSize(fs.HeaderSize, int64(size)), "size %d", size)
+			_ = f.Close()
+		}
+	}
+}
