@@ -115,12 +115,6 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		o.ResponseChecksumValidation = aws.ResponseChecksumValidationWhenRequired
 	})
 
-	// Create an uploader with the session and default options
-	uploader := transfermanager.New(s3Client, func(o *transfermanager.Options) {
-		o.PartSizeBytes = config.MultipartChunkSizeMb * 1024 * 1024
-		// Preserve RequestChecksumCalculationWhenRequired for S3-compatible inboxes.
-		o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
-	})
 	for k, filename := range files {
 		// create progress bar instance
 		p := mpb.New()
@@ -191,6 +185,24 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		default:
 			fs.Reader = f
 		}
+
+		uploadSize := fileInfo.Size()
+		if encryptWithKey != "" {
+			uploadSize = encrypt.EncryptedSize(fs.HeaderSize, uploadSize)
+		}
+		chunkMb, err := resolvePartSizeMb(&fs, uploadSize, config.MultipartChunkSizeMb)
+		if err != nil {
+			return fmt.Errorf("%s: %w", filepath.Base(filename), err)
+		}
+		if chunkMb != config.MultipartChunkSizeMb {
+			fmt.Printf("File %s is large, increasing multipart chunk size from %d MiB to %d MiB\n", filepath.Base(filename), config.MultipartChunkSizeMb, chunkMb)
+		}
+
+		uploader := transfermanager.New(s3Client, func(o *transfermanager.Options) {
+			o.PartSizeBytes = chunkMb * 1024 * 1024
+			// Preserve RequestChecksumCalculationWhenRequired for S3-compatible inboxes.
+			o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
+		})
 
 		file := fmt.Sprintf("File %s:", filepath.Base(filename))
 		bar := p.AddBar(fileInfo.Size(),
@@ -274,6 +286,22 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 	}
 
 	return nil
+}
+
+// resolvePartSizeMb returns the multipart chunk size (in MiB) to use for an
+// upload of uploadSize bytes. If the file is too large to fit within S3's
+// part-count limit at any valid chunk size, fs.Reader is closed (to release
+// the encryption goroutine started by encrypt.Stream, if any) and an error
+// is returned.
+func resolvePartSizeMb(fs *encrypt.FileStream, uploadSize, configuredMb int64) (int64, error) {
+	chunkMb, err := helpers.AdjustChunkSizeMb(uploadSize, configuredMb)
+	if err != nil {
+		_ = fs.Reader.Close()
+
+		return 0, err
+	}
+
+	return chunkMb, nil
 }
 
 // Function createFilePaths returns a slice with all absolute paths to files within a directory recursively
