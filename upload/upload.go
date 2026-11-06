@@ -115,12 +115,6 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		o.ResponseChecksumValidation = aws.ResponseChecksumValidationWhenRequired
 	})
 
-	// Create an uploader with the session and default options
-	uploader := transfermanager.New(s3Client, func(o *transfermanager.Options) {
-		o.PartSizeBytes = config.MultipartChunkSizeMb * 1024 * 1024
-		// Preserve RequestChecksumCalculationWhenRequired for S3-compatible inboxes.
-		o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
-	})
 	for k, filename := range files {
 		// create progress bar instance
 		p := mpb.New()
@@ -191,6 +185,23 @@ func uploadFiles(files, outFiles []string, targetDir string, config *helpers.Con
 		default:
 			fs.Reader = f
 		}
+
+		uploadSize := fileInfo.Size()
+		chunkMb, err := helpers.AdjustChunkSizeMb(uploadSize, config.MultipartChunkSizeMb)
+		if err != nil {
+			_ = fs.Reader.Close()
+
+			return fmt.Errorf("%s: %w", filepath.Base(filename), err)
+		}
+		if chunkMb != config.MultipartChunkSizeMb {
+			fmt.Printf("File %s is large, increasing multipart chunk size from %d MiB to %d MiB\n", filepath.Base(filename), config.MultipartChunkSizeMb, chunkMb)
+		}
+
+		uploader := transfermanager.New(s3Client, func(o *transfermanager.Options) {
+			o.PartSizeBytes = chunkMb * 1024 * 1024
+			// Preserve RequestChecksumCalculationWhenRequired for S3-compatible inboxes.
+			o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
+		})
 
 		file := fmt.Sprintf("File %s:", filepath.Base(filename))
 		bar := p.AddBar(fileInfo.Size(),
