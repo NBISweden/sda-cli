@@ -556,3 +556,23 @@ func IsCrypt4GHFile(filePath string) (bool, error) {
 
 	return string(magicWord) == "crypt4gh", nil
 }
+
+const (
+	// MaxUploadParts is kept below the S3 limit of 10000 parts to leave headroom.
+	MaxUploadParts = 9500
+	// MaxPartSizeMb is the S3 limit of 5 GiB per part.
+	MaxPartSizeMb = 5 * 1024
+)
+
+// AdjustChunkSizeMb returns the multipart chunk size in MiB to use for an
+// upload of uploadSize bytes, so that it fits in at most MaxUploadParts parts.
+// The configured size is never decreased.
+func AdjustChunkSizeMb(uploadSize, configuredMb int64) (int64, error) {
+	const mib = 1024 * 1024
+	needed := (uploadSize + MaxUploadParts*mib - 1) / (MaxUploadParts * mib)
+	if needed > MaxPartSizeMb {
+		return 0, fmt.Errorf("file is too large to upload: it would require a chunk size of %d MiB, above the S3 limit of %d MiB", needed, MaxPartSizeMb)
+	}
+
+	return max(configuredMb, needed), nil
+}
