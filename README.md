@@ -36,16 +36,28 @@ Files uploaded to the FEGA/BP services must be encrypted with the appropriate
 public key. Depending on the service you are using, you can download
 the key file with the following commands:
 
-**For uploading to the FEGA**:
+**For uploading to the FEGA staging env**:
 
 ```bash
-wget https://raw.githubusercontent.com/NBISweden/EGA-SE-user-docs/main/crypt4gh_key.pub
+curl -s "https://login.fega.nbis.se/info" | jq -r ".public_key" | base64 -d > crypt4gh_ega_key.pub   
+```
+
+**For uploading to the FEGA staging env**:
+
+```bash
+curl -s "https://staging-login.fega.nbis.se/info" | jq -r ".public_key" | base64 -d > crypt4gh_ega_staging_key.pub   
 ```
 
 **For uploading to BigPicture**:
 
 ```bash
-wget https://raw.githubusercontent.com/NBISweden/EGA-SE-user-docs/main/crypt4gh_bp_key.pub
+curl -s "https://login.bp.nbis.se/info" | jq -r ".public_key" | base64 -d > crypt4gh_bp_key.pub
+```
+
+**For uploading to BigPicture staging env**:
+
+```bash
+curl -s "https://login.staging.bp.nbis.se/info" | jq -r ".public_key" | base64 -d > crypt4gh_bp_staging_key.pub
 ```
 
 ### Encrypt files
